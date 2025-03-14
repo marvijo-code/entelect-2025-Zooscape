@@ -1,0 +1,49 @@
+services:
+  engine:
+    build:
+      context: .
+    container_name: zooscape-engine
+    healthcheck:
+      test: curl http://localhost:5000/bothub
+      interval: 50ms
+      start_interval: 50ms
+      start_period: 50ms
+      retries: 20
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logs:/var/log/zooscape
+    environment:
+      GameSettings__TickDuration: 150
+      GameSettings__StartGameTimeout: 9999
+      LOG_DIR: /var/log/zooscape
+    
+  refbot-0:
+    build: ./ReferenceBot
+    container_name: zooscape-refbot-0
+    depends_on:
+      engine:
+        condition: service_healthy
+    environment:
+      RUNNER_IPV4: http://engine
+      BOT_NICKNAME: RefBot-0
+  
+  refbot-1:
+    build: ./ReferenceBot
+    container_name: zooscape-refbot-1
+    depends_on:
+      engine:
+        condition: service_healthy
+    environment:
+      RUNNER_IPV4: http://engine
+      BOT_NICKNAME: RefBot-1
+  
+  refbot-2:
+    build: ./ReferenceBot
+    container_name: zooscape-refbot-2
+    depends_on:
+      engine:
+        condition: service_healthy
+    environment:
+      RUNNER_IPV4: http://engine
+      BOT_NICKNAME: RefBot-2
