@@ -9,7 +9,7 @@ namespace Zooscape.Domain.Algorithms.Pathfinding;
 
 public class AStar
 {
-    public static Path? PerformAStarSearch(IWorld world, GridCoords start, GridCoords end)
+    public static Zooscape.Domain.Algorithms.DataStructures.Path? PerformAStarSearch(IWorld world, GridCoords start, GridCoords end)
     {
         // If the end point isn't even walkable, just skip.
         if (!IsPointWalkable(world, end))
@@ -82,9 +82,9 @@ public class AStar
         return world.IsPointInBounds(coords) && world.GetCellContents(coords).IsTraversable();
     }
 
-    private static Path ConstructPath(Node node)
+    private static Zooscape.Domain.Algorithms.DataStructures.Path ConstructPath(Node node)
     {
-        Path path = new();
+        Zooscape.Domain.Algorithms.DataStructures.Path path = new();
         path.Add(node);
 
         while (node.Parent != null)

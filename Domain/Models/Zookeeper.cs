@@ -15,7 +15,7 @@ public class Zookeeper : IZookeeper
     public Direction CurrentDirection { get; private set; }
     public IAnimal? CurrentTarget { get; set; }
     public int TicksSinceTargetCalculated { get; set; }
-    public Path? CurrentPath { get; set; }
+    public Zooscape.Domain.Algorithms.DataStructures.Path? CurrentPath { get; set; }
 
     public Zookeeper(Guid id, string nickname, GridCoords spawnPoint)
     {

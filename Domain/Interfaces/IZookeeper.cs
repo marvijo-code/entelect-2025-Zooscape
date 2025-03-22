@@ -14,7 +14,7 @@ public interface IZookeeper
     public Direction CurrentDirection { get; }
     public IAnimal? CurrentTarget { get; set; }
     public int TicksSinceTargetCalculated { get; set; }
-    public Path? CurrentPath { get; set; }
+    public Zooscape.Domain.Algorithms.DataStructures.Path? CurrentPath { get; set; }
 
     /// <summary>
     /// Sets the zookeeper's <see cref="CurrentDirection"/>

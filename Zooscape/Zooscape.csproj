@@ -46,9 +46,4 @@
     <ProjectReference Include="..\SignalRHub\Zooscape.Infrastructure.SignalRHub.csproj" />
     <ProjectReference Include="..\S3Logger\S3Logger.csproj" />
   </ItemGroup>
-
-  <Target Name="Husky" BeforeTargets="Restore;CollectPackageReferences" Condition="'$(HUSKY)' != 0">
-    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" />
-    <Exec Command="dotnet husky install" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory=".." />
-  </Target>
 </Project>
