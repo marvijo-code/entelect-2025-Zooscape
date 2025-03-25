@@ -21,11 +21,13 @@ While avoiding the zookeepers, the animals aim to collect as many food pellets a
   - [Submission Process](#submission-process)
 
 ## General
-For changelog and up-to-date rules please refer to [Rules.md](./Rules.md)
+For game rules please refer to [Rules.md](./Rules.md)
+
+For changelog, please refer to [Releases](https://github.com/EntelectChallenge/2025-Zooscape/releases)
 
 ## Prerequisites
-- .Net 8 skd
-- Docker 
+- .NET 8 SDK
+- Docker
 
 ## Getting Started
 
