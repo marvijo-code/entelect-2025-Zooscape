@@ -16,7 +16,6 @@ services:
     environment:
       GameSettings__TickDuration: 150
       GameSettings__StartGameTimeout: 9999
-      LOG_DIR: /var/log/zooscape
     
   refbot-0:
     build: ./ReferenceBot

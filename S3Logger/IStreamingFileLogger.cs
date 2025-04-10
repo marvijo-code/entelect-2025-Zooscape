@@ -4,5 +4,5 @@ public interface IStreamingFileLogger
 {
     void LogState(object state);
 
-    Task CloseAndFlushAsync();
+    void CloseAndFlush();
 }

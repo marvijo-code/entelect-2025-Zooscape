@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -79,7 +80,8 @@ public class GameplayTests
                 }
             }),
             cloudEventDispatcher: new MockCloudEventDispatcher(),
-            logStateEventDispatcher: new MockLogStateEventDisptcher()
+            logStateEventDispatcher: new MockLogStateEventDisptcher(),
+            applicationLifetime: new MockApplicationLifetime()
         );
 
         // Act
@@ -255,5 +257,14 @@ public class GameplayTests
     {
         public async Task Dispatch<TEvent>(TEvent gameEvent)
             where TEvent : class { }
+    }
+
+    public class MockApplicationLifetime : IHostApplicationLifetime
+    {
+        public void StopApplication() { }
+
+        public CancellationToken ApplicationStarted { get; }
+        public CancellationToken ApplicationStopping { get; }
+        public CancellationToken ApplicationStopped { get; }
     }
 }

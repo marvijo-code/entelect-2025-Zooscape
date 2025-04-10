@@ -11,8 +11,17 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zooscape.Infrastructure.Clo
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FF48B72A-AD91-439A-881A-F1E3A13AD887}"
 	ProjectSection(SolutionItems) = preProject
+		.dockerignore = .dockerignore
 		.editorconfig = .editorconfig
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+		bitbucket-pipelines.yml = bitbucket-pipelines.yml
+		docker-compose.yml = docker-compose.yml
+		Dockerfile = Dockerfile
 		README.md = README.md
+		Rules.md = Rules.md
+		run.bat = run.bat
+		run.sh = run.sh
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{2CA273E4-6994-4979-A05F-0FB70DC2C860}"
@@ -81,8 +90,8 @@ Global
 		{7EB43E39-DD62-49E2-AE73-818BE6431AE3} = {2CA273E4-6994-4979-A05F-0FB70DC2C860}
 		{D758131A-4823-4116-941D-FCE3D4E99BED} = {39BAE9E9-54AB-46BD-A10B-18EB0991E12B}
 		{B343AE3A-854E-4DA8-A37D-A69230B76E96} = {2CA273E4-6994-4979-A05F-0FB70DC2C860}
-		{209E0F17-BAFA-48DA-8F13-12EB9C64FE0A} = {248240D7-BB99-4C3D-BF04-9CC58F9BA97C}
 		{2BB04696-BDDD-4CFF-AE40-60521FE8E171} = {2CA273E4-6994-4979-A05F-0FB70DC2C860}
+		{209E0F17-BAFA-48DA-8F13-12EB9C64FE0A} = {248240D7-BB99-4C3D-BF04-9CC58F9BA97C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F22264D2-9B52-46CB-AE8F-3088476751B2}

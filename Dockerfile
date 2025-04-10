@@ -1,5 +1,10 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-RUN apt-get update && apt-get install -y curl
+ENV LOG_DIR=/var/log/zooscape
+RUN apt-get update \
+    && apt-get install -y curl \
+    && mkdir -p $LOG_DIR \
+    && chown -R $APP_UID $LOG_DIR \
+    && chmod 777 $LOG_DIR
 USER $APP_UID
 WORKDIR /app
 
@@ -21,4 +26,4 @@ EXPOSE 5000
 HEALTHCHECK CMD curl http://localhost:5000/bothub
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "Zooscape.dll"]
+CMD ["dotnet", "Zooscape.dll"]

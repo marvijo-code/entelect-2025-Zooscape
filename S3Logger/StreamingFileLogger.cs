@@ -8,23 +8,17 @@ public class StreamingFileLogger : IStreamingFileLogger
 {
     private readonly ILogger _logger;
 
-    public StreamingFileLogger(string logFileName)
+    public StreamingFileLogger(string logDir, string logFileName)
     {
-        var logDir = Environment.GetEnvironmentVariable("LOG_DIR");
-        if (string.IsNullOrWhiteSpace(logDir))
-        {
-            throw new Exception("No LOG_DIR environment variable defined.");
-        }
-
         string logFilePath = Path.Combine(logDir, $"{logFileName}.gz");
+        Log.Information($"Logging output to: {logFilePath}");
 
         _logger = new LoggerConfiguration()
-            .Enrich.FromLogContext()
             .MinimumLevel.Information()
             .WriteTo.File(
                 logFilePath,
                 outputTemplate: "{Message:lj}{NewLine}",
-                hooks: new GZipHooks(compressionLevel: CompressionLevel.Fastest)
+                hooks: new GZipHooks(compressionLevel: CompressionLevel.Optimal)
             )
             .CreateLogger();
     }
@@ -34,8 +28,8 @@ public class StreamingFileLogger : IStreamingFileLogger
         _logger.Information("{@state}", state);
     }
 
-    public async Task CloseAndFlushAsync()
+    public void CloseAndFlush()
     {
-        await Log.CloseAndFlushAsync();
+        ((IDisposable)_logger).Dispose();
     }
 }

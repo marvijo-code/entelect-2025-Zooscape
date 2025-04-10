@@ -27,6 +27,7 @@ public class WorkerService : BackgroundService
     private readonly IEventDispatcher _signalREventDispatcher;
     private readonly IEventDispatcher _cloudEventDispatcher;
     private readonly IEventDispatcher _logStateEventDispatcher;
+    private readonly IHostApplicationLifetime _applicationLifetime;
 
     public WorkerService(
         ILogger<WorkerService> logger,
@@ -35,7 +36,8 @@ public class WorkerService : BackgroundService
         IGameStateService gameStateService,
         [FromKeyedServices("signalr")] IEventDispatcher signalREventDispatcher,
         [FromKeyedServices("cloud")] IEventDispatcher cloudEventDispatcher,
-        [FromKeyedServices("logState")] IEventDispatcher logStateEventDispatcher
+        [FromKeyedServices("logState")] IEventDispatcher logStateEventDispatcher,
+        IHostApplicationLifetime applicationLifetime
     )
     {
         _logger = logger;
@@ -45,6 +47,7 @@ public class WorkerService : BackgroundService
         _signalREventDispatcher = signalREventDispatcher;
         _cloudEventDispatcher = cloudEventDispatcher;
         _logStateEventDispatcher = logStateEventDispatcher;
+        _applicationLifetime = applicationLifetime;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -84,17 +87,10 @@ public class WorkerService : BackgroundService
         {
             if (stoppingToken.IsCancellationRequested)
             {
-                _logger.LogDebug("WorkerService stopped");
-            }
-            else
-            {
-                _logger.LogError("WorkerService stopped unexpectedly");
+                _logger.LogDebug("WorkerService stopped due to cancellation");
             }
             await _logStateEventDispatcher.Dispatch(new CloseAndFlushLogsEvent());
-            await _cloudEventDispatcher.Dispatch(
-                new CloudCallbackEvent(CloudCallbackEventType.LoggingComplete)
-            );
-            await StopAsync(stoppingToken);
+            _applicationLifetime.StopApplication();
         }
     }
 
@@ -238,10 +234,11 @@ public class WorkerService : BackgroundService
             // Step 13: Send game state to bots and visualisers
             await _signalREventDispatcher.Dispatch(new GameStateEvent(_gameStateService));
 
-            var measuredTickDuration = stopWatch.ElapsedMilliseconds;
+            var measuredTickDuration = stopWatch.Elapsed.TotalMilliseconds;
+            var dutyCycle = 1.0 * measuredTickDuration / _gameSettings.TickDuration;
 
             _logger.LogInformation(
-                $"Game tick {_gameStateService.TickCounter}, Duration = {measuredTickDuration} / {_gameSettings.TickDuration}, Duty Cycle = {1.0 * measuredTickDuration / _gameSettings.TickDuration}"
+                $"Game tick {_gameStateService.TickCounter}, Duration = {Math.Round(measuredTickDuration, 2)} / {_gameSettings.TickDuration}, Duty Cycle = {Math.Round(dutyCycle, 4)}"
             );
         }
     }

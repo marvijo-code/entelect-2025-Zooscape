@@ -29,10 +29,10 @@ class UI
             _grid[zookeeper.X, zookeeper.Y] = 'Z';
         }
 
-        for (int y = 0; y < height; y++)
+        for (int y = 0; y < height && y < Console.BufferHeight; y++)
         {
             Console.SetCursorPosition(0, y);
-            for (int x = 0; x < width; x++)
+            for (int x = 0; x < width && x < Console.BufferWidth; x++)
             {
                 Console.Write(_grid[x, y]);
             }

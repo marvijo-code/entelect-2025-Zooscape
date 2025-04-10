@@ -17,8 +17,7 @@ public class LogStateEventDispatcher(IStreamingFileLogger logger) : IEventDispat
         }
         else if (gameEvent is CloseAndFlushLogsEvent)
         {
-            await logger.CloseAndFlushAsync();
-            await S3.UploadLogs();
+            logger.CloseAndFlush();
         }
     }
 }
