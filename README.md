@@ -17,6 +17,7 @@ While avoiding the zookeepers, the animals aim to collect as many food pellets a
   - [Running the project](#running-the-project)
       - [Windows Command Prompt / PowerShell:](#windows-command-prompt--powershell)
       - [Linux / MacOS / Unix:](#linux--macos--unix)
+  - [Visualiser](#visualiser)
   - [Project Structure](#project-structure)
   - [Submission Process](#submission-process)
 
@@ -56,11 +57,39 @@ The application can be run using docker via the following commands from the root
 ```
 
 #### Linux / MacOS / Unix:
-```powershell   
+```sh
 ./run.sh
 ```
 
 These scripts will run the game on port 5000 and connect 3 reference bots
+
+## Visualiser
+
+### Download
+
+- [Linux](https://github.com/EntelectChallenge/2025-Zooscape/releases/latest/download/visualiser-linux.zip)
+- [macOS](http://github.com/EntelectChallenge/2025-Zooscape/releases/latest/download/visualiser-macos.zip)
+- [Windows](http://github.com/EntelectChallenge/2025-Zooscape/releases/latest/download/visualiser-windows.zip)
+
+
+### Usage
+
+When your game engine is running, simply run the visualiser executable, and it will automatically connect and start
+visualising the game state.
+
+> [!WARNING]
+> On macOS Sequoia and later, you might need to allow the visualiser to run manually. Please read the following
+
+If, when running the visualiser you see a prompt that looks like this
+
+![Screenshot of macOS warning popup](https://github.com/user-attachments/assets/0ed19e64-788a-440b-b955-c3afd6d1f9f2)
+
+Click "Done", then navigate to System Settings > Privacy & Security, and near the bottom of the screen you should see something
+that looks like the following
+
+![Screenshot of macOS system settings](https://github.com/user-attachments/assets/4fe05f33-8dc5-47e9-b02c-cc290c505a56)
+
+Click "Open anyway" and the visualiser should open. If you move or rename the file, you might need to do this process again.
 
 ## Project Structure
 

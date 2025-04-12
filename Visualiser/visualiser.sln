@@ -1,0 +1,27 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "visualiser", "visualiser.csproj", "{C97707F6-2264-49B9-A81C-9A4C2C80A634}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VisualiserTestHub", "..\VisualiserTestHub\VisualiserTestHub.csproj", "{A4E6F59B-1742-41B0-97BA-C48405D99DDD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		ExportDebug|Any CPU = ExportDebug|Any CPU
+		ExportRelease|Any CPU = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C97707F6-2264-49B9-A81C-9A4C2C80A634}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C97707F6-2264-49B9-A81C-9A4C2C80A634}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C97707F6-2264-49B9-A81C-9A4C2C80A634}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{C97707F6-2264-49B9-A81C-9A4C2C80A634}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{C97707F6-2264-49B9-A81C-9A4C2C80A634}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{C97707F6-2264-49B9-A81C-9A4C2C80A634}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+		{A4E6F59B-1742-41B0-97BA-C48405D99DDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4E6F59B-1742-41B0-97BA-C48405D99DDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A4E6F59B-1742-41B0-97BA-C48405D99DDD}.ExportDebug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4E6F59B-1742-41B0-97BA-C48405D99DDD}.ExportDebug|Any CPU.Build.0 = Debug|Any CPU
+		{A4E6F59B-1742-41B0-97BA-C48405D99DDD}.ExportRelease|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4E6F59B-1742-41B0-97BA-C48405D99DDD}.ExportRelease|Any CPU.Build.0 = Debug|Any CPU
+	EndGlobalSection
+EndGlobal
