@@ -32,3 +32,6 @@ ReferenceBot/
 PlayableBot/
 .config/
 ZooscapeTests/
+logs/
+2024/
+engine/

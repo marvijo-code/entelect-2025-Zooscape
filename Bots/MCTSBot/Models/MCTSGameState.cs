@@ -118,9 +118,59 @@ public class MCTSGameState
 
     public MCTSGameState ApplyMove(GameAction action)
     {
-        MCTSGameState nextState = Clone();
-        nextState.CurrentTick++;
-        nextState.Score++; // Point for surviving this tick, adjusted below for events
+        MCTSGameState nextState = null; // Initialize to null
+        try
+        {
+            nextState = Clone();
+            nextState.CurrentTick++; // Original line 120
+            nextState.Score++; // Original line 121 - REPORTED ERROR LINE
+
+            // Trigger MapData access for diagnostics if needed later by uncommenting:
+            // int width = nextState.MapWidth;
+            // int height = nextState.MapHeight;
+        }
+        catch (IndexOutOfRangeException ioex)
+        {
+            Console.WriteLine(
+                $"!!! IndexOutOfRangeException CAUGHT EARLY in ApplyMove. Action: {action}"
+            );
+            Console.WriteLine(
+                $"State before Clone: Tick: {this.CurrentTick}, Player: ({this.PlayerX},{this.PlayerY}), Map: {this.MapWidth}x{this.MapHeight}"
+            );
+            if (nextState != null) // nextState might be null if Clone() failed, or partially initialized
+            {
+                Console.WriteLine(
+                    $"State after Clone attempt: CurrentTick (if set): {nextState.CurrentTick}"
+                );
+                // Safely check MapData and its dimensions
+                if (nextState.MapData != null)
+                {
+                    Console.WriteLine(
+                        $"Cloned MapData dimensions: {nextState.MapData.GetLength(0)}x{nextState.MapData.GetLength(1)}"
+                    );
+                }
+                else
+                {
+                    Console.WriteLine("Cloned MapData is NULL.");
+                }
+            }
+            else
+            {
+                Console.WriteLine(
+                    "nextState is null, Clone() likely failed or error occurred before/during Clone assignment."
+                );
+            }
+            Console.WriteLine(ioex.ToString());
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"!!! Exception CAUGHT EARLY in ApplyMove (NOT IndexOutOfRange). Action: {action}: {ex.GetType().Name} - {ex.Message}"
+            );
+            Console.WriteLine(ex.ToString());
+            throw;
+        }
 
         // 1. Player Action
         int newPlayerX = nextState.PlayerX;
@@ -136,21 +186,45 @@ public class MCTSGameState
             newPlayerX++;
         // GameAction.DoNothing means no change in position
 
-        if (action != GameAction.DoNothing && !nextState.IsValid(newPlayerX, newPlayerY))
-        {
-            // Player tried to move into a wall or out of bounds - invalid move, effectively DoNothing from this state's perspective for MCTS
-            // Or, treat as a penalty if desired, but for MCTS, usually means the path is just not taken.
-            // For simplicity, we'll consider this path as non-viable (low score) or MCTS won't pick it if UCT is low.
-            // Here, we just return the state with only tick and survival score updated.
-            return nextState;
-        }
         if (action != GameAction.DoNothing)
         {
+            if (!nextState.IsValid(newPlayerX, newPlayerY))
+            {
+                // Player tried to move into a wall or out of bounds based on IsValid check.
+                // Return current nextState, only tick and survival score are updated.
+                return nextState;
+            }
             nextState.PlayerX = newPlayerX;
             nextState.PlayerY = newPlayerY;
         }
 
-        // 2. Check for immediate outcomes of player's move
+        // 2. Handle consequences of player's new position
+        int cellType;
+        try
+        {
+            cellType = nextState.MapData[nextState.PlayerY, nextState.PlayerX];
+        }
+        catch (IndexOutOfRangeException finalIoex)
+        {
+            Console.WriteLine(
+                "!!! IndexOutOfRangeException CAUGHT AT MapData[PlayerY, PlayerX] ACCESS!"
+            );
+            Console.WriteLine(
+                $"Action: {action}, Tick: {nextState.CurrentTick}, Player attempting to access: ({nextState.PlayerX},{nextState.PlayerY})"
+            );
+            if (nextState.MapData != null)
+            {
+                Console.WriteLine(
+                    $"MapData dimensions at time of error: {nextState.MapData.GetLength(0)}x{nextState.MapData.GetLength(1)}"
+                );
+            }
+            else
+            {
+                Console.WriteLine("MapData was unexpectedly null at time of error.");
+            }
+            Console.WriteLine(finalIoex.ToString());
+            throw; // Re-throw to maintain original behavior after logging
+        }
 
         // 2a. Player moves ONTO Zookeeper's square?
         if (
@@ -173,7 +247,7 @@ public class MCTSGameState
         }
 
         // 2c. Player collects a Pellet? (Only if not captured or escaped)
-        if (nextState.MapData[nextState.PlayerY, nextState.PlayerX] == CellTypePellet)
+        if (cellType == CellTypePellet)
         {
             nextState.Score += 10; // Reward for pellet
             nextState.MapData[nextState.PlayerY, nextState.PlayerX] = CellTypeEmpty; // Pellet is gone

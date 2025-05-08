@@ -24,9 +24,42 @@ public class InstructionService
         {
             // Or throw an ArgumentNullException, or return a default error state
             Console.WriteLine(
-                "TranslateToMCTSState received null engineState. Returning a basic empty state."
+                "TranslateToMCTSState received null engineState. Returning a minimal valid state."
             );
-            return new MCTSGameState(new int[1, 1], 0, 0, 0, 1); // Minimal valid state
+            return new MCTSGameState(
+                new int[1, 1]
+                {
+                    { MCTSGameState.CellTypeEmpty },
+                },
+                0,
+                0,
+                0,
+                1,
+                -1,
+                -1
+            ); // Minimal valid state
+        }
+
+        // Check for invalid map dimensions from the engine
+        if (engineState.MapHeight <= 0 || engineState.MapWidth <= 0)
+        {
+            Console.WriteLine(
+                $"Warning: Engine state has invalid map dimensions ({engineState.MapHeight}x{engineState.MapWidth}). Tick: {engineState.Tick}. Returning a minimal terminal state."
+            );
+            // Create a state that's effectively terminal: 1x1 map, player at (0,0), score from engine, MaxTicksForSimulation = 0.
+            // This ensures IsTerminal() will likely be true from the start for the MCTS simulation.
+            return new MCTSGameState(
+                new int[1, 1]
+                {
+                    { MCTSGameState.CellTypeEmpty },
+                },
+                0,
+                0,
+                engineState.Score,
+                0,
+                -1,
+                -1
+            );
         }
 
         int mapHeight = engineState.MapHeight;

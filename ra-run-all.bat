@@ -5,11 +5,11 @@ set COMPOSE_BAKE=true
 @REM docker compose down
 
 @REM echo "Building docker images..."
-docker compose up --force-recreate
+docker compose build --force-recreate
 
 echo "Running engine and bots"
 docker compose up -d
-docker compose logs --follow
+docker compose logs --follow o4mcts g2mcts
 
 REM Wait for the 'engine' container to stop
 FOR /F "usebackq delims=" %%i IN (`docker compose ps -q engine`) DO docker wait %%i

@@ -36,13 +36,13 @@ namespace MCTSo4.Services
                         }
                     }
                 );
-                _connection.On<string>(
+                _connection.On<MCTSGameState>(
                     "GameState",
-                    json =>
+                    state =>
                     {
                         try
                         {
-                            var state = EngineParser.Parse(json);
+                            // Received state directly, no manual parsing
                             var meta = AdaptiveStrategyController.DetermineCurrentMetaStrategy(
                                 state
                             );
