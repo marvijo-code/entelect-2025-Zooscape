@@ -16,7 +16,7 @@ services:
     environment:
       GameSettings__TickDuration: 150
       GameSettings__StartGameTimeout: 9999
-    
+
   refbot-0:
     build: ./ReferenceBot
     container_name: zooscape-refbot-0
@@ -26,7 +26,7 @@ services:
     environment:
       RUNNER_IPV4: http://engine
       BOT_NICKNAME: RefBot-0
-  
+
   refbot-1:
     build: ./ReferenceBot
     container_name: zooscape-refbot-1
@@ -36,7 +36,7 @@ services:
     environment:
       RUNNER_IPV4: http://engine
       BOT_NICKNAME: RefBot-1
-  
+
   refbot-2:
     build: ./ReferenceBot
     container_name: zooscape-refbot-2
@@ -46,3 +46,13 @@ services:
     environment:
       RUNNER_IPV4: http://engine
       BOT_NICKNAME: RefBot-2
+
+  refbot-3:
+    build: ./ReferenceBot
+    container_name: zooscape-refbot-3
+    depends_on:
+      engine:
+        condition: service_healthy
+    environment:
+      RUNNER_IPV4: http://engine
+      BOT_NICKNAME: RefBot-3

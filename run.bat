@@ -1,10 +1,10 @@
 @echo off
 
-REM Stop and remove containers if they are running
-docker compose down
+@REM REM Stop and remove containers if they are running
+@REM docker compose down
 
-echo "Building docker images..."
-docker compose build
+@REM echo "Building docker images..."
+@REM docker compose build
 
 echo "Running engine and 3 reference bots"
 docker compose up -d

@@ -69,6 +69,22 @@ try
                     options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
                 });
 
+                // CORS Configuration
+                services.AddCors(options =>
+                {
+                    options.AddPolicy(
+                        name: "AllowZooscapeVisualizer", // You can name this policy
+                        policy =>
+                        {
+                            policy
+                                .WithOrigins("http://localhost:5173") // Your React app's origin
+                                .AllowAnyHeader()
+                                .AllowAnyMethod()
+                                .AllowCredentials(); // Important for SignalR
+                        }
+                    );
+                });
+
                 services.Configure<GameSettings>(context.Configuration.GetSection("GameSettings"));
 
                 services.Configure<S3Configuration>(
@@ -103,6 +119,9 @@ try
             webBuilder.UseUrls($"http://*:{port}");
             webBuilder.Configure(app =>
             {
+                // Apply the CORS policy - must be before UseRouting and UseEndpoints
+                app.UseCors("AllowZooscapeVisualizer");
+
                 app.UseRouting();
                 app.UseEndpoints(endpoints =>
                 {
