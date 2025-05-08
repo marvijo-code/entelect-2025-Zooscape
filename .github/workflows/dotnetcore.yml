@@ -69,7 +69,7 @@ jobs:
       PLAYER_ID: 266940b6-42ec-405d-9f43-42099183ccd0
     steps:
       - name: Checkout code into workspace directory
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: download build-files
         uses: actions/download-artifact@v4
         with:
