@@ -13,6 +13,7 @@ public class Program
     public static IConfigurationRoot? Configuration;
     private static EngineBotCommand? _botCommandToSend; // Command to be sent
     private static readonly object _commandLock = new object(); // For thread-safe access to _botCommandToSend
+    private static readonly ILogger _logger = new LoggerFactory().CreateLogger<Program>();
 
     private static async Task Main(string[] args)
     {
@@ -24,45 +25,52 @@ public class Program
         Configuration = builder.Build();
 
         // Read settings from configuration
-        var runnerIpConfig = Configuration.GetSection("BotSettings:EngineUrl").Value;
-        var botNickname = Configuration.GetSection("BotSettings:PlayerId").Value ?? "MCTS_Bot";
+        var runnerIpConfig =
+            Environment.GetEnvironmentVariable("RUNNER_IPV4") ?? Configuration["RunnerIP"];
+        var runnerPortConfig =
+            Environment.GetEnvironmentVariable("RUNNER_PORT") ?? Configuration["RunnerPort"];
+        var botNickname =
+            Environment.GetEnvironmentVariable("BOT_NICKNAME") ?? Configuration["BotNickname"];
+        var hubName = Environment.GetEnvironmentVariable("HUB_NAME") ?? Configuration["HubName"];
         var botToken =
-            Configuration.GetSection("BotSettings:PlayerKey").Value ?? Guid.NewGuid().ToString();
-        var mctsIterations = Configuration.GetValue<int>("BotSettings:MCTSIterations", 1000);
-        var mctsExploration = Configuration.GetValue<double>(
-            "BotSettings:MCTSExplorationParam",
-            1.414
-        );
+            Environment.GetEnvironmentVariable("BOT_TOKEN")
+            ?? Configuration["BotToken"]
+            ?? Guid.NewGuid().ToString();
 
-        // Override with environment variables if available
-        var envRunnerIp = Environment.GetEnvironmentVariable("RUNNER_IPV4_OR_URL");
-        if (!string.IsNullOrWhiteSpace(envRunnerIp))
+        // Validate essential configurations
+        if (
+            string.IsNullOrEmpty(runnerIpConfig)
+            || string.IsNullOrEmpty(runnerPortConfig)
+            || string.IsNullOrEmpty(botNickname)
+            || string.IsNullOrEmpty(hubName)
+            || string.IsNullOrEmpty(botToken)
+        )
         {
-            runnerIpConfig = envRunnerIp.StartsWith("http") ? envRunnerIp : "http://" + envRunnerIp;
-        }
-
-        var envBotNickname = Environment.GetEnvironmentVariable("BOT_NICKNAME");
-        if (!string.IsNullOrWhiteSpace(envBotNickname))
-            botNickname = envBotNickname;
-
-        var envBotToken = Environment.GetEnvironmentVariable("BOT_TOKEN");
-        if (!string.IsNullOrWhiteSpace(envBotToken))
-            botToken = envBotToken;
-
-        if (string.IsNullOrWhiteSpace(runnerIpConfig))
-        {
-            runnerIpConfig = "http://localhost:5000/runnerhub"; // Default value
-            Console.WriteLine(
-                $"Warning: Engine URL not configured via appsettings.json (BotSettings:EngineUrl) or RUNNER_IPV4_OR_URL environment variable. Using default: {runnerIpConfig}"
+            _logger.LogError(
+                "Error: RunnerIP, RunnerPort, BotNickname, HubName, or BotToken is not configured. Set them in appsettings.json or as environment variables RUNNER_IPV4, RUNNER_PORT, BOT_NICKNAME, HUB_NAME, BOT_TOKEN."
             );
+            return;
         }
 
-        Console.WriteLine($"Connecting to Engine at: {runnerIpConfig}");
-        Console.WriteLine($"Bot Nickname: {botNickname}");
-        Console.WriteLine($"MCTS Iterations: {mctsIterations}, Exploration: {mctsExploration}");
+        string runnerIp = runnerIpConfig;
+        string runnerPort = runnerPortConfig;
+
+        // MCTS Specific settings from root or defaults
+        var mctsIterations = Configuration.GetValue<int>("MCTSIterations", 1000);
+        var mctsExploration = Configuration.GetValue<double>("MCTSExplorationParam", 1.414);
+
+        _logger.LogInformation($"BotNickname: {botNickname}");
+        _logger.LogInformation($"RunnerIP for Connection: {runnerIp}");
+        _logger.LogInformation($"RunnerPort for Connection: {runnerPort}");
+        _logger.LogInformation($"HubName for Connection: {hubName}");
+
+        // Construct the final URL for the SignalR connection
+        string connectionUrl = $"{runnerIp}:{runnerPort}/{hubName}";
+        _logger.LogInformation($"Attempting to connect to: {connectionUrl}");
+        Console.WriteLine($"Attempting to connect to: {connectionUrl}");
 
         var connection = new HubConnectionBuilder()
-            .WithUrl(runnerIpConfig) // Expects full URL like http://localhost:5000/runnerhub
+            .WithUrl(connectionUrl) // Expects full URL like http://localhost:5000/runnerhub
             .ConfigureLogging(logging =>
             {
                 logging.SetMinimumLevel(LogLevel.Information); // Adjust log level as needed
@@ -80,7 +88,7 @@ public class Program
             "Registered",
             (id) =>
             {
-                Console.WriteLine($"Successfully registered with ID: {id}");
+                _logger.LogInformation($"Successfully registered with ID: {id}");
                 botLogic.SetBotId(id);
             }
         );
@@ -89,7 +97,7 @@ public class Program
             "GameState",
             (engineGameState) =>
             {
-                Console.WriteLine($"Received GameState for Tick: {engineGameState?.Tick}");
+                _logger.LogInformation($"Received GameState for Tick: {engineGameState?.Tick}");
                 EngineBotCommand newCommand = botLogic.ProcessState(engineGameState!);
                 lock (_commandLock)
                 {
@@ -102,28 +110,28 @@ public class Program
             "Disconnect",
             async (reason) =>
             {
-                Console.WriteLine($"Server sent disconnect with reason: {reason}");
+                _logger.LogInformation($"Server sent disconnect with reason: {reason}");
                 await connection.StopAsync();
             }
         );
 
         connection.Closed += (error) =>
         {
-            Console.WriteLine($"Connection closed. Error: {error?.Message}");
+            _logger.LogInformation($"Connection closed. Error: {error?.Message}");
             return Task.CompletedTask;
         };
 
         try
         {
             await connection.StartAsync();
-            Console.WriteLine("Connection started. Attempting to register...");
+            _logger.LogInformation("Connection started. Attempting to register...");
 
             await connection.InvokeAsync("Register", botToken, botNickname);
-            Console.WriteLine("Register message sent.");
+            _logger.LogInformation("Register message sent.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error starting connection or registering: {ex.Message}");
+            _logger.LogError($"Error starting connection or registering: {ex.Message}");
             return; // Exit if connection fails
         }
 
@@ -148,15 +156,15 @@ public class Program
                 try
                 {
                     await connection.SendAsync("BotCommand", commandToSend);
-                    Console.WriteLine($"Sent BotCommand: {commandToSend.Action}");
+                    _logger.LogInformation($"Sent BotCommand: {commandToSend.Action}");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error sending BotCommand: {ex.Message}");
+                    _logger.LogError($"Error sending BotCommand: {ex.Message}");
                 }
             }
             await Task.Delay(10); // Small delay to prevent tight loop if no command ready
         }
-        Console.WriteLine("Disconnected or connection failed. Exiting application.");
+        _logger.LogInformation("Disconnected or connection failed. Exiting application.");
     }
 }

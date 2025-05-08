@@ -1,4 +1,4 @@
-namespace ReferenceBot.Algorithms.DataStructures;
+namespace BasicBot.Algorithms.DataStructures;
 
 public class Path
 {

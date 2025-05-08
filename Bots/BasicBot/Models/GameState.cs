@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace ReferenceBot.Models;
+namespace BasicBot.Models;
 
 public class GameState
 {

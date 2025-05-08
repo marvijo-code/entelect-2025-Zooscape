@@ -1,4 +1,4 @@
-﻿namespace ReferenceBot.Models;
+﻿namespace BasicBot.Models;
 
 public class Zookeeper
 {

@@ -33,9 +33,11 @@ public class MCTSAlgorithm
             Backpropagate(nodeToExplore, playoutResult);
         }
 
+        // Select the child with the highest average score.
+        // If a child has no visits, its average score is considered minimal.
         Node? bestChild = rootNode
-            .Children.OrderByDescending(c => c.Visits) // Most visited child is often a good heuristic
-            // .ThenByDescending(c => c.Wins / (c.Visits == 0 ? 1 : c.Visits)) // Or highest win rate
+            .Children.OrderByDescending(c => c.Visits == 0 ? double.MinValue : c.Wins / c.Visits)
+            .ThenByDescending(c => c.Visits) // As a tie-breaker, prefer more visited nodes
             .FirstOrDefault();
 
         return bestChild?.Move ?? GameAction.DoNothing; // Default to DoNothing if no moves found

@@ -1,0 +1,1 @@
+set COMPOSE_BAKE=true && docker compose build

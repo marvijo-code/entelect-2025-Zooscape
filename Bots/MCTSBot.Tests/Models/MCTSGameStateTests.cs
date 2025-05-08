@@ -22,7 +22,7 @@ public class MCTSGameStateTests
                 MCTSGameState.CellTypeWall,
                 MCTSGameState.CellTypeEmpty,
                 MCTSGameState.CellTypeEmpty,
-            }, // Player will be at (1,1), ZK at (2,1)
+            },
             /*Y=2*/{
                 MCTSGameState.CellTypeEmpty,
                 MCTSGameState.CellTypeEscapeZone,
@@ -35,7 +35,7 @@ public class MCTSGameStateTests
     public void Constructor_InitializesPropertiesCorrectly()
     {
         var map = CreateSimpleMap();
-        var state = new MCTSGameState(map, 1, 1, 0, 100, 2, 1); // Player at (X=1,Y=1), ZK at (X=2,Y=1)
+        var state = new MCTSGameState(map, 1, 1, 0, 100, 2, 1);
 
         Assert.Equal(1, state.PlayerX);
         Assert.Equal(1, state.PlayerY);
@@ -44,8 +44,25 @@ public class MCTSGameStateTests
         Assert.Equal(100, state.MaxTicksForSimulation);
         Assert.Equal(2, state.ZookeeperX);
         Assert.Equal(1, state.ZookeeperY);
-        Assert.Equal(map.GetLength(0), state.MapHeight); // Rows
-        Assert.Equal(map.GetLength(1), state.MapWidth); // Columns
+        Assert.Equal(map.GetLength(0), state.MapHeight);
+        Assert.Equal(map.GetLength(1), state.MapWidth);
+    }
+
+    [Fact]
+    public void Clone_CreatesDeepCopy()
+    {
+        var map = CreateSimpleMap();
+        var originalState = new MCTSGameState(map, 1, 1, 0, 100);
+        var clonedState = originalState.Clone();
+
+        Assert.NotSame(originalState.MapData, clonedState.MapData);
+        Assert.Equal(originalState.MapData, clonedState.MapData);
+        Assert.Equal(originalState.PlayerX, clonedState.PlayerX);
+        Assert.Equal(originalState.Score, clonedState.Score);
+
+        // Modify original map after clone, clone should not change
+        originalState.MapData[0, 0] = MCTSGameState.CellTypeWall;
+        Assert.NotEqual(originalState.MapData[0, 0], clonedState.MapData[0, 0]);
     }
 
     [Fact]
@@ -86,7 +103,7 @@ public class MCTSGameStateTests
         Assert.Contains(GameAction.MoveLeft, moves);
         Assert.Contains(GameAction.MoveRight, moves);
         Assert.Contains(GameAction.DoNothing, moves);
-        Assert.Equal(4, moves.Count); // Down, Left, Right, DoNothing
+        Assert.Equal(4, moves.Count);
     }
 
     [Fact]
@@ -112,7 +129,7 @@ public class MCTSGameStateTests
                 MCTSGameState.CellTypeEmpty,
             },
         };
-        var state = new MCTSGameState(map, 0, 0, 0, 100); // Player at (X=0,Y=0)
+        var state = new MCTSGameState(map, 0, 0, 0, 100);
         var moves = state.GetPossibleMoves();
 
         // At (X=0,Y=0):
@@ -122,33 +139,33 @@ public class MCTSGameStateTests
         // Right (1,0): MapData[0,1] is Wall. NO
 
         Assert.DoesNotContain(GameAction.MoveUp, moves);
-        Assert.Contains(GameAction.MoveDown, moves); // To (X=0,Y=1) Pellet
+        Assert.Contains(GameAction.MoveDown, moves);
         Assert.DoesNotContain(GameAction.MoveLeft, moves);
-        Assert.DoesNotContain(GameAction.MoveRight, moves); // Blocked by wall at (X=1,Y=0)
+        Assert.DoesNotContain(GameAction.MoveRight, moves);
         Assert.Contains(GameAction.DoNothing, moves);
-        Assert.Equal(2, moves.Count); // Down, DoNothing
+        Assert.Equal(2, moves.Count);
     }
 
     [Fact]
     public void ApplyMove_PlayerMovesCorrectly()
     {
-        var map = CreateSimpleMap(); // Player at (X=1,Y=1)
+        var map = CreateSimpleMap();
         // Pellet at (X=1,Y=0) using corrected CreateSimpleMap
         var state = new MCTSGameState(map, 1, 1, 0, 100, 2, 1);
-        var nextState = state.ApplyMove(GameAction.MoveUp); // Move to (X=1,Y=0) - Pellet
+        var nextState = state.ApplyMove(GameAction.MoveUp);
 
         Assert.Equal(1, nextState.PlayerX);
         Assert.Equal(0, nextState.PlayerY);
-        Assert.Equal(1, nextState.CurrentTick); // Tick increments
-        Assert.Equal(1 + 10, nextState.Score); // +1 for tick, +10 for pellet
-        Assert.Equal(MCTSGameState.CellTypeEmpty, nextState.MapData[0, 1]); // Pellet consumed at (X=1,Y=0) -> map[0,1]
+        Assert.Equal(1, nextState.CurrentTick);
+        Assert.Equal(1 + 10, nextState.Score);
+        Assert.Equal(MCTSGameState.CellTypeEmpty, nextState.MapData[0, 1]);
     }
 
     [Fact]
     public void ApplyMove_ZookeeperMoves()
     {
-        var map = CreateSimpleMap(); // ZK at (X=0,Y=0) for this test
-        var state = new MCTSGameState(map, 1, 1, 0, 100, 0, 0); // Player (1,1)
+        var map = CreateSimpleMap();
+        var state = new MCTSGameState(map, 1, 1, 0, 100, 0, 0);
         var s1 = state.ApplyMove(GameAction.DoNothing);
         var s2 = s1.ApplyMove(GameAction.DoNothing);
         var s3 = s2.ApplyMove(GameAction.DoNothing);
@@ -170,10 +187,27 @@ public class MCTSGameStateTests
         var map = new int[,]
         {
             { MCTSGameState.CellTypeEmpty },
-        }; // Minimal map [Y=0,X=0]
-        var state = new MCTSGameState(map, 0, 0, 0, 100, 0, 0); // Player(0,0), ZK(0,0)
+        };
+        var state = new MCTSGameState(map, 0, 0, 0, 100, 0, 0);
         Assert.True(state.IsTerminal());
-        Assert.Equal(-1000, state.GetGameResult().Score); // Score reflects capture penalty (initial state, 0 ticks)
+        Assert.Equal(-1000, state.GetGameResult().Score);
+    }
+
+    [Fact]
+    public void ApplyMove_CaptureLeadsToTerminalAndPenalty()
+    {
+        var map = new int[,]
+        {
+            { MCTSGameState.CellTypeEmpty, MCTSGameState.CellTypeEmpty },
+            { MCTSGameState.CellTypeEmpty, MCTSGameState.CellTypeEmpty },
+        };
+        // Player at (0,0), Zookeeper at (0,1). Player moves to (0,1)
+        var state = new MCTSGameState(map, 0, 0, 0, 100, 0, 1);
+        var nextState = state.ApplyMove(GameAction.MoveDown);
+
+        Assert.True(nextState.IsTerminal());
+        Assert.Equal(1 - 1000, nextState.Score);
+        Assert.Equal(1 - 1000, nextState.GetGameResult().Score);
     }
 
     [Fact]
@@ -182,10 +216,10 @@ public class MCTSGameStateTests
         var map = new int[,]
         {
             { MCTSGameState.CellTypeEscapeZone },
-        }; // [Y=0,X=0]
+        };
         var state = new MCTSGameState(map, 0, 0, 0, 100);
         Assert.True(state.IsTerminal());
-        Assert.Equal(1000, state.GetGameResult().Score); // Score reflects escape bonus (initial state, 0 ticks)
+        Assert.Equal(1000, state.GetGameResult().Score);
     }
 
     [Fact]
@@ -196,18 +230,18 @@ public class MCTSGameStateTests
         {
             { MCTSGameState.CellTypeEmpty, MCTSGameState.CellTypeEscapeZone },
         };
-        var state = new MCTSGameState(map, 0, 0, 0, 100); // Player at (X=0,Y=0)
-        var nextState = state.ApplyMove(GameAction.MoveRight); // Player moves to (X=1,Y=0) - Escape Zone
+        var state = new MCTSGameState(map, 0, 0, 0, 100);
+        var nextState = state.ApplyMove(GameAction.MoveRight);
 
-        Assert.Equal(1, nextState.PlayerX); // Player is at X=1
-        Assert.Equal(0, nextState.PlayerY); // Player is at Y=0
+        Assert.Equal(1, nextState.PlayerX);
+        Assert.Equal(0, nextState.PlayerY);
         Assert.True(
             IsValidForTest(nextState.PlayerY, nextState.PlayerX, map.GetLength(0), map.GetLength(1))
         );
         Assert.Equal(MCTSGameState.CellTypeEscapeZone, map[nextState.PlayerY, nextState.PlayerX]);
 
         Assert.True(nextState.IsTerminal());
-        Assert.Equal(1 + 1000, nextState.Score); // +1 for tick, +1000 for escape
+        Assert.Equal(1 + 1000, nextState.Score);
         Assert.Equal(1 + 1000, nextState.GetGameResult().Score);
     }
 
@@ -218,11 +252,11 @@ public class MCTSGameStateTests
         {
             { MCTSGameState.CellTypeEmpty },
         };
-        var state = new MCTSGameState(map, 0, 0, 0, 1); // Max 1 tick
+        var state = new MCTSGameState(map, 0, 0, 0, 1);
         var s1 = state.ApplyMove(GameAction.DoNothing);
-        Assert.False(state.IsTerminal()); // Initial state
-        Assert.True(s1.IsTerminal()); // After 1 tick
-        Assert.Equal(1, s1.Score); // Only score from tick
+        Assert.False(state.IsTerminal());
+        Assert.True(s1.IsTerminal());
+        Assert.Equal(1, s1.Score);
         Assert.Equal(1, s1.GetGameResult().Score);
     }
 

@@ -1,43 +1,67 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
+using BasicBot.Models;
+using BasicBot.Services;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using ReferenceBot.Models;
-using ReferenceBot.Services;
 
-namespace ReferenceBot;
+namespace BasicBot;
 
 public class Program
 {
-    public static IConfigurationRoot Configuration;
+    public static IConfigurationRoot? Configuration;
+    private static readonly ILogger _logger = new LoggerFactory().CreateLogger<Program>();
 
     private static async Task Main(string[] args)
     {
         var builder = new ConfigurationBuilder()
-            .AddJsonFile($"appsettings.json", optional: false)
+            .SetBasePath(AppContext.BaseDirectory) // Ensures appsettings.json is found
+            .AddJsonFile($"appsettings.json", optional: false, reloadOnChange: true)
             .AddEnvironmentVariables();
 
         Configuration = builder.Build();
-        var environmentIp = Environment.GetEnvironmentVariable("RUNNER_IPV4");
-        var ip = !string.IsNullOrWhiteSpace(environmentIp)
-            ? environmentIp
-            : Configuration.GetSection("RunnerIP").Value;
-        ip = ip.StartsWith("http://") ? ip : "http://" + ip;
 
-        var nickName =
-            Environment.GetEnvironmentVariable("BOT_NICKNAME")
-            ?? Configuration.GetSection("BotNickname").Value;
+        // Read settings from configuration
+        var runnerIpConfig =
+            Environment.GetEnvironmentVariable("RUNNER_IPV4") ?? Configuration["RunnerIP"];
+        var runnerPortConfig =
+            Environment.GetEnvironmentVariable("RUNNER_PORT") ?? Configuration["RunnerPort"];
+        var botNickname =
+            Environment.GetEnvironmentVariable("BOT_NICKNAME") ?? Configuration["BotNickname"];
+        var hubName = Environment.GetEnvironmentVariable("HUB_NAME") ?? Configuration["HubName"];
+        var botToken =
+            Environment.GetEnvironmentVariable("BOT_TOKEN")
+            ?? Configuration["BotToken"]
+            ?? Guid.NewGuid().ToString();
 
-        var token = Environment.GetEnvironmentVariable("Token") ?? Guid.NewGuid().ToString();
+        // Validate essential configurations
+        if (
+            string.IsNullOrEmpty(runnerIpConfig)
+            || string.IsNullOrEmpty(runnerPortConfig)
+            || string.IsNullOrEmpty(botNickname)
+            || string.IsNullOrEmpty(hubName)
+            || string.IsNullOrEmpty(botToken)
+        )
+        {
+            Console.WriteLine(
+                "Error: RunnerIP, RunnerPort, BotNickname, HubName, or BotToken is not configured. Set them in appsettings.json or as environment variables RUNNER_IPV4, RUNNER_PORT, BOT_NICKNAME, HUB_NAME, BOT_TOKEN."
+            );
+            return;
+        }
 
-        var port = Configuration.GetSection("RunnerPort");
+        string connectionUrl = $"{runnerIpConfig}:{runnerPortConfig}/{hubName}";
 
-        var url = ip + ":" + port.Value + "/bothub";
+        Console.WriteLine($"Bot Nickname: {botNickname}");
+
+        _logger.LogInformation($"Bot Nickname: {botNickname}");
+        _logger.LogInformation($"Connecting to: {connectionUrl}");
+        Console.WriteLine($"zzzConnecting to: {connectionUrl}");
 
         var connection = new HubConnectionBuilder()
-            .WithUrl($"{url}")
+            .WithUrl(connectionUrl)
             .ConfigureLogging(logging =>
             {
                 logging.SetMinimumLevel(LogLevel.Debug);
+                logging.AddConsole();
             })
             .WithAutomaticReconnect()
             .Build();
@@ -60,22 +84,41 @@ public class Program
             "Disconnect",
             async (reason) =>
             {
-                Console.WriteLine($"Server sent disconnect with reason: {reason}");
+                _logger.LogInformation($"Server sent disconnect with reason: {reason}");
                 await connection.StopAsync();
             }
         );
 
-        connection.Closed += (error) =>
+        connection.Closed += async (error) =>
         {
-            Console.WriteLine($"Server closed with error: {error}");
-            return Task.CompletedTask;
+            _logger.LogError(
+                $"Connection closed. Error: {error?.Message}. Attempting to reconnect..."
+            );
+            await Task.Delay(new Random().Next(0, 5) * 1000); // Random delay before reconnect
+            try
+            {
+                await connection.StartAsync();
+                Console.WriteLine("Sent Register message");
+                _logger.LogInformation("Reconnected. Attempting to register again...");
+                await connection.InvokeAsync("Register", botToken, botNickname);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Reconnection failed: {ex.Message}");
+            }
         };
 
-        await connection.StartAsync();
-        Console.WriteLine("Connected to bot hub");
-
-        await connection.InvokeAsync("Register", token, nickName);
-        Console.WriteLine("Sent Register message");
+        try
+        {
+            await connection.StartAsync();
+            _logger.LogInformation("Connection started. Attempting to register...");
+            await connection.InvokeAsync("Register", botToken, botNickname);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error starting connection or registering: {ex.Message}");
+            return; // Exit if connection fails
+        }
 
         while (
             connection.State == HubConnectionState.Connected
@@ -90,8 +133,19 @@ public class Program
             {
                 continue;
             }
-            await connection.SendAsync("BotCommand", botCommand);
+            try
+            {
+                await connection.SendAsync("BotCommand", botCommand);
+                _logger.LogInformation($"Sent BotCommand: Action={botCommand.Action}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error sending BotCommand: {ex.Message}");
+            }
             botCommand = null;
+            await Task.Delay(100); // Loop delay
         }
+
+        _logger.LogInformation("Application is shutting down.");
     }
 }

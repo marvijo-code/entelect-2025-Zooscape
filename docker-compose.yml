@@ -1,7 +1,7 @@
 services:
   engine:
     build:
-      context: .
+      context: ./engine
     container_name: zooscape-engine
     healthcheck:
       test: curl http://localhost:5000/bothub
@@ -18,7 +18,9 @@ services:
       GameSettings__StartGameTimeout: 9999
 
   refbot-0:
-    build: ../Bots/ReferenceBot
+    build:
+      context: ./Bots/ReferenceBot
+      dockerfile: Dockerfile
     container_name: zooscape-refbot-0
     depends_on:
       engine:
@@ -27,32 +29,37 @@ services:
       RUNNER_IPV4: http://engine
       BOT_NICKNAME: RefBot-0
 
-  refbot-1:
-    build: ./ReferenceBot
-    container_name: zooscape-refbot-1
+  g2mcts:
+    build:
+      context: ./Bots/MCTSBot
+      dockerfile: Dockerfile
+    container_name: g2-mcts
     depends_on:
       engine:
         condition: service_healthy
     environment:
       RUNNER_IPV4: http://engine
-      BOT_NICKNAME: RefBot-1
+      BOT_NICKNAME: g2-mcts
 
-  refbot-2:
-    build: ./ReferenceBot
-    container_name: zooscape-refbot-2
+  o4mcts:
+    build:
+      context: ./Bots/mctso4
+      dockerfile: Dockerfile
+    container_name: o4mcts
     depends_on:
       engine:
         condition: service_healthy
     environment:
       RUNNER_IPV4: http://engine
-      BOT_NICKNAME: RefBot-2
+      BOT_NICKNAME: o4mcts
 
-  refbot-3:
-    build: ./ReferenceBot
-    container_name: zooscape-refbot-3
+  basic-bot:
+    build:
+      context: ./Bots/BasicBot
+    container_name: basicbot
     depends_on:
       engine:
         condition: service_healthy
     environment:
       RUNNER_IPV4: http://engine
-      BOT_NICKNAME: RefBot-3
+      BOT_NICKNAME: BasicBot

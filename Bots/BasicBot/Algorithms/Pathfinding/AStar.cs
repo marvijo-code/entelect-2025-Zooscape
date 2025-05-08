@@ -1,10 +1,10 @@
-using ReferenceBot.Algorithms.DataStructures;
-using ReferenceBot.Enums;
-using ReferenceBot.Models;
-using ReferenceBot.ValueObjects;
-using Path = ReferenceBot.Algorithms.DataStructures.Path;
+using BasicBot.Algorithms.DataStructures;
+using BasicBot.Enums;
+using BasicBot.Models;
+using BasicBot.ValueObjects;
+using Path = BasicBot.Algorithms.DataStructures.Path;
 
-namespace ReferenceBot.Algorithms.Pathfinding;
+namespace BasicBot.Algorithms.Pathfinding;
 
 public class AStar
 {

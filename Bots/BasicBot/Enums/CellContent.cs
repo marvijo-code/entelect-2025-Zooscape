@@ -1,4 +1,4 @@
-﻿namespace ReferenceBot.Enums;
+﻿namespace BasicBot.Enums;
 
 public enum CellContent
 {

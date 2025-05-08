@@ -1,6 +1,6 @@
-using ReferenceBot.Enums;
+using BasicBot.Enums;
 
-namespace ReferenceBot.ValueObjects;
+namespace BasicBot.ValueObjects;
 
 public class GridCoords : ValueObject
 {

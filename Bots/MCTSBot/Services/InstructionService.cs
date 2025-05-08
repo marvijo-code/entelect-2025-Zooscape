@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using MCTSBot.Enums;
 using MCTSBot.Models;
 
@@ -19,8 +20,98 @@ public class InstructionService
     /// </summary>
     public MCTSGameState TranslateToMCTSState(EngineGameState engineState)
     {
-        // TODO: Implement translation logic from EngineGameState to MCTSGameState
-        throw new NotImplementedException("TranslateToMCTSState is not implemented.");
+        if (engineState == null)
+        {
+            // Or throw an ArgumentNullException, or return a default error state
+            Console.WriteLine(
+                "TranslateToMCTSState received null engineState. Returning a basic empty state."
+            );
+            return new MCTSGameState(new int[1, 1], 0, 0, 0, 1); // Minimal valid state
+        }
+
+        int mapHeight = engineState.MapHeight;
+        int mapWidth = engineState.MapWidth;
+        var mctsMapData = new int[mapHeight, mapWidth];
+
+        for (int y = 0; y < mapHeight; y++)
+        {
+            if (y >= engineState.Map.Count || engineState.Map[y] == null)
+            {
+                Console.WriteLine($"Warning: Map data missing for row {y}.");
+                for (int x = 0; x < mapWidth; x++)
+                {
+                    mctsMapData[y, x] = MCTSGameState.CellTypeEmpty; // Default to empty
+                }
+                continue;
+            }
+            string row = engineState.Map[y];
+            for (int x = 0; x < mapWidth; x++)
+            {
+                if (x >= row.Length)
+                {
+                    Console.WriteLine($"Warning: Map data missing for cell ({x},{y}).");
+                    mctsMapData[y, x] = MCTSGameState.CellTypeEmpty; // Default to empty
+                    continue;
+                }
+                char cellChar = row[x];
+                switch (cellChar)
+                {
+                    case 'W': // Wall
+                        mctsMapData[y, x] = MCTSGameState.CellTypeWall;
+                        break;
+                    case 'P': // Pellet
+                        mctsMapData[y, x] = MCTSGameState.CellTypePellet;
+                        break;
+                    case 'U': // PowerUp
+                        mctsMapData[y, x] = MCTSGameState.CellTypePowerUp;
+                        break;
+                    case 'X': // EscapeZone
+                        mctsMapData[y, x] = MCTSGameState.CellTypeEscapeZone;
+                        break;
+                    // Zookeepers are handled by coordinates, not map character initially for MCTSGameState model
+                    case '.': // Empty
+                    case ' ': // Also Empty
+                    default:
+                        mctsMapData[y, x] = MCTSGameState.CellTypeEmpty;
+                        break;
+                }
+            }
+        }
+
+        int playerX = engineState.MyBot?.X ?? 0;
+        int playerY = engineState.MyBot?.Y ?? 0;
+        int playerScore = engineState.MyBot?.Score ?? 0;
+
+        int zookeeperX = -1;
+        int zookeeperY = -1;
+        var firstZookeeper = engineState.Zookeepers?.FirstOrDefault();
+        if (firstZookeeper != null)
+        {
+            zookeeperX = firstZookeeper.X;
+            zookeeperY = firstZookeeper.Y;
+        }
+
+        // MaxTicksForSimulation for MCTS is the remaining ticks in the game.
+        int maxTicksForSimulation = engineState.MaxGameTicks - engineState.Tick;
+        if (maxTicksForSimulation <= 0)
+        {
+            // Game is over or no time left, ensure at least 1 tick for MCTS internal logic if needed
+            // or handle as terminal. MCTSGameState handles terminal checks based on its own rules.
+            Console.WriteLine(
+                "Warning: MaxGameTicks <= engineState.Tick. Simulation time might be zero or negative."
+            );
+            maxTicksForSimulation = 1; // Give it at least one conceptual tick if game isn't over by other means
+        }
+
+        return new MCTSGameState(
+            mctsMapData,
+            playerX,
+            playerY,
+            playerScore,
+            maxTicksForSimulation, // This is the 'horizon' for the MCTS simulation runs
+            zookeeperX,
+            zookeeperY
+        );
     }
 
     /// <summary>

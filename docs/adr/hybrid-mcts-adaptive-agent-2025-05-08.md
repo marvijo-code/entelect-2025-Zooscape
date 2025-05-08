@@ -1,6 +1,6 @@
 # ADR: Hybrid MCTS-Driven Adaptive Agent Implementation - 2025-05-08
 
-**Status:** Proposed
+**Status:** In Progress
 
 **Context:**
 Based on the strategy outlined in `docs/strategy-deep-research-06-MAY-2025.md`, we will implement Strategy 12 (Hybrid MCTS-Driven Adaptive Agent) in C#, mirroring the structure and conventions of `Bots/BasicBot`.
@@ -23,10 +23,16 @@ Based on the strategy outlined in `docs/strategy-deep-research-06-MAY-2025.md`, 
    - `MCTSGameState.cs`: full game state for MCTS
    - `Move.cs`: enum or struct of possible actions
    - `GameResult.cs`: simulation outcome
+   - `MetaStrategy.cs`: enumeration of adaptive modes (Collecting, Evading, EscapeFocus, PowerUpHunt, ZoneControl)
+   - `BotParameters.cs`: configuration container for MCTS hyperparameters and heuristic weights per meta-strategy
 
 4. Algorithms (`Bots/MCTSo4/Algorithms/MCTS`):
-   - `Node.cs`: tree node with UCT calculation
-   - `MCTSAlgorithm.cs`: methods for Selection, Expansion, Simulation, Backpropagation, and `FindBestMove`
+   - `Node.cs`: MCTS tree node with UCT calculation and dynamic UCT constant.
+   - `MCTSAlgorithm.cs`: core routines for selection, expansion, simulation, backpropagation.
+   - `MctsController.cs`: orchestrates MCTS iterations via `MCTS_GetBestAction`, integrating adaptive meta-strategy policies.
+   - `AdaptiveStrategyController.cs`: logic for `DetermineCurrentMetaStrategy`, switching modes (Collecting, Evading, EscapeFocus, PowerUpHunt, ZoneControl) and configuring MCTS parameters (iterations, depth, exploration constant) accordingly.
+   - `HeuristicFunction.cs`: evaluates game states `H(S, M)` using configurable weights for pellet value, zookeeper threat, escape progress, power-up utility, opponent contention.
+   - `GeneticParameterTuner.cs` (optional): GA-based offline hyperparameter optimization for `BotParameters`.
 
 5. Services (`Bots/MCTSo4/Services`):
    - `EngineParser.cs`: parse engine JSON/state into `MCTSGameState`
@@ -45,4 +51,4 @@ Based on the strategy outlined in `docs/strategy-deep-research-06-MAY-2025.md`, 
    - Update solution file or use `dotnet sln add`
    - Ensure `dotnet build` and `dotnet test` pass locally
 
-**Timestamp:** 2025-05-08T13:03:33+02:00
+**Timestamp:** 2025-05-08T13:22:44+02:00

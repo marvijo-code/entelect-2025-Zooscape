@@ -1,7 +1,7 @@
-﻿using ReferenceBot.Enums;
-using ReferenceBot.ValueObjects;
+﻿using BasicBot.Enums;
+using BasicBot.ValueObjects;
 
-namespace ReferenceBot.Algorithms.DataStructures;
+namespace BasicBot.Algorithms.DataStructures;
 
 public class Node : ValueObject
 {

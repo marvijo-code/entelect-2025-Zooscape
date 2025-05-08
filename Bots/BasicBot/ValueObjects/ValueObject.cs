@@ -1,4 +1,4 @@
-namespace ReferenceBot.ValueObjects;
+namespace BasicBot.ValueObjects;
 
 public abstract class ValueObject : IEquatable<ValueObject>
 {

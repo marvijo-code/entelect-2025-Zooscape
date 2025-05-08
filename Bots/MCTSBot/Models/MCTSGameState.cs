@@ -118,73 +118,83 @@ public class MCTSGameState
 
     public MCTSGameState ApplyMove(GameAction action)
     {
-        MCTSGameState nextState = this.Clone();
+        MCTSGameState nextState = Clone();
         nextState.CurrentTick++;
-        nextState.Score++; // +1 for surviving a tick
+        nextState.Score++; // Point for surviving this tick, adjusted below for events
 
         // 1. Player Action
-        int nextPlayerX = nextState.PlayerX;
-        int nextPlayerY = nextState.PlayerY;
+        int newPlayerX = nextState.PlayerX;
+        int newPlayerY = nextState.PlayerY;
 
-        switch (action)
+        if (action == GameAction.MoveUp)
+            newPlayerY--;
+        else if (action == GameAction.MoveDown)
+            newPlayerY++;
+        else if (action == GameAction.MoveLeft)
+            newPlayerX--;
+        else if (action == GameAction.MoveRight)
+            newPlayerX++;
+        // GameAction.DoNothing means no change in position
+
+        if (action != GameAction.DoNothing && !nextState.IsValid(newPlayerX, newPlayerY))
         {
-            case GameAction.MoveUp:
-                nextPlayerY--;
-                break;
-            case GameAction.MoveDown:
-                nextPlayerY++;
-                break;
-            case GameAction.MoveLeft:
-                nextPlayerX--;
-                break;
-            case GameAction.MoveRight:
-                nextPlayerX++;
-                break;
-            case GameAction.DoNothing:
-                break;
+            // Player tried to move into a wall or out of bounds - invalid move, effectively DoNothing from this state's perspective for MCTS
+            // Or, treat as a penalty if desired, but for MCTS, usually means the path is just not taken.
+            // For simplicity, we'll consider this path as non-viable (low score) or MCTS won't pick it if UCT is low.
+            // Here, we just return the state with only tick and survival score updated.
+            return nextState;
+        }
+        if (action != GameAction.DoNothing)
+        {
+            nextState.PlayerX = newPlayerX;
+            nextState.PlayerY = newPlayerY;
         }
 
+        // 2. Check for immediate outcomes of player's move
+
+        // 2a. Player moves ONTO Zookeeper's square?
         if (
-            nextState.IsValid(nextPlayerX, nextPlayerY)
-            && nextState.MapData[nextPlayerY, nextPlayerX] != CellTypeWall
+            nextState.ZookeeperX != -1
+            && // Zookeeper is active
+            nextState.PlayerX == nextState.ZookeeperX
+            && nextState.PlayerY == nextState.ZookeeperY
         )
         {
-            nextState.PlayerX = nextPlayerX;
-            nextState.PlayerY = nextPlayerY;
-        }
-        // else: bumped into wall or invalid move, player stays put (already handled by GetPossibleMoves pre-check)
-
-        // Check consequences of player's new position
-        int cellTypeAtPlayerPos = nextState.MapData[nextState.PlayerY, nextState.PlayerX];
-        if (cellTypeAtPlayerPos == CellTypePellet)
-        {
-            nextState.Score += 10;
-            nextState.MapData[nextState.PlayerY, nextState.PlayerX] = CellTypeEmpty; // Pellet consumed
-        }
-        else if (cellTypeAtPlayerPos == CellTypePowerUp)
-        {
-            nextState.Score += 5; // Placeholder for power-up effect
-            nextState.MapData[nextState.PlayerY, nextState.PlayerX] = CellTypeEmpty; // Power-up consumed
-            // TODO: Implement actual power-up effect, e.g., temporary invincibility
-        }
-        else if (cellTypeAtPlayerPos == CellTypeEscapeZone)
-        {
-            nextState.Score += 1000; // Reached escape zone - strong positive score
-            // This state will be marked terminal
+            nextState.Score -= 1000; // Penalty for being captured
+            return nextState; // Terminal state, zookeeper does not move
         }
 
-        // 2. Zookeeper Action (simple random move or basic chase for simulation)
+        // 2b. Player reaches an Escape Zone?
+        if (nextState.MapData[nextState.PlayerY, nextState.PlayerX] == CellTypeEscapeZone)
+        {
+            nextState.Score += 1000; // Bonus for escaping
+            // No change to MapData for escape zone, it remains an escape zone
+            return nextState; // Terminal state, zookeeper does not move
+        }
+
+        // 2c. Player collects a Pellet? (Only if not captured or escaped)
+        if (nextState.MapData[nextState.PlayerY, nextState.PlayerX] == CellTypePellet)
+        {
+            nextState.Score += 10; // Reward for pellet
+            nextState.MapData[nextState.PlayerY, nextState.PlayerX] = CellTypeEmpty; // Pellet is gone
+        }
+
+        // 3. Zookeeper Action (only if player was not captured and did not escape)
         if (nextState.ZookeeperX != -1 && nextState.ZookeeperY != -1)
         {
             // Simple: 1/5 chance to move towards player, 4/5 random valid move
             List<(int, int)> zkPossibleMoves = new List<(int, int)>();
-            int[] dx = { 0, 0, 1, -1 };
-            int[] dy = { 1, -1, 0, 0 };
+            int[] dxActions = { 0, 0, 1, -1 }; // Corresponds to Right, Left, Down, Up for ZK logic
+            int[] dyActions = { 1, -1, 0, 0 }; // But for simple moves: up, down, right, left
+
+            // Corrected dx/dy for cardinal directions for zookeeper
+            int[] zkDx = { 0, 0, 1, -1 }; // dx for {Up, Down, Right, Left}
+            int[] zkDy = { -1, 1, 0, 0 }; // dy for {Up, Down, Right, Left}
 
             for (int i = 0; i < 4; ++i)
             {
-                int nzx = nextState.ZookeeperX + dx[i];
-                int nzy = nextState.ZookeeperY + dy[i];
+                int nzx = nextState.ZookeeperX + zkDx[i];
+                int nzy = nextState.ZookeeperY + zkDy[i];
                 if (nextState.IsValid(nzx, nzy) && nextState.MapData[nzy, nzx] != CellTypeWall)
                 {
                     zkPossibleMoves.Add((nzx, nzy));
@@ -194,23 +204,44 @@ public class MCTSGameState
 
             if (zkPossibleMoves.Any())
             {
+                // Basic chase logic (simplified): if random says chase, move towards player
+                // This is a very naive chase, better would be pathfinding or smarter heuristic
+                bool chasePlayer = random.Next(5) == 0; // 1/5 chance to chase
                 (int chosenZKX, int chosenZKY) = zkPossibleMoves[
                     random.Next(zkPossibleMoves.Count)
-                ];
+                ]; // Default random
+
+                if (chasePlayer)
+                {
+                    int bestDist = int.MaxValue;
+                    (int, int) chaseMove = (nextState.ZookeeperX, nextState.ZookeeperY);
+                    foreach (var move in zkPossibleMoves)
+                    {
+                        int dist =
+                            Math.Abs(move.Item1 - nextState.PlayerX)
+                            + Math.Abs(move.Item2 - nextState.PlayerY);
+                        if (dist < bestDist)
+                        {
+                            bestDist = dist;
+                            chaseMove = move;
+                        }
+                    }
+                    chosenZKX = chaseMove.Item1;
+                    chosenZKY = chaseMove.Item2;
+                }
                 nextState.ZookeeperX = chosenZKX;
                 nextState.ZookeeperY = chosenZKY;
             }
-        }
 
-        // Check for capture after both have moved
-        if (
-            nextState.PlayerX == nextState.ZookeeperX
-            && nextState.PlayerY == nextState.ZookeeperY
-            && ZookeeperX != -1
-        ) // Added ZK active check
-        {
-            nextState.Score -= 1000; // Captured by zookeeper - strong penalty
-            // This state will be marked terminal
+            // 3a. Zookeeper moves ONTO Player's square?
+            if (
+                nextState.PlayerX == nextState.ZookeeperX
+                && nextState.PlayerY == nextState.ZookeeperY
+            )
+            {
+                nextState.Score -= 1000; // Penalty for being captured
+                // This state is now terminal
+            }
         }
 
         return nextState;
@@ -250,25 +281,26 @@ public class MCTSGameState
         // Check for capture
         if (PlayerX == ZookeeperX && PlayerY == ZookeeperY && ZookeeperX != -1)
         {
-            // If score doesn't already reflect capture penalty (e.g. from ApplyMove)
-            // This check is a bit naive, as Score could be -1000 for other reasons or compound.
-            // A more robust way might involve flags or ensuring ApplyMove is the sole source of these large score changes.
-            if (Score > -500) // Assuming score isn't already heavily penalized
+            // If score doesn't already reflect capture penalty (e.g. from ApplyMove which adds +1 tick survival first)
+            // The check (Score > -500) assumes that a heavily penalized score is already < -500.
+            // If the score is 0 (initial state capture) and CurrentTick is 0, it should become -1000.
+            // If ApplyMove set score to -999 (initialScore 0 + 1 tick - 1000 penalty), this block is skipped.
+            if (Score > -500)
             {
-                terminalScore = (CurrentTick > 0 ? Score : 0) - 1000; // Base on current score if ticks happened, else 0
+                terminalScore = (CurrentTick > 0 ? Score - 1 : 0) - 1000; // Adjust if tick score was added
             }
         }
         // Check for escape
         else if (IsValid(PlayerX, PlayerY) && MapData[PlayerY, PlayerX] == CellTypeEscapeZone)
         {
-            // If score doesn't already reflect escape bonus
-            if (Score < 500) // Assuming score isn't already heavily rewarded
+            // Similar logic for escape bonus.
+            // If ApplyMove set score to 1001 (initialScore 0 + 1 tick + 1000 bonus), this block is skipped.
+            if (Score < 500)
             {
-                terminalScore = (CurrentTick > 0 ? Score : 0) + 1000;
+                terminalScore = (CurrentTick > 0 ? Score - 1 : 0) + 1000; // Adjust if tick score was added
             }
         }
-        // If max ticks reached, the score is as-is from pellets/survival, no special adjustment here needed
-        // beyond what ApplyMove has done.
+        // If max ticks reached, the score is as-is from pellets/survival.
 
         return new GameResult(terminalScore);
     }

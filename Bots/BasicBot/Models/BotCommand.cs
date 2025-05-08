@@ -1,6 +1,6 @@
-﻿using ReferenceBot.Enums;
+﻿using BasicBot.Enums;
 
-namespace ReferenceBot.Models;
+namespace BasicBot.Models;
 
 public class BotCommand
 {
