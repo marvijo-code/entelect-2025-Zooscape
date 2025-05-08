@@ -194,6 +194,16 @@ const App = () => {
   const currentGameState = allGameStates[currentDisplayIndex] || null;
   const scoreboardData = currentGameState?.animals ? [...currentGameState.animals].sort((a, b) => b.Score - a.Score) : [];
 
+  // Debug: log render state
+  useEffect(() => {
+    console.log('App Render Debug:', {
+      isConnected,
+      loadedStates: allGameStates.length,
+      currentDisplayIndex,
+      hasGameState: currentGameState != null,
+    });
+  }, [isConnected, allGameStates, currentDisplayIndex, currentGameState]);
+
   return (
     <div className="App">
       <header className="App-header"><h1>2D Zooscape Visualizer</h1></header>
@@ -211,7 +221,7 @@ const App = () => {
           {currentGameState ? (
             <Grid gameState={currentGameState} />
           ) : (
-            <p>{isConnected ? 'Waiting for game data...' : 'Connecting...'}</p>
+            <p>{isConnected ? `Waiting for game data... (${allGameStates.length} loaded, idx ${currentDisplayIndex})` : 'Connecting...'}</p>
           )}
         </div>
         {gameInitialized && (
