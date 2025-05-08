@@ -95,9 +95,13 @@ try
                 services.AddKeyedSingleton<IEventDispatcher, CloudEventDispatcher>("cloud");
                 services.AddKeyedSingleton<IEventDispatcher, LogStateEventDispatcher>("logState");
 
-                S3.LogDirectory =
-                    Environment.GetEnvironmentVariable("LOG_DIR")
-                    ?? Path.Combine(AppContext.BaseDirectory, "logs");
+                // per-match log folder
+                var defaultLogRoot = Path.Combine(AppContext.BaseDirectory, "logs");
+                var logRoot = Environment.GetEnvironmentVariable("LOG_DIR") ?? defaultLogRoot;
+                var matchId = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var matchDir = Path.Combine(logRoot, matchId);
+                Directory.CreateDirectory(matchDir);
+                S3.LogDirectory = matchDir;
 
                 services.AddSingleton<IStreamingFileLogger>(
                     new StreamingFileLogger(S3.LogDirectory, "gameLogs.log")

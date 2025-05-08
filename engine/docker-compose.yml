@@ -18,7 +18,7 @@ services:
       GameSettings__StartGameTimeout: 9999
 
   refbot-0:
-    build: ./ReferenceBot
+    build: ../Bots/ReferenceBot
     container_name: zooscape-refbot-0
     depends_on:
       engine:
