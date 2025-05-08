@@ -49,3 +49,4 @@ riderModule.iml
 !**/[Pp]ackages/build/
 *.nuget.props
 *.nuget.targets
+.vite
