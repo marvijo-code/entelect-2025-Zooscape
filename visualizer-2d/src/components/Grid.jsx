@@ -10,12 +10,13 @@ import { CellContent } from '../models.js';
 /**
  * @param {object} props
  * @param {GameState | null} props.gameState
+ * @param {object} props.colorMap
  */
 
-const TILE_SIZE = 20; // pixels
+const TILE_SIZE = 15; // pixels
 
 // Remove React.FC<GridProps> type annotation
-const Grid = ({ gameState }) => {
+const Grid = ({ gameState, colorMap = {} }) => {
   if (!gameState) {
     return <div>Loading game state...</div>;
   }
@@ -55,26 +56,26 @@ const Grid = ({ gameState }) => {
       {/* Render Animals */}
       {animals && animals.map(animal => (
         <div
-          key={`animal-${animal.id}`} title={`${animal.nickName} (Animal)`}
+          key={`animal-${animal.id}`} title={`${animal.nickname} (Animal)`}
           style={{
             position: 'absolute', left: animal.x * TILE_SIZE + TILE_SIZE / 4, top: animal.y * TILE_SIZE + TILE_SIZE / 4,
             width: TILE_SIZE / 2, height: TILE_SIZE / 2,
-            backgroundColor: 'blue', borderRadius: '50%', textAlign: 'center',
-            lineHeight: `${TILE_SIZE / 2}px`, fontSize: '10px', color: 'white', zIndex: 2, boxShadow: '0 0 2px black',
+            backgroundColor: colorMap[animal.id] || 'white', borderRadius: '50%', textAlign: 'center',
+            lineHeight: `${TILE_SIZE / 2}px`, fontSize: '8px', color: 'black', zIndex: 2, boxShadow: '0 0 2px black',
           }}
-        >A</div>
+        >{animal.nickname}</div>
       ))}
       {/* Render Zookeepers */}
       {zookeepers && zookeepers.map(zookeeper => (
         <div
-          key={`zookeeper-${zookeeper.id}`} title={`${zookeeper.nickName} (Zookeeper)`}
+          key={`zookeeper-${zookeeper.id}`} title={`${zookeeper.nickname} (Zookeeper)`}
           style={{
             position: 'absolute', left: zookeeper.x * TILE_SIZE + TILE_SIZE / 4, top: zookeeper.y * TILE_SIZE + TILE_SIZE / 4,
             width: TILE_SIZE / 2, height: TILE_SIZE / 2,
             backgroundColor: 'red', borderRadius: '20%', textAlign: 'center',
-            lineHeight: `${TILE_SIZE / 2}px`, fontSize: '10px', color: 'white', zIndex: 2, boxShadow: '0 0 2px black',
+            lineHeight: `${TILE_SIZE / 2}px`, fontSize: '8px', color: 'black', zIndex: 2, boxShadow: '0 0 2px black',
           }}
-        >Z</div>
+        >{zookeeper.nickname}</div>
       ))}
     </div>
   );

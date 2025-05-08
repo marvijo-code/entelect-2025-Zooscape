@@ -15,6 +15,8 @@ const App = () => {
   const [error, setError] = useState(null); 
   const [isConnected, setIsConnected] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
+  const [animalColorMap, setAnimalColorMap] = useState({});
+  const animalColors = ['blue','green','orange','purple','cyan','magenta','yellow','lime'];
 
   // Effect 1: Create and store connection object. Stop it on component unmount.
   useEffect(() => {
@@ -65,6 +67,19 @@ const App = () => {
     setError(null);
     try {
       const payload = typeof data === 'string' ? JSON.parse(data) : data;
+      // If StartGame contains full history, use that
+      const history = payload.WorldStates || payload.worldStates;
+      if (Array.isArray(history)) {
+        setAllGameStates(history);
+        setCurrentDisplayIndex(0);
+        setGameInitialized(true);
+        setIsPlaying(false);
+        setIsGameOver(false);
+        // Map initial animals to colors
+        setAnimalColorMap(history[0]?.animals.reduce((map, a, idx) => { map[a.id] = animalColors[idx % animalColors.length]; return map; }, {}));
+        console.log(`Game initialized with history (${history.length} states).`);
+        return;
+      }
 
       // Expecting a flat payload: { tick: ..., cells: ..., animals: ..., zookeepers: ... }
       if (payload && Array.isArray(payload.cells) && Array.isArray(payload.animals) && Array.isArray(payload.zookeepers)) {
@@ -78,6 +93,8 @@ const App = () => {
         setGameInitialized(true);
         setIsPlaying(true); 
         setIsGameOver(false);
+        // Map initial animals to colors
+        setAnimalColorMap(payload.animals.reduce((map, a, idx) => { map[a.id] = animalColors[idx % animalColors.length]; return map; }, {}));
         console.log("Game initialized with StartGame data (flat structure).");
       } else {
         console.error("StartGame: Invalid payload structure. Expected {cells, animals, zookeepers}", payload);
@@ -87,7 +104,7 @@ const App = () => {
       console.error("Error parsing StartGame data:", e, "Raw data:", data);
       setError(`Failed to initialize game: ${e.message}`);
     }
-  }, [setAllGameStates, setCurrentDisplayIndex, setGameInitialized, setIsPlaying, setIsGameOver, setError]);
+  }, [setAllGameStates, setCurrentDisplayIndex, setGameInitialized, setIsPlaying, setIsGameOver, setError, animalColors]);
 
   const tickStateChangedHandler = useCallback((data) => { 
     console.log("GameState received:", data);
@@ -102,19 +119,19 @@ const App = () => {
           console.log("Game initialized with first GameState data.");
           setIsPlaying(true);
           setIsGameOver(false);
+          // Map animals on first tick
+          setAnimalColorMap(newGameState.animals.reduce((map, a, idx) => { map[a.id] = animalColors[idx % animalColors.length]; return map; }, {}));
         }
 
         setAllGameStates(prevStates => {
-          // Check if this tick is already processed or is older than current
-          // This basic check prevents duplicate processing if messages arrive out of order or get re-sent
-          // A more robust solution might involve comparing newGameState.tick with the tick of the last state in prevStates
+          // Add new state and auto-advance only if playing and at latest frame
           if (prevStates.length > 0 && newGameState.tick <= prevStates[prevStates.length - 1].tick) {
-            // console.warn(`Skipping older or duplicate GameState tick: ${newGameState.tick}`);
-            // return prevStates; // Or handle updates to existing states if necessary
+            return prevStates;
           }
-
           const updatedStates = [...prevStates, newGameState];
-          setCurrentDisplayIndex(updatedStates.length - 1); // Always show the latest received state
+          if (isPlaying && currentDisplayIndex === prevStates.length - 1) {
+            setCurrentDisplayIndex(updatedStates.length - 1);
+          }
           return updatedStates;
         });
       } else {
@@ -125,13 +142,30 @@ const App = () => {
       console.error("Error parsing GameState data:", e, "Raw data:", data);
       setError(`Failed to process tick: ${e.message}`);
     }
-  }, [gameInitialized, setGameInitialized, setIsPlaying, setIsGameOver, setAllGameStates, setCurrentDisplayIndex, setError]);
+  }, [gameInitialized, setGameInitialized, setIsPlaying, setIsGameOver, setAllGameStates, setCurrentDisplayIndex, setError, isPlaying, currentDisplayIndex, animalColors]);
 
   const gameOverHandler = useCallback((message) => {
     console.log("GameOver received:", message);
     setIsGameOver(true);
     setIsPlaying(false);
   }, [setIsGameOver, setIsPlaying]);
+
+  const handleJoinGame = useCallback(() => {
+    if (!connection) return;
+    setError(null);
+    connection.start()
+      .then(() => {
+        console.log('SignalR Connected!');
+        setIsConnected(true);
+        return connection.invoke('RegisterVisualiser');
+      })
+      .then(() => console.log('Visualiser registered'))
+      .catch(e => {
+        console.error('Connection/Registration failed on retry:', e);
+        setIsConnected(false);
+        setError(`SignalR Connection/Registration Failed: ${e.message}. Check server.`);
+      });
+  }, [connection]);
 
   // Effect 3: Attach SignalR event listeners when connection is available
   useEffect(() => {
@@ -156,43 +190,35 @@ const App = () => {
   }, [connection, initializeGameHandler, tickStateChangedHandler, gameOverHandler]);
 
   const handleReplay = () => {
-    if (!isConnected || isReplaying) {
-        if (!isConnected) setError("Cannot replay: Not connected.");
-        if (isReplaying) console.log("Replay already in progress...");
-        return;
+    if (allGameStates.length === 0) {
+      setError("No game data to replay.");
+      return;
     }
-
-    console.log("Attempting replay...");
-    setIsReplaying(true);
-    setAllGameStates([]); 
-    setGameInitialized(false); 
     setIsGameOver(false);
     setCurrentDisplayIndex(0);
     setIsPlaying(true);
-    connection.invoke("RegisterVisualiser")
-      .then(() => {
-        console.log("Visualiser re-registered for replay");
-        setIsReplaying(false);
-      })
-      .catch(err => {
-          console.error("Error re-registering:", err);
-          setError("Error trying to replay.");
-          setIsReplaying(false);
-      });
   };
 
   const handleRewind = () => { setIsPlaying(false); setCurrentDisplayIndex(prev => Math.max(0, prev - 1)); };
   const handlePlayPause = () => {
-     const newIsPlaying = !isPlaying;
-     setIsPlaying(newIsPlaying);
-     if (newIsPlaying && allGameStates.length > 0 && currentDisplayIndex < allGameStates.length - 1 && !isGameOver) {
-       setCurrentDisplayIndex(allGameStates.length - 1); // Jump to live view if playing
-     }
+    if (!isPlaying && allGameStates.length > 0) {
+      // Resume: jump to latest state
+      setCurrentDisplayIndex(allGameStates.length - 1);
+    }
+    setIsPlaying(prev => !prev);
   };
   const handleForward = () => { setIsPlaying(false); setCurrentDisplayIndex(prev => Math.min(allGameStates.length - 1, prev + 1)); };
   
   const currentGameState = allGameStates[currentDisplayIndex] || null;
-  const scoreboardData = currentGameState?.animals ? [...currentGameState.animals].sort((a, b) => b.Score - a.Score) : [];
+  const scoreboardData = currentGameState?.animals ? [...currentGameState.animals].sort((a, b) => b.score - a.score) : [];
+
+  useEffect(() => {
+    if (!isPlaying || isGameOver || allGameStates.length === 0) return;
+    const interval = setInterval(() => {
+      setCurrentDisplayIndex(prev => prev < allGameStates.length - 1 ? prev + 1 : prev);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [isPlaying, allGameStates.length, isGameOver]);
 
   // Debug: log render state
   useEffect(() => {
@@ -206,33 +232,69 @@ const App = () => {
 
   return (
     <div className="App">
-      <header className="App-header"><h1>2D Zooscape Visualizer</h1></header>
-      {error && <div className="error-banner">Error: {error}</div>}
-      <div className="controls">
-        <button onClick={handleReplay} disabled={!isConnected || isReplaying}>Replay</button>
-        <button onClick={handleRewind} disabled={!gameInitialized || currentDisplayIndex === 0 || isPlaying}>Rewind</button>
-        <button onClick={handlePlayPause} disabled={!gameInitialized || isGameOver}>{isPlaying ? 'Pause' : 'Play'}</button>
-        <button onClick={handleForward} disabled={!gameInitialized || currentDisplayIndex >= allGameStates.length - 1 || isPlaying}>Forward</button>
-        <span>Tick: {currentGameState?.tick ?? 'N/A'} (Frame {currentDisplayIndex + 1}/{allGameStates.length})</span>
-        {isGameOver && <span className="game-over-text">GAME OVER</span>}
-      </div>
       <div className="main-content">
         <div className="grid-container">
           {currentGameState ? (
-            <Grid gameState={currentGameState} />
+            <Grid gameState={currentGameState} colorMap={animalColorMap} />
           ) : (
             <p>{isConnected ? `Waiting for game data... (${allGameStates.length} loaded, idx ${currentDisplayIndex})` : 'Connecting...'}</p>
           )}
         </div>
-        {gameInitialized && (
-          <div className="scoreboard-container">
-            <h2>Scoreboard</h2>
-            {scoreboardData.length > 0 ? (
-              <table><thead><tr><th>NickName</th><th>Score</th><th>Captured</th><th>Distance</th><th>Viable</th></tr></thead>
-              <tbody>{scoreboardData.map(animal => (<tr key={animal.Id}><td>{animal.NickName}</td><td>{animal.Score}</td><td>{animal.CapturedCounter}</td><td>{animal.DistanceCovered}</td><td>{animal.IsViable ? 'Yes' : 'No'}</td></tr>))}</tbody>
-              </table>) : <p>No animal data.</p>}
+        <div className="side-panel">
+          <header className="App-header"><h1>2D Zooscape Visualizer</h1></header>
+          {!isConnected && (
+            <>
+              <div className="spinner" />
+              <button onClick={handleJoinGame}>Join New Game</button>
+            </>
+          )}
+          {isConnected && error && <div className="error-banner">{error}</div>}
+          {gameInitialized && (
+            <div className="scoreboard-container">
+              <h2>Scoreboard</h2>
+              {scoreboardData.length > 0 ? (
+                <table><thead><tr><th>NickName</th><th>Score</th><th>Captured</th><th>Distance</th><th>Viable</th></tr></thead>
+                <tbody>{scoreboardData.map(animal => (<tr key={animal.id} style={{backgroundColor: animalColorMap[animal.id]}}><td>{animal.nickname}</td><td>{animal.score}</td><td>{animal.capturedCounter}</td><td>{animal.distanceCovered}</td><td>{animal.isViable ? 'Yes' : 'No'}</td></tr>))}</tbody>
+                </table>) : <p>No animal data.</p>}
+            </div>
+          )}
+          <div className="controls">
+            <button onClick={handleReplay} disabled={allGameStates.length === 0}>Replay</button>
+            <button onClick={handleRewind} disabled={!gameInitialized || currentDisplayIndex === 0 || isPlaying}>Rewind</button>
+            <button onClick={handlePlayPause} disabled={!gameInitialized || isGameOver}>{isPlaying ? 'Pause' : 'Play'}</button>
+            <button onClick={handleForward} disabled={!gameInitialized || currentDisplayIndex >= allGameStates.length - 1 || isPlaying}>Forward</button>
+            <span>Tick: {currentGameState?.tick ?? 'N/A'} (Frame {currentDisplayIndex + 1}/{allGameStates.length})</span>
+            <span style={{ marginLeft: '10px', fontSize: '0.8em', color: '#555' }}>States: {allGameStates.length}, Index: {currentDisplayIndex}</span>
+            {isGameOver && <span className="game-over-text">GAME OVER</span>}
           </div>
-        )}
+          <div className="legend">
+            <h3 className="legend-header">Legend</h3>
+            <ul className="legend-list">
+              <li><span className="legend-color wall"></span> Wall</li>
+              <li><span className="legend-color pellet"></span> Pellet</li>
+              <li><span className="legend-color animal-spawn"></span> Animal Spawn</li>
+              <li><span className="legend-color zookeeper-spawn"></span> Zookeeper Spawn</li>
+              <li><span className="legend-color animal"></span> Animal</li>
+              <li><span className="legend-color zookeeper"></span> Zookeeper</li>
+            </ul>
+            {currentGameState && (
+              <>
+                <h4 className="legend-subheader">Animals:</h4>
+                <ul className="legend-list">
+                  {currentGameState.animals.map(a => (
+                    <li key={a.id}><span className="legend-color" style={{ backgroundColor: animalColorMap[a.id] }}></span> {a.nickname}</li>
+                  ))}
+                </ul>
+                <h4 className="legend-subheader">Zookeepers:</h4>
+                <ul className="legend-list">
+                  {currentGameState.zookeepers.map(z => (
+                    <li key={z.id}><span className="legend-color zookeeper"></span> {z.nickname}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>);
 };
