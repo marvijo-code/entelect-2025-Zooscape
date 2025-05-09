@@ -53,7 +53,7 @@ public class HeuroBotService
 
         foreach (var action in legalActions)
         {
-            var score = Heuristics.ScoreMove(state, action);
+            var score = Heuristics.ScoreMove(state, me, action);
             Console.WriteLine($"Action {action}: Score = {score}");
             if (score > bestScore)
             {

@@ -20,12 +20,13 @@ public class InstructionService
     /// </summary>
     public MCTSGameState TranslateToMCTSState(EngineGameState engineState)
     {
+        // Check for null engine state first
         if (engineState == null)
         {
-            // Or throw an ArgumentNullException, or return a default error state
             Console.WriteLine(
                 "TranslateToMCTSState received null engineState. Returning a minimal valid state."
             );
+            // Return a minimal valid state if engineState is null
             return new MCTSGameState(
                 new int[1, 1]
                 {
@@ -34,13 +35,27 @@ public class InstructionService
                 0,
                 0,
                 0,
-                1,
-                -1,
-                -1
+                1, // MaxTicksForSimulation = 1 to allow at least one move evaluation
+                -1, // BotStartX, placeholder
+                -1 // BotStartY, placeholder
             ); // Minimal valid state
         }
 
-        // Check for invalid map dimensions from the engine
+        // Attempt to derive map dimensions from the Map list if they are not set or invalid
+        if (
+            (engineState.MapWidth <= 0 || engineState.MapHeight <= 0)
+            && engineState.Map != null
+            && engineState.Map.Count > 0
+            && engineState.Map[0] != null
+        )
+        {
+            engineState.MapHeight = engineState.Map.Count;
+            engineState.MapWidth = engineState.Map[0].Length;
+            // Optional: Log that dimensions were derived
+            // Console.WriteLine($"Derived map dimensions from Map data: {engineState.MapWidth}x{engineState.MapHeight} for Tick: {engineState.Tick}");
+        }
+
+        // Check for invalid map dimensions from the engine (or derived)
         if (engineState.MapHeight <= 0 || engineState.MapWidth <= 0)
         {
             Console.WriteLine(

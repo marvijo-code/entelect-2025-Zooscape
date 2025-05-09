@@ -26,6 +26,7 @@ public class Program
         var nickName =
             Environment.GetEnvironmentVariable("BOT_NICKNAME")
             ?? Configuration.GetSection("BotNickname").Value;
+        Console.WriteLine($"Bot Nickname: {nickName}");
 
         var token = Environment.GetEnvironmentVariable("Token") ?? Guid.NewGuid().ToString();
 

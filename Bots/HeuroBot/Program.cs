@@ -26,6 +26,7 @@ public class Program
             Environment.GetEnvironmentVariable("RUNNER_PORT") ?? Configuration["RunnerPort"];
         var botNickname =
             Environment.GetEnvironmentVariable("BOT_NICKNAME") ?? Configuration["BotNickname"];
+        Console.WriteLine($"Bot Nickname: {botNickname}");
         var hubName = Environment.GetEnvironmentVariable("HUB_NAME") ?? Configuration["HubName"];
         var botToken =
             Environment.GetEnvironmentVariable("BOT_TOKEN")
@@ -51,7 +52,7 @@ public class Program
             .WithUrl(url)
             .ConfigureLogging(logging =>
             {
-                logging.SetMinimumLevel(LogLevel.Debug);
+                logging.SetMinimumLevel(LogLevel.Information);
                 logging.AddConsole();
             })
             .WithAutomaticReconnect()

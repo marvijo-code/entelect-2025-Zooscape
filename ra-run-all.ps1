@@ -45,9 +45,10 @@ foreach ($bot in $bots) {
 }
 
 # wait 3 minutes
-Start-Sleep -Seconds 180
-
 Write-Host "Waiting for engine to exit..."
+
+Start-Sleep -Seconds 180 -Verbose
+
 $engineProc | Wait-Process
 
 Write-Host "Shutting down bots..."

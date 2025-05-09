@@ -38,6 +38,7 @@ namespace MCTSo4
                 Environment.GetEnvironmentVariable("RUNNER_PORT") ?? Configuration["RunnerPort"];
             var botNickname =
                 Environment.GetEnvironmentVariable("BOT_NICKNAME") ?? Configuration["BotNickname"];
+            Console.WriteLine($"Bot Nickname: {botNickname}");
             var hubName =
                 Environment.GetEnvironmentVariable("HUB_NAME") ?? Configuration["HubName"];
             var botToken =
