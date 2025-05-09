@@ -12,8 +12,11 @@ public class HeuroBotService
     private Guid _botId;
     private BotAction? _previousAction = null;
 
-    // Track visited positions to encourage exploration
-    private HashSet<(int x, int y)> _visitedPositions = new();
+    // Track visit counts per cell to discourage repeat visits
+    private Dictionary<(int x, int y), int> _visitCounts = new();
+
+    // Track visited quadrants for exploration incentive
+    private HashSet<int> _visitedQuadrants = new();
 
     public void SetBotId(Guid botId) => _botId = botId;
 
@@ -22,8 +25,16 @@ public class HeuroBotService
         // Identify this bot's animal
         var me = state.Animals.First(a => a.Id == _botId);
 
-        // Mark current position as visited
-        _visitedPositions.Add((me.X, me.Y));
+        // Update visit count for current cell
+        var currentPos = (me.X, me.Y);
+        if (_visitCounts.ContainsKey(currentPos))
+            _visitCounts[currentPos]++;
+        else
+            _visitCounts[currentPos] = 1;
+        // Mark current quadrant visited
+        int currentQuadrant = GetQuadrant(me.X, me.Y, state);
+        if (!_visitedQuadrants.Contains(currentQuadrant))
+            _visitedQuadrants.Add(currentQuadrant);
 
         // Enumerate all possible actions
         var actions = Enum.GetValues<BotAction>().Cast<BotAction>();
@@ -65,7 +76,7 @@ public class HeuroBotService
             // Penalty for reversing the previous move
             if (_previousAction.HasValue && IsOpposite(_previousAction.Value, action))
                 score += WEIGHTS.ReverseMovePenalty;
-            // Bonus for moving into unexplored cells
+            // Visit penalty and exploration bonuses
             int nx = me.X,
                 ny = me.Y;
             switch (action)
@@ -83,8 +94,13 @@ public class HeuroBotService
                     nx++;
                     break;
             }
-            if (!_visitedPositions.Contains((nx, ny)))
+            int visits = _visitCounts.TryGetValue((nx, ny), out var vc) ? vc : 0;
+            score += WEIGHTS.VisitPenalty * visits;
+            if (visits == 0)
                 score += WEIGHTS.UnexploredBonus;
+            int quad = GetQuadrant(nx, ny, state);
+            if (!_visitedQuadrants.Contains(quad))
+                score += WEIGHTS.UnexploredQuadrantBonus;
             Console.WriteLine($"Action {action}: Score = {score}");
             if (score > bestScore)
             {
@@ -95,7 +111,6 @@ public class HeuroBotService
 
         // Store chosen action and mark new position to discourage oscillation and encourage exploration
         _previousAction = bestAction;
-        // Mark new position as visited
         int bx = me.X,
             by = me.Y;
         switch (bestAction)
@@ -113,7 +128,14 @@ public class HeuroBotService
                 bx++;
                 break;
         }
-        _visitedPositions.Add((bx, by));
+        var bestPos = (bx, by);
+        if (_visitCounts.ContainsKey(bestPos))
+            _visitCounts[bestPos]++;
+        else
+            _visitCounts[bestPos] = 1;
+        int bestQuad = GetQuadrant(bx, by, state);
+        if (!_visitedQuadrants.Contains(bestQuad))
+            _visitedQuadrants.Add(bestQuad);
         return new BotCommand { Action = bestAction };
     }
 
@@ -122,4 +144,24 @@ public class HeuroBotService
         || (a == BotAction.Right && b == BotAction.Left)
         || (a == BotAction.Up && b == BotAction.Down)
         || (a == BotAction.Down && b == BotAction.Up);
+
+    // Determine quadrant based on map midpoints
+    private static int GetQuadrant(int x, int y, GameState state)
+    {
+        var xs = state.Cells.Select(c => c.X);
+        var ys = state.Cells.Select(c => c.Y);
+        int minX = xs.Min(),
+            maxX = xs.Max();
+        int minY = ys.Min(),
+            maxY = ys.Max();
+        int midX = (minX + maxX) / 2,
+            midY = (minY + maxY) / 2;
+        if (x > midX && y > midY)
+            return 1;
+        if (x <= midX && y > midY)
+            return 2;
+        if (x <= midX && y <= midY)
+            return 3;
+        return 4;
+    }
 }

@@ -27,7 +27,7 @@ Start-Sleep -Seconds 5
 $bots = @(
     @{ Name = "RefBot-0"; Path = "Bots\ReferenceBot\ReferenceBot.csproj" },
     @{ Name = "g2-mcts"; Path = "Bots\MCTSBot\MCTSBot.csproj" },
-    @{ Name = "o4mcts"; Path = "Bots\mctso4\mctso4.csproj" },
+    @{ Name = "o4mcts"; Path = "Bots\GHeuroBot\GHeuroBot.csproj" },
     @{ Name = "HeuroBot"; Path = "Bots\HeuroBot\HeuroBot.csproj" }
 )
 
@@ -47,7 +47,7 @@ foreach ($bot in $bots) {
 # wait 3 minutes
 Write-Host "Waiting for engine to exit..."
 
-Start-Sleep -Seconds 180 -Verbose
+Start-Sleep -Seconds 360 -Verbose
 
 $engineProc | Wait-Process
 

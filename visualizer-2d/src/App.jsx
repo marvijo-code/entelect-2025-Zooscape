@@ -202,11 +202,15 @@ const App = () => {
   const handleRewind = () => { setIsPlaying(false); setCurrentDisplayIndex(prev => Math.max(0, prev - 1)); };
   const handlePlayPause = () => {
     if (!isPlaying && allGameStates.length > 0) {
-      // Resume: jump to latest state
-      setCurrentDisplayIndex(allGameStates.length - 1);
+      // If currently at the last frame, restart from beginning
+      if (currentDisplayIndex >= allGameStates.length - 1) {
+        setCurrentDisplayIndex(0);
+      }
+      // Otherwise, just resume from current frame
     }
     setIsPlaying(prev => !prev);
   };
+
   const handleForward = () => { setIsPlaying(false); setCurrentDisplayIndex(prev => Math.min(allGameStates.length - 1, prev + 1)); };
 
   const currentGameState = allGameStates[currentDisplayIndex] || null;

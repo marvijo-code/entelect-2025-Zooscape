@@ -14,4 +14,10 @@ public static class WEIGHTS
 
     // Bonus for moving into unexplored cells
     public const decimal UnexploredBonus = 1.2m;
+
+    // Penalty per visit to a cell (multiplied by visit count)
+    public const decimal VisitPenalty = -0.4m;
+
+    // Bonus for moving into unexplored quadrants
+    public const decimal UnexploredQuadrantBonus = 2.0m;
 }
