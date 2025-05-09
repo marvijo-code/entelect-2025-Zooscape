@@ -15,4 +15,4 @@ RUN dotnet publish -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "BasicBot.dll"]
+ENTRYPOINT ["dotnet", "HeuroBot.dll"]

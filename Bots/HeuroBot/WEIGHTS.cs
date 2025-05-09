@@ -8,4 +8,10 @@ public static class WEIGHTS
     public const decimal AreaControl = 0.7m;
     public const decimal Mobility = 0.3m;
     public const decimal PathSafety = -0.9m;
+
+    // Penalty for reversing the previous move to avoid oscillation
+    public const decimal ReverseMovePenalty = -1.5m;
+
+    // Bonus for moving into unexplored cells
+    public const decimal UnexploredBonus = 1.2m;
 }
