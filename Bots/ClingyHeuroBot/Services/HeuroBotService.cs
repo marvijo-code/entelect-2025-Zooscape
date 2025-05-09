@@ -101,7 +101,7 @@ public class HeuroBotService
             int quad = GetQuadrant(nx, ny, state);
             if (!_visitedQuadrants.Contains(quad))
                 score += WEIGHTS.UnexploredQuadrantBonus;
-            Console.WriteLine($"Action {action}: Score = {score}");
+            // Console.WriteLine($"Action {action}: Score = {score}");
             if (score > bestScore)
             {
                 bestScore = score;
