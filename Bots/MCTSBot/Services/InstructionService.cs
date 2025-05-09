@@ -55,7 +55,7 @@ public class InstructionService
                 },
                 0,
                 0,
-                engineState.Score,
+                0,
                 0,
                 -1,
                 -1

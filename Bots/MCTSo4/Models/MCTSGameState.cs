@@ -1,11 +1,21 @@
 namespace MCTSo4.Models
 {
+    using System;
+    using System.Collections.Generic;
+
     /// <summary>
     /// Represents the full game state used by MCTS.
     /// TODO: Populate with map, entities, scores, power-ups, ticks.
     /// </summary>
     public class MCTSGameState
     {
+        // Properties matching the server payload
+        public DateTime TimeStamp { get; set; }
+        public int Tick { get; set; }
+        public List<Cell> Cells { get; set; } = new List<Cell>();
+        public List<Animal> Animals { get; set; } = new List<Animal>();
+        public List<Zookeeper> Zookeepers { get; set; } = new List<Zookeeper>();
+
         // Example properties
         // public int[,] Map { get; set; }
         // public IList<Position> PelletPositions { get; set; }

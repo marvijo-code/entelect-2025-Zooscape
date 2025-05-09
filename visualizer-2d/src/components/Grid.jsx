@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 // Import from the new JavaScript models file
 import { CellContent } from '../models.js'; 
 
@@ -13,10 +13,11 @@ import { CellContent } from '../models.js';
  * @param {object} props.colorMap
  */
 
-const TILE_SIZE = 15; // pixels
-
-// Remove React.FC<GridProps> type annotation
 const Grid = ({ gameState, colorMap = {} }) => {
+  const containerRef = useRef(null);
+  const [tileSize, setTileSize] = useState(15); // Default tile size
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
   if (!gameState) {
     return <div>Loading game state...</div>;
   }
@@ -25,8 +26,46 @@ const Grid = ({ gameState, colorMap = {} }) => {
 
   const maxX = cells && cells.length > 0 ? Math.max(...cells.map(c => c.x), 0) : 10;
   const maxY = cells && cells.length > 0 ? Math.max(...cells.map(c => c.y), 0) : 10;
-  const gridWidth = (maxX + 1) * TILE_SIZE;
-  const gridHeight = (maxY + 1) * TILE_SIZE;
+  
+  // Calculate the optimal tile size based on container dimensions
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    const updateSize = () => {
+      const containerWidth = containerRef.current.clientWidth;
+      const containerHeight = containerRef.current.clientHeight;
+      
+      setContainerSize({
+        width: containerWidth,
+        height: containerHeight
+      });
+      
+      // Calculate the maximum possible tile size that fits the grid
+      const maxTileWidth = containerWidth / (maxX + 1);
+      const maxTileHeight = containerHeight / (maxY + 1);
+      const newTileSize = Math.floor(Math.min(maxTileWidth, maxTileHeight, 30)); // Cap at 30px
+      
+      setTileSize(Math.max(newTileSize, 8)); // Minimum tile size of 8px
+    };
+    
+    // Initial size calculation
+    updateSize();
+    
+    // Add resize observer to handle container size changes
+    const resizeObserver = new ResizeObserver(updateSize);
+    resizeObserver.observe(containerRef.current);
+    
+    // Cleanup
+    return () => {
+      if (containerRef.current) {
+        resizeObserver.unobserve(containerRef.current);
+      }
+      resizeObserver.disconnect();
+    };
+  }, [maxX, maxY]);
+  
+  const gridWidth = (maxX + 1) * tileSize;
+  const gridHeight = (maxY + 1) * tileSize;
 
   // Remove type annotation from 'content' parameter
   const getCellColor = (content) => {
@@ -40,43 +79,78 @@ const Grid = ({ gameState, colorMap = {} }) => {
   };
 
   return (
-    <div style={{ position: 'relative', width: gridWidth, height: gridHeight, border: '1px solid black', backgroundColor: '#f0f0f0' }}>
-      {/* Render Cells */}
-      {cells && cells.map((cell, index) => (
-        <div
-          key={`cell-${cell.x}-${cell.y}-${index}`}
-          style={{
-            position: 'absolute', left: cell.x * TILE_SIZE, top: cell.y * TILE_SIZE,
-            width: TILE_SIZE, height: TILE_SIZE,
-            backgroundColor: getCellColor(cell.content),
-            border: '1px solid #ddd', boxSizing: 'border-box',
-          }}
-        />
-      ))}
-      {/* Render Animals */}
-      {animals && animals.map(animal => (
-        <div
-          key={`animal-${animal.id}`} title={`${animal.nickname} (Animal)`}
-          style={{
-            position: 'absolute', left: animal.x * TILE_SIZE + TILE_SIZE / 4, top: animal.y * TILE_SIZE + TILE_SIZE / 4,
-            width: TILE_SIZE / 2, height: TILE_SIZE / 2,
-            backgroundColor: colorMap[animal.id] || 'white', borderRadius: '50%', textAlign: 'center',
-            lineHeight: `${TILE_SIZE / 2}px`, fontSize: '8px', color: 'black', zIndex: 2, boxShadow: '0 0 2px black',
-          }}
-        >{animal.nickname}</div>
-      ))}
-      {/* Render Zookeepers */}
-      {zookeepers && zookeepers.map(zookeeper => (
-        <div
-          key={`zookeeper-${zookeeper.id}`} title={`${zookeeper.nickname} (Zookeeper)`}
-          style={{
-            position: 'absolute', left: zookeeper.x * TILE_SIZE + TILE_SIZE / 4, top: zookeeper.y * TILE_SIZE + TILE_SIZE / 4,
-            width: TILE_SIZE / 2, height: TILE_SIZE / 2,
-            backgroundColor: 'red', borderRadius: '20%', textAlign: 'center',
-            lineHeight: `${TILE_SIZE / 2}px`, fontSize: '8px', color: 'black', zIndex: 2, boxShadow: '0 0 2px black',
-          }}
-        >{zookeeper.nickname}</div>
-      ))}
+    <div ref={containerRef} style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+      <div style={{ 
+        position: 'relative', 
+        width: gridWidth, 
+        height: gridHeight, 
+        border: '1px solid black', 
+        backgroundColor: '#f0f0f0',
+        margin: 'auto'
+      }}>
+        {/* Render Cells */}
+        {cells && cells.map((cell, index) => (
+          <div
+            key={`cell-${cell.x}-${cell.y}-${index}`}
+            style={{
+              position: 'absolute', left: cell.x * tileSize, top: cell.y * tileSize,
+              width: tileSize, height: tileSize,
+              backgroundColor: getCellColor(cell.content),
+              border: '1px solid #ddd', boxSizing: 'border-box',
+            }}
+          />
+        ))}
+        {/* Render Animals */}
+        {animals && animals.map(animal => {
+          const fontSize = Math.max(Math.floor(tileSize / 3), 8);
+          return (
+            <div
+              key={`animal-${animal.id}`} title={`${animal.nickname} (Animal)`}
+              style={{
+                position: 'absolute', 
+                left: animal.x * tileSize + tileSize / 4, 
+                top: animal.y * tileSize + tileSize / 4,
+                width: tileSize / 2, 
+                height: tileSize / 2,
+                backgroundColor: colorMap[animal.id] || 'white', 
+                borderRadius: '50%', 
+                textAlign: 'center',
+                lineHeight: `${tileSize / 2}px`, 
+                fontSize: `${fontSize}px`, 
+                color: 'black', 
+                zIndex: 2, 
+                boxShadow: '0 0 2px black',
+                overflow: 'hidden'
+              }}
+            >{tileSize > 15 ? animal.nickname : ''}</div>
+          );
+        })}
+        {/* Render Zookeepers */}
+        {zookeepers && zookeepers.map(zookeeper => {
+          const fontSize = Math.max(Math.floor(tileSize / 3), 8);
+          return (
+            <div
+              key={`zookeeper-${zookeeper.id}`} title={`${zookeeper.nickname} (Zookeeper)`}
+              style={{
+                position: 'absolute', 
+                left: zookeeper.x * tileSize + tileSize / 4, 
+                top: zookeeper.y * tileSize + tileSize / 4,
+                width: tileSize / 2, 
+                height: tileSize / 2,
+                backgroundColor: 'red', 
+                borderRadius: '20%', 
+                textAlign: 'center',
+                lineHeight: `${tileSize / 2}px`, 
+                fontSize: `${fontSize}px`, 
+                color: 'black', 
+                zIndex: 2, 
+                boxShadow: '0 0 2px black',
+                overflow: 'hidden'
+              }}
+            >{tileSize > 15 ? zookeeper.nickname : ''}</div>
+          );
+        })}
+      </div>
     </div>
   );
 };

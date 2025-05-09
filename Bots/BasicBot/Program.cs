@@ -60,7 +60,7 @@ public class Program
             .WithUrl(connectionUrl)
             .ConfigureLogging(logging =>
             {
-                logging.SetMinimumLevel(LogLevel.Debug);
+                logging.SetMinimumLevel(LogLevel.Information);
                 logging.AddConsole();
             })
             .WithAutomaticReconnect()

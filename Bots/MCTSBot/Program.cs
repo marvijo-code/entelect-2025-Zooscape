@@ -52,20 +52,17 @@ public class Program
             return;
         }
 
-        string runnerIp = runnerIpConfig;
-        string runnerPort = runnerPortConfig;
-
         // MCTS Specific settings from root or defaults
         var mctsIterations = Configuration.GetValue<int>("MCTSIterations", 1000);
         var mctsExploration = Configuration.GetValue<double>("MCTSExplorationParam", 1.414);
 
         _logger.LogInformation($"BotNickname: {botNickname}");
-        _logger.LogInformation($"RunnerIP for Connection: {runnerIp}");
-        _logger.LogInformation($"RunnerPort for Connection: {runnerPort}");
+        _logger.LogInformation($"RunnerIP for Connection: {runnerIpConfig}");
+        _logger.LogInformation($"RunnerPort for Connection: {runnerPortConfig}");
         _logger.LogInformation($"HubName for Connection: {hubName}");
 
         // Construct the final URL for the SignalR connection
-        string connectionUrl = $"{runnerIp}:{runnerPort}/{hubName}";
+        string connectionUrl = $"{runnerIpConfig}:{runnerPortConfig}/{hubName}";
         _logger.LogInformation($"Attempting to connect to: {connectionUrl}");
         Console.WriteLine($"Attempting to connect to: {connectionUrl}");
 

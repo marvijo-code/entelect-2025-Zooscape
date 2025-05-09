@@ -1,22 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as signalR from '@microsoft/signalr';
-import Grid from './components/Grid.jsx'; 
+import Grid from './components/Grid.jsx';
 import './App.css';
 
 const HUB_URL = "http://localhost:5000/bothub";
 
-const App = () => { 
-  const [connection, setConnection] = useState(null); 
-  const [allGameStates, setAllGameStates] = useState([]); 
-  const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0); 
-  const [isPlaying, setIsPlaying] = useState(true); 
-  const [gameInitialized, setGameInitialized] = useState(false); 
-  const [isGameOver, setIsGameOver] = useState(false); 
-  const [error, setError] = useState(null); 
+const App = () => {
+  const [connection, setConnection] = useState(null);
+  const [allGameStates, setAllGameStates] = useState([]);
+  const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [gameInitialized, setGameInitialized] = useState(false);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [error, setError] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
   const [animalColorMap, setAnimalColorMap] = useState({});
-  const animalColors = ['blue','green','orange','purple','cyan','magenta','yellow','lime'];
+  const animalColors = ['blue', 'green', 'orange', 'purple', 'cyan', 'magenta', 'yellow', 'lime'];
 
   // Effect 1: Create and store connection object. Stop it on component unmount.
   useEffect(() => {
@@ -29,10 +29,10 @@ const App = () => {
     return () => { // Cleanup for component unmount
       console.log("App unmounting, stopping SignalR connection.");
       // Ensure newConnection is not null and state is appropriate before stopping.
-      if (newConnection && 
-          (newConnection.state === signalR.HubConnectionState.Connected || 
-           newConnection.state === signalR.HubConnectionState.Connecting || 
-           newConnection.state === signalR.HubConnectionState.Reconnecting)) {
+      if (newConnection &&
+        (newConnection.state === signalR.HubConnectionState.Connected ||
+          newConnection.state === signalR.HubConnectionState.Connecting ||
+          newConnection.state === signalR.HubConnectionState.Reconnecting)) {
         newConnection.stop().catch(err => console.error("Error stopping connection on unmount", err));
       } else if (newConnection) {
         console.log("App unmounting, connection already stopped or not started. State:", newConnection.state);
@@ -62,8 +62,8 @@ const App = () => {
     }
   }, [connection, setError]); // HUB_URL is const, setError is stable from useState
 
-  const initializeGameHandler = useCallback((data) => { 
-    console.log("StartGame received:", data); 
+  const initializeGameHandler = useCallback((data) => {
+    console.log("StartGame received:", data);
     setError(null);
     try {
       const payload = typeof data === 'string' ? JSON.parse(data) : data;
@@ -86,12 +86,12 @@ const App = () => {
         // If StartGame sends the full history as an array of these flat states (unlikely, but to cover)
         // This handler might be redundant if StartGame is not sent.
         // For now, assume StartGame (if sent) provides a single state or an array to pick the latest from.
-        
+
         // If payload is a single GameState object
         setAllGameStates([payload]); // Store as an array with one state
         setCurrentDisplayIndex(0); // Or payload.tick if you want to use server's tick as index
         setGameInitialized(true);
-        setIsPlaying(true); 
+        setIsPlaying(true);
         setIsGameOver(false);
         // Map initial animals to colors
         setAnimalColorMap(payload.animals.reduce((map, a, idx) => { map[a.id] = animalColors[idx % animalColors.length]; return map; }, {}));
@@ -100,13 +100,13 @@ const App = () => {
         console.error("StartGame: Invalid payload structure. Expected {cells, animals, zookeepers}", payload);
         setError("Failed to initialize game: Invalid data from server for StartGame.");
       }
-    } catch (e) { 
+    } catch (e) {
       console.error("Error parsing StartGame data:", e, "Raw data:", data);
       setError(`Failed to initialize game: ${e.message}`);
     }
-  }, [setAllGameStates, setCurrentDisplayIndex, setGameInitialized, setIsPlaying, setIsGameOver, setError, animalColors]);
+  }, []);
 
-  const tickStateChangedHandler = useCallback((data) => { 
+  const tickStateChangedHandler = useCallback((data) => {
     console.log("GameState received:", data);
     setError(null);
     try {
@@ -138,11 +138,11 @@ const App = () => {
         console.error("GameState: Invalid payload structure. Expected {tick, cells, animals, zookeepers}", newGameState);
         setError("Received invalid tick data.");
       }
-    } catch (e) { 
+    } catch (e) {
       console.error("Error parsing GameState data:", e, "Raw data:", data);
       setError(`Failed to process tick: ${e.message}`);
     }
-  }, [gameInitialized, setGameInitialized, setIsPlaying, setIsGameOver, setAllGameStates, setCurrentDisplayIndex, setError, isPlaying, currentDisplayIndex, animalColors]);
+  }, [gameInitialized]);
 
   const gameOverHandler = useCallback((message) => {
     console.log("GameOver received:", message);
@@ -208,7 +208,7 @@ const App = () => {
     setIsPlaying(prev => !prev);
   };
   const handleForward = () => { setIsPlaying(false); setCurrentDisplayIndex(prev => Math.min(allGameStates.length - 1, prev + 1)); };
-  
+
   const currentGameState = allGameStates[currentDisplayIndex] || null;
   const scoreboardData = currentGameState?.animals ? [...currentGameState.animals].sort((a, b) => b.score - a.score) : [];
 
@@ -226,8 +226,10 @@ const App = () => {
       isConnected,
       loadedStates: allGameStates.length,
       currentDisplayIndex,
+      currentTick: currentGameState?.tick,
       hasGameState: currentGameState != null,
     });
+    console.log('All loaded ticks:', allGameStates.map(s => s.tick));
   }, [isConnected, allGameStates, currentDisplayIndex, currentGameState]);
 
   return (
@@ -254,18 +256,22 @@ const App = () => {
               <h2>Scoreboard</h2>
               {scoreboardData.length > 0 ? (
                 <table><thead><tr><th>NickName</th><th>Score</th><th>Captured</th><th>Distance</th><th>Viable</th></tr></thead>
-                <tbody>{scoreboardData.map(animal => (<tr key={animal.id} style={{backgroundColor: animalColorMap[animal.id]}}><td>{animal.nickname}</td><td>{animal.score}</td><td>{animal.capturedCounter}</td><td>{animal.distanceCovered}</td><td>{animal.isViable ? 'Yes' : 'No'}</td></tr>))}</tbody>
+                  <tbody>{scoreboardData.map(animal => (<tr key={animal.id} style={{ backgroundColor: animalColorMap[animal.id] }}><td>{animal.nickname}</td><td>{animal.score}</td><td>{animal.capturedCounter}</td><td>{animal.distanceCovered}</td><td>{animal.isViable ? 'Yes' : 'No'}</td></tr>))}</tbody>
                 </table>) : <p>No animal data.</p>}
             </div>
           )}
           <div className="controls">
-            <button onClick={handleReplay} disabled={allGameStates.length === 0}>Replay</button>
-            <button onClick={handleRewind} disabled={!gameInitialized || currentDisplayIndex === 0 || isPlaying}>Rewind</button>
-            <button onClick={handlePlayPause} disabled={!gameInitialized || isGameOver}>{isPlaying ? 'Pause' : 'Play'}</button>
-            <button onClick={handleForward} disabled={!gameInitialized || currentDisplayIndex >= allGameStates.length - 1 || isPlaying}>Forward</button>
-            <span>Tick: {currentGameState?.tick ?? 'N/A'} (Frame {currentDisplayIndex + 1}/{allGameStates.length})</span>
-            <span style={{ marginLeft: '10px', fontSize: '0.8em', color: '#555' }}>States: {allGameStates.length}, Index: {currentDisplayIndex}</span>
-            {isGameOver && <span className="game-over-text">GAME OVER</span>}
+            <div>
+              <button onClick={handleReplay} disabled={allGameStates.length === 0}>Replay</button>
+              <button onClick={handleRewind} disabled={!gameInitialized || currentDisplayIndex === 0 || isPlaying}>Rewind</button>
+              <button onClick={handlePlayPause} disabled={!gameInitialized || isGameOver}>{isPlaying ? 'Pause' : 'Play'}</button>
+              <button onClick={handleForward} disabled={!gameInitialized || currentDisplayIndex >= allGameStates.length - 1 || isPlaying}>Forward</button>
+            </div>
+            <div>
+              <span>Tick: {currentGameState?.tick ?? 'N/A'} (Frame {currentDisplayIndex + 1}/{allGameStates.length})</span>
+              <span style={{ marginLeft: '10px', fontSize: '0.8em', color: '#555' }}>States: {allGameStates.length}, Index: {currentDisplayIndex}</span>
+              {isGameOver && <span className="game-over-text">GAME OVER</span>}
+            </div>
           </div>
           <div className="legend">
             <h3 className="legend-header">Legend</h3>

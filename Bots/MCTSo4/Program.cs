@@ -45,6 +45,14 @@ namespace MCTSo4
                 ?? Configuration["BotToken"]
                 ?? Guid.NewGuid().ToString();
 
+            Console.WriteLine("RUNNER_IPV4: " + Environment.GetEnvironmentVariable("RUNNER_IPV4"));
+            Console.WriteLine("RUNNER_PORT: " + Environment.GetEnvironmentVariable("RUNNER_PORT"));
+            Console.WriteLine(
+                "BOT_NICKNAME: " + Environment.GetEnvironmentVariable("BOT_NICKNAME")
+            );
+            Console.WriteLine("HUB_NAME: " + Environment.GetEnvironmentVariable("HUB_NAME"));
+            Console.WriteLine("BOT_TOKEN: " + Environment.GetEnvironmentVariable("BOT_TOKEN"));
+
             if (
                 string.IsNullOrEmpty(runnerIpConfig)
                 || string.IsNullOrEmpty(runnerPortConfig)
@@ -70,6 +78,9 @@ namespace MCTSo4
 
             _logger.LogInformation($"Bot Nickname: {botNickname}");
             _logger.LogInformation($"Attempting to connect to: {connectionUrl}");
+
+            Console.WriteLine($"runnerIpConfig: {runnerIpConfig}");
+            Console.WriteLine($"runnerPortConfig: {runnerPortConfig}");
             Console.WriteLine($"Attempting to connect to: {connectionUrl}");
 
             var connection = new HubConnectionBuilder()
@@ -78,7 +89,7 @@ namespace MCTSo4
                 {
                     // Set a minimum log level. Actual output depends on registered providers.
                     // Add Microsoft.Extensions.Logging.Console/Debug NuGet packages for console/debug output.
-                    logging.SetMinimumLevel(LogLevel.Debug);
+                    logging.SetMinimumLevel(LogLevel.Information);
                     logging.AddConsole();
                 })
                 .WithAutomaticReconnect()
