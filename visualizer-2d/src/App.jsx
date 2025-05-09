@@ -73,7 +73,7 @@ const App = () => {
         setAllGameStates(history);
         setCurrentDisplayIndex(0);
         setGameInitialized(true);
-        setIsPlaying(false);
+        setIsPlaying(true);
         setIsGameOver(false);
         // Map initial animals to colors
         setAnimalColorMap(history[0]?.animals.reduce((map, a, idx) => { map[a.id] = animalColors[idx % animalColors.length]; return map; }, {}));
@@ -224,17 +224,25 @@ const App = () => {
     return () => clearInterval(interval);
   }, [isPlaying, allGameStates.length, isGameOver]);
 
-  // Debug: log render state
+  // Auto-advance to the latest frame if new states are appended and isPlaying is true
   useEffect(() => {
-    console.log('App Render Debug:', {
-      isConnected,
-      loadedStates: allGameStates.length,
-      currentDisplayIndex,
-      currentTick: currentGameState?.tick,
-      hasGameState: currentGameState != null,
-    });
-    console.log('All loaded ticks:', allGameStates.map(s => s.tick));
-  }, [isConnected, allGameStates, currentDisplayIndex, currentGameState]);
+    if (!isPlaying || isGameOver) return;
+    if (currentDisplayIndex >= allGameStates.length - 2 && allGameStates.length > 0) {
+      setCurrentDisplayIndex(allGameStates.length - 1);
+    }
+  }, [allGameStates.length, isPlaying, isGameOver]);
+
+  // Debug: log render state
+  // useEffect(() => {
+  //   // console.log('App Render Debug:', {
+  //   //   isConnected,
+  //   //   loadedStates: allGameStates.length,
+  //   //   currentDisplayIndex,
+  //   //   currentTick: currentGameState?.tick,
+  //   //   hasGameState: currentGameState != null,
+  //   // });
+
+  // }, [isConnected, allGameStates, currentDisplayIndex, currentGameState]);
 
   return (
     <div className="App">

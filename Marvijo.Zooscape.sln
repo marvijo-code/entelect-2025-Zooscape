@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HeuroBot", "Bots\HeuroBot\H
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GHeuroBot", "Bots\GHeuroBot\GHeuroBot.csproj", "{C7D29D58-04DF-4320-9754-57CC439D2535}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClingyHeuroBot", "Bots\ClingyHeuroBot\ClingyHeuroBot.csproj", "{00C4B0CF-3DBF-60B9-4FE6-8A816D378C4F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OhHeuroV3Bot", "Bots\OhHeuroV3Bot\OhHeuroV3Bot.csproj", "{36878567-7065-77B6-9113-B54E95BC1E1B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +27,14 @@ Global
 		{C7D29D58-04DF-4320-9754-57CC439D2535}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C7D29D58-04DF-4320-9754-57CC439D2535}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C7D29D58-04DF-4320-9754-57CC439D2535}.Release|Any CPU.Build.0 = Release|Any CPU
+		{00C4B0CF-3DBF-60B9-4FE6-8A816D378C4F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{00C4B0CF-3DBF-60B9-4FE6-8A816D378C4F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{00C4B0CF-3DBF-60B9-4FE6-8A816D378C4F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{00C4B0CF-3DBF-60B9-4FE6-8A816D378C4F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36878567-7065-77B6-9113-B54E95BC1E1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36878567-7065-77B6-9113-B54E95BC1E1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36878567-7065-77B6-9113-B54E95BC1E1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36878567-7065-77B6-9113-B54E95BC1E1B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -30,6 +42,8 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{FE308ADF-E447-76A3-1EA2-A45DFAFE5D66} = {3D84C8CA-98E2-CD35-74F7-BC183E18B6DF}
 		{C7D29D58-04DF-4320-9754-57CC439D2535} = {3D84C8CA-98E2-CD35-74F7-BC183E18B6DF}
+		{00C4B0CF-3DBF-60B9-4FE6-8A816D378C4F} = {3D84C8CA-98E2-CD35-74F7-BC183E18B6DF}
+		{36878567-7065-77B6-9113-B54E95BC1E1B} = {3D84C8CA-98E2-CD35-74F7-BC183E18B6DF}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {2A1F68EB-26F3-4DD9-B554-8875273A02D8}

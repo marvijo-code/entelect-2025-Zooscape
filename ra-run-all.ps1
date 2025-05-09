@@ -25,9 +25,9 @@ docker compose up -d engine
 Start-Sleep -Seconds 5
 
 $bots = @(
-    @{ Name = "RefBot-0"; Path = "Bots\ReferenceBot\ReferenceBot.csproj" },
-    @{ Name = "g2-mcts"; Path = "Bots\MCTSBot\MCTSBot.csproj" },
-    @{ Name = "o4mcts"; Path = "Bots\GHeuroBot\GHeuroBot.csproj" },
+    @{ Name = "OhHeuroV3Bot"; Path = "Bots\OhHeuroV3Bot\OhHeuroV3Bot.csproj" },
+    @{ Name = "ClingyHeuroBot"; Path = "Bots\ClingyHeuroBot\ClingyHeuroBot.csproj" },
+    @{ Name = "GHeuroBot"; Path = "Bots\GHeuroBot\GHeuroBot.csproj" },
     @{ Name = "HeuroBot"; Path = "Bots\HeuroBot\HeuroBot.csproj" }
 )
 
