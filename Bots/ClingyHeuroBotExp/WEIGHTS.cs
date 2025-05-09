@@ -50,5 +50,5 @@ public static class WEIGHTS
     public const decimal EmptyCellAvoidance = 1.6m;
 
     // Animal positioning heuristics
-    public const decimal AnimalProximityWhenTargeted = 2.5m;
+    public const decimal AnimalProximityWhenTargeted = 4.0m; // Increased from 2.5 to strongly prioritize not being the target
 }

@@ -1241,10 +1241,16 @@ public static class Heuristics
 
             // Reward moves that bring us closer to other animals when we're targeted
             // The closer we get to other animals, the better
+
+            // Strongly reward being adjacent to other animals (protection position)
             if (closestAnimalDistance <= 1)
-                return 3.0m; // Strongly reward being adjacent to another animal
+                return 5.0m; // Significantly increased from 3.0m to prioritize positioning next to other animals
+            else if (closestAnimalDistance <= 2)
+                return 3.5m; // High reward for being 2 steps away
+            else if (closestAnimalDistance <= 3)
+                return 2.5m; // Good reward for being 3 steps away
             else
-                return 5.0m / (closestAnimalDistance + 1); // Diminishing reward for proximity
+                return 8.0m / (closestAnimalDistance + 1); // Stronger diminishing reward for proximity
         }
     }
 }
