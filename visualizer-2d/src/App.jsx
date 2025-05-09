@@ -129,7 +129,7 @@ const App = () => {
             return prevStates;
           }
           const updatedStates = [...prevStates, newGameState];
-          if (isPlaying && currentDisplayIndex === prevStates.length - 1) {
+          if (isPlaying) {
             setCurrentDisplayIndex(updatedStates.length - 1);
           }
           return updatedStates;
@@ -142,7 +142,7 @@ const App = () => {
       console.error("Error parsing GameState data:", e, "Raw data:", data);
       setError(`Failed to process tick: ${e.message}`);
     }
-  }, [gameInitialized]);
+  }, [gameInitialized, isPlaying]);
 
   const gameOverHandler = useCallback((message) => {
     console.log("GameOver received:", message);

@@ -8,9 +8,33 @@ namespace HeuroBot.Services;
 
 public static class Heuristics
 {
+    // Path memory to store recently visited positions
+    private static readonly Dictionary<string, Dictionary<(int x, int y), int>> PathMemory = new();
+
     public static decimal ScoreMove(GameState state, Animal me, BotAction move)
     {
         decimal score = 0m;
+
+        // Ensure path memory exists for this animal
+        string animalKey = me.Id.ToString();
+        if (!PathMemory.ContainsKey(animalKey))
+        {
+            PathMemory[animalKey] = new Dictionary<(int x, int y), int>();
+        }
+
+        // Update path memory with current position
+        var currentPos = (me.X, me.Y);
+        PathMemory[animalKey][currentPos] = state.Tick;
+
+        // Clean up old entries (older than 30 ticks)
+        var keysToRemove = PathMemory[animalKey]
+            .Where(kv => state.Tick - kv.Value > 30)
+            .Select(kv => kv.Key)
+            .ToList();
+        foreach (var key in keysToRemove)
+        {
+            PathMemory[animalKey].Remove(key);
+        }
 
         score += HeuristicsImpl.DistanceToGoal(state, me, move) * WEIGHTS.DistanceToGoal;
         score += HeuristicsImpl.OpponentProximity(state, me, move) * WEIGHTS.OpponentProximity;
@@ -35,6 +59,13 @@ public static class Heuristics
         score +=
             HeuristicsImpl.CaptureRecoveryStrategy(state, me, move)
             * WEIGHTS.CaptureRecoveryStrategy;
+
+        // Add cycle avoidance score
+        score +=
+            HeuristicsImpl.CycleAvoidance(state, me, move, PathMemory[animalKey])
+            * WEIGHTS.VisitPenalty;
+        // Add empty cell avoidance score
+        score += HeuristicsImpl.EmptyCellAvoidance(state, me, move) * WEIGHTS.VisitPenalty;
 
         return score;
     }
@@ -277,7 +308,12 @@ public static class Heuristics
                 Math.Min(ny - minY, maxY - ny)
             );
 
-            return edgeDistance <= 1 ? -0.3m : 0m;
+            // Increase edge avoidance penalty
+            if (edgeDistance <= 1)
+                return -1.0m; // Increased from -0.3m
+            else if (edgeDistance <= 2)
+                return -0.5m; // Add penalty for being 2 cells away from edge
+            return 0m;
         }
 
         public static decimal QuadrantAwareness(GameState state, Animal me, BotAction m)
@@ -514,6 +550,60 @@ public static class Heuristics
                 }
 
                 return pelletCount * 0.4m - competitorCount * 0.5m;
+            }
+
+            return 0m;
+        }
+
+        // New method to detect and avoid cycles using path memory
+        public static decimal CycleAvoidance(
+            GameState state,
+            Animal me,
+            BotAction m,
+            Dictionary<(int x, int y), int> pathMemory
+        )
+        {
+            var (nx, ny) = ApplyMove(me.X, me.Y, m);
+            var newPos = (nx, ny);
+
+            // Check if position was recently visited
+            if (pathMemory.TryGetValue(newPos, out int lastVisit))
+            {
+                // Calculate how recently the position was visited (0-30 ticks)
+                int recency = state.Tick - lastVisit;
+                if (recency < 30)
+                {
+                    // More penalty for more recently visited positions
+                    decimal penalty = -3.0m * (30 - recency) / 30.0m;
+                    return penalty;
+                }
+            }
+
+            return 0m;
+        }
+
+        // New method to avoid empty cells that have no pellets nearby
+        public static decimal EmptyCellAvoidance(GameState state, Animal me, BotAction m)
+        {
+            var (nx, ny) = ApplyMove(me.X, me.Y, m);
+
+            // Check if the target cell is empty (not a wall or pellet)
+            var targetCell = state.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
+            if (targetCell != null && targetCell.Content == CellContent.Empty)
+            {
+                // Check if there are pellets nearby
+                bool hasPelletsNearby = state.Cells.Any(c =>
+                    c.Content == CellContent.Pellet && ManhattanDistance(c.X, c.Y, nx, ny) <= 3
+                );
+
+                // Apply penalty for empty cells with no nearby pellets
+                if (!hasPelletsNearby)
+                {
+                    return -1.5m; // Significant penalty for empty cells with no pellets nearby
+                }
+
+                // Lighter penalty for empty cells that at least have pellets nearby
+                return -0.5m;
             }
 
             return 0m;
