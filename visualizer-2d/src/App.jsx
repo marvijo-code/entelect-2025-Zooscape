@@ -27,123 +27,29 @@ const App = () => {
 
   const fetchAggregateLeaderboardData = useCallback(async () => {
     setLeaderboardLoading(true);
-    setLeaderboardStatusMessage('Fetching tournament file list...');
+    setLeaderboardStatusMessage('Fetching leaderboard stats...');
     setLeaderboardData([]); // Clear previous data
-    let tournamentLogFilePaths = []; // These will be like ['run_id1/file1.json', 'run_id2/file2.json']
+
     try {
-      const tournamentFilesResponse = await fetch(`${API_BASE_URL}/tournament_files`);
-      if (!tournamentFilesResponse.ok) {
-        const errorData = await tournamentFilesResponse.text();
-        console.error(`API Error! Status: ${tournamentFilesResponse.status} - Failed to fetch tournament files. Server says: ${errorData}`);
+      const response = await fetch(`${API_BASE_URL}/leaderboard_stats`);
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error(`API Error! Status: ${response.status} - Failed to fetch leaderboard stats. Server says: ${errorData}`);
+        setLeaderboardStatusMessage('Failed to load leaderboard stats. API error.');
         setLeaderboardData([]);
-        setLeaderboardStatusMessage('Failed to load tournament file list. API error.');
-        setLeaderboardLoading(false);
-        return;
+      } else {
+        const data = await response.json();
+        setLeaderboardData(data);
+        setLeaderboardStatusMessage(data.length > 0 ? 'Leaderboard loaded.' : 'No data for leaderboard.');
       }
-      const tournamentFilesData = await tournamentFilesResponse.json();
-      if (!tournamentFilesData || !Array.isArray(tournamentFilesData.tournament_files)) {
-        console.error('Invalid format from /api/tournament_files: Expected an object with a tournament_files array.');
-        setLeaderboardData([]);
-        setLeaderboardStatusMessage('Failed to load tournament file list. Invalid data format from API.');
-        setLeaderboardLoading(false);
-        return;
-      }
-      tournamentLogFilePaths = tournamentFilesData.tournament_files;
     } catch (error) {
-      console.error('Network error or failed to parse response from /api/tournament_files:', error);
+      console.error('Network error or failed to parse response from /api/leaderboard_stats:', error);
+      setLeaderboardStatusMessage('Failed to load leaderboard stats. Network error or bad response.');
       setLeaderboardData([]);
-      setLeaderboardStatusMessage('Failed to load tournament file list. Network error or bad response.');
-      setLeaderboardLoading(false);
-      return;
     }
-
-    if (tournamentLogFilePaths.length === 0) {
-      console.warn('/api/tournament_files returned no files. No aggregate data to load.');
-      setLeaderboardData([]);
-      setLeaderboardStatusMessage('No tournament log files found to process.');
-      setLeaderboardLoading(false);
-      return;
-    }
-    const botStats = {}; // Stores { 'BotNickname': { wins: 0, totalGamesParticipated: 0, lastScore: 0, id: null } }
-    let overallTotalGamesProcessed = 0;
-    setLeaderboardStatusMessage(`Preparing to process ${tournamentLogFilePaths.length} log file(s)...`);
-
-    // Using for...of loop; for indexed progress, consider for...i or .map/.forEach with index
-    for (const [index, relativeLogPath] of tournamentLogFilePaths.entries()) {
-      setLeaderboardStatusMessage(`Processing log ${index + 1} of ${tournamentLogFilePaths.length}: ${relativeLogPath}`);
-      try {
-        // relativeLogPath is like 'run_id/log_filename.json'
-        const response = await fetch(`${API_BASE_URL}/logs/${relativeLogPath}`);
-        if (!response.ok) {
-          const errorData = await response.text();
-          console.error(`API Error! Status: ${response.status} - Failed to fetch log /api/logs/${relativeLogPath}. Server says: ${errorData}`);
-          continue; // Skip this file
-        }
-        const gameData = await response.json();
-        let animalsInGame = [];
-
-        // Extract animals array (handles various possible structures)
-        if (gameData && Array.isArray(gameData.Animals)) {
-          animalsInGame = gameData.Animals;
-        } else if (gameData && Array.isArray(gameData.animals)) {
-          animalsInGame = gameData.animals;
-        } else if (gameData.WorldStates && gameData.WorldStates.length > 0) {
-          const lastState = gameData.WorldStates[gameData.WorldStates.length - 1];
-          animalsInGame = lastState.Animals || lastState.animals || [];
-        } else if (gameData.worldStates && gameData.worldStates.length > 0) {
-          const lastState = gameData.worldStates[gameData.worldStates.length - 1];
-          animalsInGame = lastState.Animals || lastState.animals || [];
-        }
-
-        if (!animalsInGame || animalsInGame.length === 0) {
-          console.warn(`No animal data found or array is empty in log from /api/logs/${relativeLogPath}`);
-          continue; // Skip if no animals
-        }
-
-        overallTotalGamesProcessed++;
-        let gameWinnerNickname = null;
-        let highestScore = -Infinity;
-
-        for (const animal of animalsInGame) {
-          const nickname = animal.Nickname || animal.NickName;
-          if (!nickname) continue;
-
-          if (!botStats[nickname]) {
-            botStats[nickname] = { wins: 0, totalGamesParticipated: 0, lastScore: 0, id: animal.Id || nickname };
-          }
-          botStats[nickname].totalGamesParticipated++;
-          botStats[nickname].lastScore = animal.Score;
-          if (animal.Id) botStats[nickname].id = animal.Id; // Prefer actual ID
-
-          if (animal.Score > highestScore) {
-            highestScore = animal.Score;
-            gameWinnerNickname = nickname;
-          } else if (animal.Score === highestScore) {
-            gameWinnerNickname = null; // Undecided winner in case of a tie for simplicity
-          }
-        }
-
-        if (gameWinnerNickname && botStats[gameWinnerNickname]) {
-          botStats[gameWinnerNickname].wins++;
-        }
-      } catch (error) {
-        console.error(`Network error or failed to parse log data from /api/logs/${relativeLogPath}:`, error);
-      }
-    }
-
-    const finalLeaderboard = Object.entries(botStats).map(([nickname, stats]) => ({
-      Id: stats.id,
-      Nickname: nickname,
-      Score: stats.lastScore, // Score from the last game they were in from the list
-      Wins: stats.wins,
-      TotalGamesParticipated: stats.totalGamesParticipated, // Bot's own participation count
-      OverallTotalGames: overallTotalGamesProcessed, // Total log files processed
-    }));
-
-    setLeaderboardData(finalLeaderboard);
     setLeaderboardLoading(false);
-    setLeaderboardStatusMessage(finalLeaderboard.length > 0 ? 'Leaderboard loaded.' : 'No data for leaderboard after processing logs.');
-  }, []); // Dependencies are handled internally by fetching the manifest
+  }, []);
+    
 
   useEffect(() => {
     fetchAggregateLeaderboardData();
@@ -539,7 +445,7 @@ const App = () => {
             <p>{leaderboardStatusMessage}</p>
           </div>
         ) : leaderboardData && leaderboardData.length > 0 ? (
-          <Leaderboard animals={leaderboardData} />
+          <Leaderboard leaderboardData={leaderboardData} />
         ) : (
           <p style={{ textAlign: 'center' }}>{leaderboardStatusMessage || 'No leaderboard data available.'}</p>
         )}

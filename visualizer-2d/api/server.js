@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -14,8 +15,11 @@ console.log(`[API DEBUG] Attempting to use LOGS_BASE_DIRECTORY: ${LOGS_BASE_DIRE
 console.log(`[API] Serving logs from: ${LOGS_BASE_DIRECTORY}`);
 
 // --- Middleware ---
+// More permissive CORS for development
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'] // Allow your React app's origin
+    origin: '*', // Allow all origins in development
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json()); // To parse JSON bodies
 
@@ -156,6 +160,103 @@ app.get('/api/tournament_files', async (req, res, next) => {
     } catch (error) {
         console.error(`[API Error] Error scanning for tournament files: ${error.message}`);
         return next({ status: 500, message: 'Failed to scan for tournament files.' });
+    }
+});
+
+// --- New Leaderboard Stats Endpoint ---
+app.get('/api/leaderboard_stats', async (req, res, next) => {
+    const stats = {}; // Stores { "BotNickname": { wins: 0, secondPlaces: 0, gamesPlayed: 0 } }
+
+    try {
+        await fsPromises.access(LOGS_BASE_DIRECTORY); // Ensure base log directory is accessible
+        const runDirsDirents = await fsPromises.readdir(LOGS_BASE_DIRECTORY, { withFileTypes: true });
+
+        for (const runDirDirent of runDirsDirents) {
+            if (runDirDirent.isDirectory()) {
+                const runDirName = runDirDirent.name;
+                const runDirPath = path.join(LOGS_BASE_DIRECTORY, runDirName);
+                let lastLogFile = null;
+                let maxLogNum = -1;
+
+                // Find the last (highest numbered) JSON log file in the run directory
+                try {
+                    const filesInRunDir = await fsPromises.readdir(runDirPath);
+                    for (const fileName of filesInRunDir) {
+                        if (fileName.toLowerCase().endsWith('.json')) {
+                            const baseName = fileName.slice(0, -5); // Remove .json extension
+                            if (/^\d+$/.test(baseName)) { // Check if basename is purely numeric
+                                const num = parseInt(baseName, 10);
+                                if (num > maxLogNum) {
+                                    maxLogNum = num;
+                                    lastLogFile = fileName;
+                                }
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`[API Warn /leaderboard_stats] Could not read files in directory ${runDirName}: ${err.message}`);
+                    continue; // Skip this run directory if there's an error reading its contents
+                }
+
+                if (lastLogFile) {
+                    const filePath = path.join(runDirPath, lastLogFile);
+                    try {
+                        const fileContent = await fsPromises.readFile(filePath, 'utf8');
+                        const logData = JSON.parse(fileContent);
+
+                        if (logData.Animals && Array.isArray(logData.Animals)) {
+                            const sortedAnimals = [...logData.Animals].sort((a, b) => (b.Score || 0) - (a.Score || 0));
+
+                            // Track all participants in this game to increment gamesPlayed
+                            const participantsInGame = new Set();
+                            sortedAnimals.forEach(animal => {
+                                if (animal.Nickname) { // Ensure nickname exists
+                                    participantsInGame.add(animal.Nickname);
+                                }
+                            });
+
+                            participantsInGame.forEach(nickname => {
+                                if (!stats[nickname]) stats[nickname] = { wins: 0, secondPlaces: 0, gamesPlayed: 0 };
+                                stats[nickname].gamesPlayed += 1;
+                            });
+
+                            // Award win
+                            if (sortedAnimals.length > 0 && sortedAnimals[0].Nickname) {
+                                const winnerNickname = sortedAnimals[0].Nickname;
+                                if (!stats[winnerNickname]) stats[winnerNickname] = { wins: 0, secondPlaces: 0, gamesPlayed: stats[winnerNickname] ? stats[winnerNickname].gamesPlayed : 0 }; // Ensure gamesPlayed isn't reset
+                                stats[winnerNickname].wins += 1;
+                            }
+
+                            // Award second place
+                            if (sortedAnimals.length > 1 && sortedAnimals[1].Nickname) {
+                                const secondPlaceNickname = sortedAnimals[1].Nickname;
+                                if (!stats[secondPlaceNickname]) stats[secondPlaceNickname] = { wins: 0, secondPlaces: 0, gamesPlayed: stats[secondPlaceNickname] ? stats[secondPlaceNickname].gamesPlayed : 0 };
+                                stats[secondPlaceNickname].secondPlaces += 1;
+                            }
+                        }
+                    } catch (parseErr) {
+                        console.error(`[API Error /leaderboard_stats] Error parsing JSON from ${filePath}: ${parseErr.message}`);
+                        // Optionally skip this file or handle error differently
+                    }
+                }
+            }
+        }
+
+        // Convert stats object to array and sort
+        const leaderboardArray = Object.entries(stats).map(([nickname, data]) => ({
+            nickname,
+            ...data
+        })).sort((a, b) => {
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            if (b.secondPlaces !== a.secondPlaces) return b.secondPlaces - a.secondPlaces;
+            return a.nickname.localeCompare(b.nickname);
+        });
+
+        res.json(leaderboardArray);
+
+    } catch (error) {
+        console.error(`[API Error /leaderboard_stats] Failed to generate leaderboard: ${error.message}`);
+        next({ status: 500, message: 'Failed to generate leaderboard stats.' });
     }
 });
 

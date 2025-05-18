@@ -1,0 +1,62 @@
+{
+    "TimeStamp": "2025-05-18T15:56:14.8552306Z",
+    "Tick": 3,
+    "Cells": [
+        {
+            "X": 0,
+            "Y": 0,
+            "Content": 1
+        },
+        {
+            "X": 0,
+            "Y": 1,
+            "Content": 1
+        },
+        {
+            "X": 0,
+            "Y": 2,
+            "Content": 1
+        },
+        {
+            "X": 0,
+            "Y": 3,
+            "Content": 1
+        }
+    ],
+    "Animals": [
+        {
+            "Id": "7d31b718-68cc-4024-889d-24ba790e3fd2",
+            "Nickname": "MarvijoClingyExpBot",
+            "X": 12,
+            "Y": 36,
+            "SpawnX": 12,
+            "SpawnY": 36,
+            "Score": 0,
+            "CapturedCounter": 0,
+            "DistanceCovered": 0,
+            "IsViable": false
+        },
+        {
+            "Id": "545520c6-2de4-4804-b079-36c526251434",
+            "Nickname": "ClingyHeuroBot2",
+            "X": 12,
+            "Y": 12,
+            "SpawnX": 12,
+            "SpawnY": 12,
+            "Score": 0,
+            "CapturedCounter": 0,
+            "DistanceCovered": 0,
+            "IsViable": false
+        }
+    ],
+    "Zookeepers": [
+        {
+            "Id": "63c3a08a-0901-41c0-962a-bcf9bd46374f",
+            "Nickname": "Stinky Rotten Blob",
+            "X": 24,
+            "Y": 24,
+            "SpawnX": 24,
+            "SpawnY": 24
+        }
+    ]
+}
