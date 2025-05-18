@@ -29,7 +29,7 @@ public class Program
         Console.WriteLine($"Bot Nickname: {botNickname}");
         var hubName = Environment.GetEnvironmentVariable("HUB_NAME") ?? Configuration["HubName"];
         var botToken =
-            Environment.GetEnvironmentVariable("BOT_TOKEN")
+            Environment.GetEnvironmentVariable("Token")
             ?? Configuration["BotToken"]
             ?? Guid.NewGuid().ToString();
 

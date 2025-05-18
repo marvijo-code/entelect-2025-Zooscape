@@ -42,7 +42,7 @@ namespace MCTSo4
             var hubName =
                 Environment.GetEnvironmentVariable("HUB_NAME") ?? Configuration["HubName"];
             var botToken =
-                Environment.GetEnvironmentVariable("BOT_TOKEN")
+                Environment.GetEnvironmentVariable("Token")
                 ?? Configuration["BotToken"]
                 ?? Guid.NewGuid().ToString();
 
@@ -52,7 +52,7 @@ namespace MCTSo4
                 "BOT_NICKNAME: " + Environment.GetEnvironmentVariable("BOT_NICKNAME")
             );
             Console.WriteLine("HUB_NAME: " + Environment.GetEnvironmentVariable("HUB_NAME"));
-            Console.WriteLine("BOT_TOKEN: " + Environment.GetEnvironmentVariable("BOT_TOKEN"));
+            Console.WriteLine("BOT_TOKEN: " + Environment.GetEnvironmentVariable("Token"));
 
             if (
                 string.IsNullOrEmpty(runnerIpConfig)
