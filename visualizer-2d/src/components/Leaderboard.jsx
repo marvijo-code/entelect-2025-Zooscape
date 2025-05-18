@@ -22,7 +22,7 @@ const Leaderboard = ({ leaderboardData }) => {
         </thead>
         <tbody>
           {leaderboardData.map((bot, index) => (
-            <tr key={bot.nickname || index}> {/* Assuming nickname is unique for key, or use index as fallback */}
+            <tr key={bot.nickname || index}>{/* Assuming nickname is unique for key, or use index as fallback */}
               <td>{index + 1}</td>
               <td>{bot.nickname}</td>
               <td>{bot.wins}</td>

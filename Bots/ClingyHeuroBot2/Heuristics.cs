@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics; //  >>> NEW (time-budget guard)
+using System.Linq; //  >>> NEW (move up for grouping)
 using HeuroBot.Enums;
 using HeuroBot.Models;
 
@@ -48,8 +49,10 @@ public static class Heuristics
 
     public static decimal ScoreMove(GameState state, Animal me, BotAction move)
     {
+        var sw = Stopwatch.StartNew();
         decimal score = 0m;
 
+        // 1️⃣  FAST / CORE heuristics  (always evaluated)
         score += HeuristicsImpl.DistanceToGoal(state, me, move) * WEIGHTS.DistanceToGoal;
         score += HeuristicsImpl.OpponentProximity(state, me, move) * WEIGHTS.OpponentProximity;
         score += HeuristicsImpl.ResourceClustering(state, me, move) * WEIGHTS.ResourceClustering;
@@ -93,6 +96,19 @@ public static class Heuristics
         score += HeuristicsImpl.PositionalDominance(state, me, move) * WEIGHTS.PositionalDominance;
         score += HeuristicsImpl.ScoreLossMinimizer(state, me, move) * WEIGHTS.ScoreLossMinimizer;
 
+        score += HeuristicsImpl.TimerAwareness(state, me, move) * WEIGHTS.TimerAwareness;
+        score += HeuristicsImpl.PelletEfficiency(state, me, move) * WEIGHTS.PelletEfficiency;
+        score += HeuristicsImpl.PositionalDominance(state, me, move) * WEIGHTS.PositionalDominance;
+        score += HeuristicsImpl.ScoreLossMinimizer(state, me, move) * WEIGHTS.ScoreLossMinimizer;
+        score +=
+            HeuristicsImpl.AnticipateCompetition(state, me, move) * WEIGHTS.AnticipateCompetition;
+
+        score += HeuristicsImpl.WallCollisionRisk(state, me, move) * WEIGHTS.WallCollisionRisk; //  >>> NEW
+        score += HeuristicsImpl.LineOfSightPellets(state, me, move) * WEIGHTS.LineOfSightPellets; //  >>> NEW
+        score += HeuristicsImpl.PelletRace(state, me, move) * WEIGHTS.PelletRace; //  >>> NEW
+        score += HeuristicsImpl.RecalcWindowSafety(state, me, move) * WEIGHTS.RecalcWindowSafety; //  >>> NEW
+        score += HeuristicsImpl.CenterControl(state, me, move) * WEIGHTS.CenterControl; //  >>> NEW
+
         // Update path memory
         UpdatePathMemory(state, me);
 
@@ -106,6 +122,93 @@ public static class Heuristics
 
     static class HeuristicsImpl
     {
+        //  ————————————————————————— **NEW HEURISTICS** —————————————————————————
+
+        /// <summary>Penalise moves that will crash into a wall within ≤2 tiles,
+        /// because that forces us to burn another queued command and lose tempo.</summary>
+        public static decimal WallCollisionRisk(GameState st, Animal me, BotAction m) //  >>> NEW
+        {
+            var (x, y) = ApplyMove(me.X, me.Y, m);
+            int steps = 0;
+            while (steps < 3 && IsTraversable(st, x, y))
+            {
+                (x, y) = ApplyMove(x, y, m);
+                steps++;
+            }
+            if (!IsTraversable(st, x, y))
+                steps--;
+            return steps switch
+            {
+                0 => -2.0m, // would hit wall next tick
+                1 => -0.8m,
+                2 => -0.3m,
+                _ => 0m,
+            };
+        }
+
+        /// <summary>Reward straight-line runs that hoover multiple pellets before next turn.</summary>
+        public static decimal LineOfSightPellets(GameState st, Animal me, BotAction m) //  >>> NEW
+        {
+            var (x, y) = ApplyMove(me.X, me.Y, m);
+            int visPellets = 0;
+            for (int i = 0; i < 6 && IsTraversable(st, x, y); i++)
+            {
+                if (st.Cells.Any(c => c.X == x && c.Y == y && c.Content == CellContent.Pellet))
+                    visPellets++;
+                (x, y) = ApplyMove(x, y, m);
+            }
+            return visPellets * 0.6m;
+        }
+
+        /// <summary>Prefer pellets that we can beat _all_ competitors to.</summary>
+        public static decimal PelletRace(GameState st, Animal me, BotAction m) //  >>> NEW
+        {
+            var (nx, ny) = ApplyMove(me.X, me.Y, m);
+            var pellets = st.Cells.Where(c => c.Content == CellContent.Pellet);
+            if (!pellets.Any())
+                return 0m;
+            var best = pellets.OrderBy(c => ManhattanDistance(nx, ny, c.X, c.Y)).First();
+            int myD = ManhattanDistance(nx, ny, best.X, best.Y);
+            int minOther = st
+                .Animals.Where(a => a.Id != me.Id && a.IsViable)
+                .Select(a => ManhattanDistance(a.X, a.Y, best.X, best.Y))
+                .DefaultIfEmpty(int.MaxValue)
+                .Min();
+            return minOther - myD >= 2 ? 1.2m : 0m;
+        }
+
+        /// <summary>Avoid being within capture range at the exact tick when the zookeeper retargets
+        /// (every 20 ticks per rules §Zookeeper). That is when surprise retargets happen.</summary>
+        public static decimal RecalcWindowSafety(GameState st, Animal me, BotAction m) //  >>> NEW
+        {
+            int ticksToRecalc = (20 - (st.Tick % 20)) % 20;
+            if (ticksToRecalc > 3)
+                return 0m; // evaluate only in last 3 ticks of window
+            var (nx, ny) = ApplyMove(me.X, me.Y, m);
+            int dist = st.Zookeepers.Any()
+                ? st.Zookeepers.Min(z => ManhattanDistance(z.X, z.Y, nx, ny))
+                : 999;
+            return dist < 4 ? -1.5m / (dist + 1) : 0.4m; // move away if close, mild bonus if safe
+        }
+
+        /// <summary>Because the map is symmetrical, controlling the centre denies pellets to
+        /// _all_ quadrants while minimising travel.  We give a small, smooth bonus for staying
+        /// within a Manhattan radius ≤ 2 of centre.</summary>
+        public static decimal CenterControl(GameState st, Animal me, BotAction m) //  >>> NEW
+        {
+            int cx = (st.Cells.Min(c => c.X) + st.Cells.Max(c => c.X)) / 2;
+            int cy = (st.Cells.Min(c => c.Y) + st.Cells.Max(c => c.Y)) / 2;
+            var (nx, ny) = ApplyMove(me.X, me.Y, m);
+            int d = ManhattanDistance(nx, ny, cx, cy);
+            return d switch
+            {
+                0 => 1.0m,
+                1 => 0.7m,
+                2 => 0.3m,
+                _ => 0m,
+            };
+        }
+
         private static (int x, int y) ApplyMove(int x, int y, BotAction m) =>
             m switch
             {

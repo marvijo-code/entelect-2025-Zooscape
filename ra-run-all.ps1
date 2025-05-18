@@ -45,7 +45,7 @@ for ($i = 1; $i -le $RunCount; $i++) {
         Pop-Location
 
         Write-Host "Starting $($bot.Name)..."
-        $cmd = "/k dotnet run --project `"$PSScriptRoot\$($bot.Path)`" --configuration Release"
+        $cmd = "/c dotnet run --project `"$PSScriptRoot\$($bot.Path)`" --configuration Release"
         $p = Start-Process "cmd.exe" -ArgumentList $cmd -WindowStyle Minimized -PassThru
         $botProcs += $p
     }

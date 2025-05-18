@@ -48,4 +48,11 @@ public static class WEIGHTS
     public const decimal CycleDetection = 2.0m;
     public const decimal DirectionalVariety = 1.2m;
     public const decimal EmptyCellAvoidance = 1.6m;
+
+    // >>> NEW: Heuristic weights for Zooscape 2025 rules
+    public const decimal WallCollisionRisk = 1.0m;
+    public const decimal LineOfSightPellets = 0.9m;
+    public const decimal PelletRace = 1.1m;
+    public const decimal RecalcWindowSafety = 0.8m;
+    public const decimal CenterControl = 0.6m;
 }

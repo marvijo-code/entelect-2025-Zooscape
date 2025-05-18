@@ -51,3 +51,4 @@ riderModule.iml
 *.nuget.targets
 .vite
 publish/
+logs.bak-*/

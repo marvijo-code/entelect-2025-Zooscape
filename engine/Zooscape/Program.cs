@@ -77,7 +77,7 @@ try
                         policy =>
                         {
                             policy
-                                .WithOrigins("http://localhost:5173") // Your React app's origin
+                                .WithOrigins("http://localhost:5173", "http://localhost:5252") // Your React app's origins
                                 .AllowAnyHeader()
                                 .AllowAnyMethod()
                                 .AllowCredentials(); // Important for SignalR
