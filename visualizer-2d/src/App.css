@@ -1,3 +1,18 @@
+.spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top: 4px solid #61dafb; /* Spinner color, matches theme */
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 20px auto; /* Center spinner */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 #root {
   max-width: 100%;
   margin: 0 auto;
@@ -199,6 +214,24 @@
 
 .side-panel {
   width: 100%;
+
+/* Styles for the container of the log-based leaderboard */
+.log-leaderboard-section {
+  padding: 10px; 
+  border: 1px solid #444; /* Match .controls and .scoreboard-container border */
+  border-radius: 8px; /* Match .controls border-radius */
+  background-color: #3a3f47; /* Match .controls and .scoreboard-container background */
+  color: white; /* Ensure text within is white by default */
+  /* width and margin are handled by inline styles in App.jsx for now for positioning */
+  box-sizing: border-box;
+}
+
+/* Ensure the h2 inside log-leaderboard-section also picks up a default good color if not overridden by Leaderboard.css */
+.log-leaderboard-section h2 {
+  color: #61dafb; /* Default title color, can be overridden by component-specific CSS */
+  margin-bottom: 15px; /* As was in inline style */
+  text-align: center; /* As was in inline style */
+}
   display: flex;
   flex-direction: column;
   align-items: flex-start;

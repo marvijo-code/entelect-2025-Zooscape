@@ -1,0 +1,49 @@
+/* Leaderboard.css - Theming for the log-based leaderboard table */
+
+/* The main container styling (background, border) will be handled by .log-leaderboard-section in App.css */
+.leaderboard-container {
+  /* margin-top: 20px; /* This can be controlled by the parent or App.css if needed */
+  /* padding: 15px; /* Padding is on the parent .log-leaderboard-section */
+  /* border: none; /* Border handled by .log-leaderboard-section */
+  /* border-radius: 0; /* Border radius handled by .log-leaderboard-section */
+  /* background-color: transparent; /* Background handled by .log-leaderboard-section */
+  width: 100%; /* Ensure it fills the parent */
+}
+
+.leaderboard-container h2 {
+  margin: 0 0 10px 0; /* Adjusted margin */
+  text-align: center;
+  color: #61dafb; /* Match App.css scoreboard header color */
+  font-size: 1.2em; /* Match App.css scoreboard header font size */
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em; /* Match App.css scoreboard table font size */
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+  border: 1px solid #555; /* Match App.css scoreboard table border */
+  padding: 6px 8px;      /* Adjusted padding slightly */
+  text-align: left;
+  color: white; /* Ensure text is visible on dark background */
+}
+
+.leaderboard-table th {
+  background-color: #4f555e; /* Match App.css scoreboard table header bg */
+  font-weight: bold;
+}
+
+.leaderboard-table tbody tr:nth-child(odd) { /* Changed from even to odd to match scoreboard style */
+  background-color: #454a52; /* Match App.css scoreboard odd row bg */
+}
+
+.leaderboard-table tbody tr:nth-child(even) {
+  background-color: #3a3f47; /* Slightly different for even rows, or same as parent */
+}
+
+.leaderboard-table tbody tr:hover {
+  background-color: #5a6069; /* Match App.css scoreboard hover bg */
+}

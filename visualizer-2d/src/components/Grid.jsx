@@ -102,52 +102,81 @@ const Grid = ({ gameState, colorMap = {} }) => {
         ))}
         {/* Render Animals */}
         {animals && animals.map(animal => {
-          const fontSize = Math.max(Math.floor(tileSize / 3), 8);
+          const animalId = animal.id || animal.Id;
+          const fontSize = Math.max(Math.floor(tileSize / 2.5), 10);
           return (
-            <div
-              key={`animal-${animal.id}`} title={`${animal.nickname} (Animal)`}
-              style={{
-                position: 'absolute', 
-                left: animal.x * tileSize + tileSize / 4, 
-                top: animal.y * tileSize + tileSize / 4,
-                width: tileSize / 2, 
-                height: tileSize / 2,
-                backgroundColor: colorMap[animal.id] || 'white', 
-                borderRadius: '50%', 
-                textAlign: 'center',
-                lineHeight: `${tileSize / 2}px`, 
-                fontSize: `${fontSize}px`, 
-                color: 'black', 
-                zIndex: 2, 
-                boxShadow: '0 0 2px black',
-                overflow: 'hidden'
-              }}
-            >{tileSize > 15 ? animal.nickname : ''}</div>
+            <React.Fragment key={`animal-group-${animalId}`}>
+              <div // Animal circle
+                title={`${animal.nickname} (Animal)`}
+                style={{
+                  position: 'absolute',
+                  left: animal.x * tileSize + tileSize / 4,
+                  top: animal.y * tileSize + tileSize / 4,
+                  width: tileSize / 2,
+                  height: tileSize / 2,
+                  backgroundColor: colorMap[animalId] || 'white',
+                  borderRadius: '50%',
+                  zIndex: 2,
+                  boxShadow: '0 0 2px black'
+                }}
+              />
+              <div // Animal name label
+                style={{
+                  position: 'absolute',
+                  left: animal.x * tileSize + tileSize, // To the right of the animal
+                  top: animal.y * tileSize + tileSize / 4, // Align with top of animal circle
+                  backgroundColor: 'lightgreen',
+                  color: 'black',
+                  padding: '1px 3px',
+                  fontSize: `${fontSize}px`,
+                  zIndex: 3,
+                  whiteSpace: 'nowrap',
+                  border: '1px solid #ccc',
+                  borderRadius: '3px'
+                }}
+              >
+                {animal.nickname}
+              </div>
+            </React.Fragment>
           );
         })}
         {/* Render Zookeepers */}
         {zookeepers && zookeepers.map(zookeeper => {
-          const fontSize = Math.max(Math.floor(tileSize / 3), 8);
+          const fontSize = Math.max(Math.floor(tileSize / 2.5), 10);
           return (
-            <div
-              key={`zookeeper-${zookeeper.id}`} title={`${zookeeper.nickname} (Zookeeper)`}
-              style={{
-                position: 'absolute', 
-                left: zookeeper.x * tileSize + tileSize / 4, 
-                top: zookeeper.y * tileSize + tileSize / 4,
-                width: tileSize / 2, 
-                height: tileSize / 2,
-                backgroundColor: 'red', 
-                borderRadius: '20%', 
-                textAlign: 'center',
-                lineHeight: `${tileSize / 2}px`, 
-                fontSize: `${fontSize}px`, 
-                color: 'black', 
-                zIndex: 2, 
-                boxShadow: '0 0 2px black',
-                overflow: 'hidden'
-              }}
-            >{tileSize > 15 ? zookeeper.nickname : ''}</div>
+            <React.Fragment key={`zookeeper-group-${zookeeper.id}`}>
+              <div // Zookeeper square
+                title={`${zookeeper.nickname} (Zookeeper)`}
+                style={{
+                  position: 'absolute',
+                  left: zookeeper.x * tileSize + tileSize / 4,
+                  top: zookeeper.y * tileSize + tileSize / 4,
+                  width: tileSize / 2,
+                  height: tileSize / 2,
+                  backgroundColor: 'red',
+                  borderRadius: '20%',
+                  zIndex: 2,
+                  boxShadow: '0 0 2px black'
+                }}
+              />
+              <div // Zookeeper name label
+                style={{
+                  position: 'absolute',
+                  left: zookeeper.x * tileSize + tileSize, // To the right
+                  top: zookeeper.y * tileSize + tileSize / 4, // Align with top
+                  backgroundColor: 'lightgreen',
+                  color: 'black',
+                  padding: '1px 3px',
+                  fontSize: `${fontSize}px`,
+                  zIndex: 3,
+                  whiteSpace: 'nowrap',
+                  border: '1px solid #ccc',
+                  borderRadius: '3px'
+                }}
+              >
+                {zookeeper.nickname}
+              </div>
+            </React.Fragment>
           );
         })}
       </div>
