@@ -28,10 +28,7 @@ public class Program
             Environment.GetEnvironmentVariable("BOT_NICKNAME") ?? Configuration["BotNickname"];
         Console.WriteLine($"Bot Nickname: {botNickname}");
         var hubName = Environment.GetEnvironmentVariable("HUB_NAME") ?? Configuration["HubName"];
-        var botToken =
-            Environment.GetEnvironmentVariable("BOT_TOKEN")
-            ?? Configuration["BotToken"]
-            ?? Guid.NewGuid().ToString();
+        var botToken = Environment.GetEnvironmentVariable("Token") ?? Guid.NewGuid().ToString();
 
         if (
             string.IsNullOrEmpty(runnerIp)
