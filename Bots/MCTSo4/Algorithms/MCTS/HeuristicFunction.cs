@@ -9,10 +9,14 @@ namespace MCTSo4.Algorithms.MCTS
     {
         public static double Evaluate(MCTSGameState state, BotParameters parameters)
         {
-            if (state.IsTerminal())
-                return state.Evaluate();
-            // TODO: Combine state features with weights
-            return 0.0;
+            // TODO: This function needs to be refactored or removed as MCTSGameState.Evaluate now handles heuristics.
+            // If kept, it needs access to botId, currentTickInSim, and maxSimDepth to call state.IsTerminal and state.Evaluate correctly.
+            // Commenting out for now to resolve build errors.
+            /*
+            if (state.IsTerminal()) // This call is now invalid due to missing parameters
+                return state.Evaluate(); // This call is now invalid due to missing parameters
+            */
+            return 0.0; // Return a default value
         }
     }
 }

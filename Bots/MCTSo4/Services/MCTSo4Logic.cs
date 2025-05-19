@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using MCTSo4.Algorithms.MCTS;
 using MCTSo4.Enums;
@@ -12,6 +13,7 @@ namespace MCTSo4.Services
     {
         private readonly HubConnection _connection;
         private readonly ILogger _log;
+        private Guid _botId;
 
         public MCTSo4Logic(HubConnection connection)
         {
@@ -31,7 +33,8 @@ namespace MCTSo4.Services
                     {
                         try
                         {
-                            _log.Information("Registered with ID: {BotId}", id);
+                            _botId = id;
+                            _log.Information("Registered with ID: {BotId}", _botId);
                         }
                         catch (Exception ex)
                         {
@@ -45,7 +48,7 @@ namespace MCTSo4.Services
                     {
                         try
                         {
-                            _log.Debug("Received GameState: {@GameState}", state);
+                            _log.Debug("Received GameState for Tick {Tick}", state?.Tick);
                             if (state == null)
                             {
                                 _log.Warning("Received null GameState.");
@@ -57,8 +60,35 @@ namespace MCTSo4.Services
                             _log.Debug("Determined MetaStrategy: {MetaStrategy}", meta);
                             var parameters = AdaptiveStrategyController.ConfigureParameters(meta);
                             _log.Debug("Configured MCTS Parameters: {@MCTSParameters}", parameters);
-                            var move = MctsController.MCTS_GetBestAction(state, parameters);
-                            _log.Information("Calculated move: {Move}", move);
+
+                            _log.Information(
+                                "Calculating MCTS best action for Tick {Tick}...",
+                                state.Tick
+                            );
+                            var stopwatch = Stopwatch.StartNew();
+                            var move = MctsController.MCTS_GetBestAction(
+                                state,
+                                _botId,
+                                parameters,
+                                stopwatch
+                            );
+                            stopwatch.Stop();
+                            _log.Information(
+                                "Calculated MCTS best action: {Move} for Tick {Tick}. Duration: {ElapsedMilliseconds}ms",
+                                move,
+                                state.Tick,
+                                stopwatch.ElapsedMilliseconds
+                            );
+
+                            if (stopwatch.ElapsedMilliseconds > 150)
+                            {
+                                _log.Warning(
+                                    "MCTS_GetBestAction for Tick {Tick} took {ElapsedMilliseconds}ms, exceeding 150ms budget!",
+                                    state.Tick,
+                                    stopwatch.ElapsedMilliseconds
+                                );
+                            }
+
                             botCommand = new BotCommand { Action = move };
                         }
                         catch (Exception ex)
