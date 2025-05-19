@@ -23,6 +23,15 @@ namespace MCTSo4.Algorithms.MCTS
             Stopwatch stopwatch
         )
         {
+            if (botId == Guid.Empty)
+            {
+                AlgoLog.Error(
+                    "FindBestMove called with Guid.Empty BotId. MCTS cannot proceed. Returning a random move."
+                );
+                var legalMoves = rootState.GetLegalMoves();
+                return legalMoves.Any() ? legalMoves[Rnd.Next(legalMoves.Count)] : Move.Up; // Default to Up if no legal moves somehow
+            }
+
             AlgoLog.Debug(
                 "FindBestMove called for BotId: {BotId}. MctsIterations: {Iterations}, MctsDepth: {Depth}, Exploration: {Exploration}",
                 botId,
@@ -51,7 +60,7 @@ namespace MCTSo4.Algorithms.MCTS
                     );
                     break;
                 }
-                AlgoLog.Debug(
+                AlgoLog.Verbose(
                     "MCTS Iteration {Iteration}/{TotalIterations} for BotId {BotId} starting...",
                     i + 1,
                     parameters.MctsIterations,
@@ -59,13 +68,10 @@ namespace MCTSo4.Algorithms.MCTS
                 );
 
                 var node = root;
-                int selectionDepth = 0;
+                int selectionTreeDepth = 0;
 
-                // Selection
-                AlgoLog.Debug("Starting Selection phase for BotId {BotId}...", botId);
-                while (
-                    !node.IsTerminal(selectionDepth, parameters.MctsDepth) && node.IsFullyExpanded
-                )
+                AlgoLog.Verbose("Starting Selection phase for BotId {BotId}...", botId);
+                while (!node.IsTerminal(0, int.MaxValue) && node.IsFullyExpanded)
                 {
                     node = node.BestChild();
                     AlgoLog.Verbose(
@@ -75,21 +81,33 @@ namespace MCTSo4.Algorithms.MCTS
                         node.Wins,
                         botId
                     );
-                    selectionDepth++;
+                    selectionTreeDepth++;
                 }
-                AlgoLog.Debug(
+                AlgoLog.Verbose(
                     "Selection phase complete for BotId {BotId}. Selected node leads with action: {Action}",
                     botId,
                     node.Move
                 );
 
-                // Expansion
-                AlgoLog.Debug("Starting Expansion phase for BotId {BotId}...", botId);
-                if (
-                    !node.IsTerminal(selectionDepth, parameters.MctsDepth)
-                    && node.UntriedActions.Any()
-                )
+                // Log before checking expansion conditions
+                bool rootIsTerminalCheck = node.IsTerminal(0, int.MaxValue); // Assuming node is root here if i=0 and selection didn't move
+                bool rootHasUntriedActionsCheck = node.UntriedActions.Any();
+                AlgoLog.Debug(
+                    "Pre-Expansion Check for BotId {BotId}: Node isRoot? {IsRoot}, IsTerminal(0,inf)? {IsTerminal}, HasUntriedActions? {HasUntried}, UntriedCount: {UntriedCount}",
+                    botId,
+                    node == root,
+                    rootIsTerminalCheck,
+                    rootHasUntriedActionsCheck,
+                    node.UntriedActions.Count
+                );
+
+                AlgoLog.Verbose("Starting Expansion phase for BotId {BotId}...", botId);
+                if (!rootIsTerminalCheck && rootHasUntriedActionsCheck) // Use the checked values
                 {
+                    AlgoLog.Debug(
+                        "Expansion criteria met for BotId {BotId}. Expanding node.",
+                        botId
+                    );
                     var actionIndex = Rnd.Next(node.UntriedActions.Count);
                     var actionToExpand = node.UntriedActions[actionIndex];
                     node.UntriedActions.RemoveAt(actionIndex);
@@ -104,7 +122,7 @@ namespace MCTSo4.Algorithms.MCTS
                     );
                     node.Children.Add(child);
                     node = child;
-                    AlgoLog.Debug(
+                    AlgoLog.Verbose(
                         "Expanded with action: {Action} for BotId {BotId}. New node created.",
                         actionToExpand,
                         botId
@@ -112,16 +130,15 @@ namespace MCTSo4.Algorithms.MCTS
                 }
                 else
                 {
-                    AlgoLog.Debug(
+                    AlgoLog.Verbose(
                         "Expansion phase for BotId {BotId}: Node is terminal or no untried actions. Current node action: {Action}",
                         botId,
                         node.Move
                     );
                 }
-                AlgoLog.Debug("Expansion phase complete for BotId {BotId}.", botId);
+                AlgoLog.Verbose("Expansion phase complete for BotId {BotId}.", botId);
 
-                // Simulation (Rollout)
-                AlgoLog.Debug(
+                AlgoLog.Verbose(
                     "Starting Simulation (Rollout) phase from node with action: {Action} for BotId {BotId}...",
                     node.Move,
                     botId
@@ -144,7 +161,7 @@ namespace MCTSo4.Algorithms.MCTS
                         )
                     )
                     {
-                        AlgoLog.Debug(
+                        AlgoLog.Verbose(
                             "Rollout for BotId {BotId} reached a terminal state at step {Step} out of max depth {MaxDepth}.",
                             botId,
                             rolloutStepCount,
@@ -166,14 +183,6 @@ namespace MCTSo4.Algorithms.MCTS
                     }
                     var randomAction = legalMoves[Rnd.Next(legalMoves.Count)];
                     rolloutState = rolloutState.Apply(randomAction, botId);
-                    AlgoLog.Verbose(
-                        "Rollout step {Step}/{MaxDepth} for BotId {BotId}, iteration {Iteration}: Applied random action {Action}",
-                        rolloutStepCount + 1,
-                        parameters.MctsDepth,
-                        botId,
-                        i + 1,
-                        randomAction
-                    );
                 }
 
                 if (
@@ -186,7 +195,7 @@ namespace MCTSo4.Algorithms.MCTS
                     )
                 )
                 {
-                    AlgoLog.Debug(
+                    AlgoLog.Verbose(
                         "Rollout for BotId {BotId} reached max depth {MaxDepth} without reaching a terminal state.",
                         botId,
                         parameters.MctsDepth
@@ -208,8 +217,7 @@ namespace MCTSo4.Algorithms.MCTS
                     )
                 );
 
-                // Backpropagation
-                AlgoLog.Debug("Starting Backpropagation phase for BotId {BotId}...", botId);
+                AlgoLog.Verbose("Starting Backpropagation phase for BotId {BotId}...", botId);
                 var tempNode = node;
                 while (tempNode != null)
                 {
@@ -224,7 +232,7 @@ namespace MCTSo4.Algorithms.MCTS
                     );
                     tempNode = tempNode.Parent;
                 }
-                AlgoLog.Debug("Backpropagation phase complete for BotId {BotId}.", botId);
+                AlgoLog.Verbose("Backpropagation phase complete for BotId {BotId}.", botId);
                 AlgoLog.Debug(
                     "MCTS Iteration {Iteration} for BotId {BotId} complete. Time elapsed: {ElapsedMs}ms",
                     i + 1,
@@ -279,7 +287,6 @@ namespace MCTSo4.Algorithms.MCTS
             {
                 return bestChild.Move.Value;
             }
-            // If no best child or best child has no move, try first legal move from root state
             var legalRootMoves = root.State.GetLegalMoves();
             if (legalRootMoves.Any())
             {
@@ -290,7 +297,6 @@ namespace MCTSo4.Algorithms.MCTS
                 );
                 return legalRootMoves.First();
             }
-            // Ultimate fallback if no legal moves from root state either (should be rare)
             AlgoLog.Error(
                 "BotId {BotId}: No best child AND no legal moves from root state. Falling back to Move.Up.",
                 botId

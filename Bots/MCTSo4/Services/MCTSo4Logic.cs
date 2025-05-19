@@ -48,6 +48,15 @@ namespace MCTSo4.Services
                     {
                         try
                         {
+                            if (_botId == Guid.Empty)
+                            {
+                                _log.Warning(
+                                    "GameState received for Tick {Tick} but BotId is not yet set (still Guid.Empty). Skipping MCTS for this tick.",
+                                    state?.Tick
+                                );
+                                return;
+                            }
+
                             _log.Debug("Received GameState for Tick {Tick}", state?.Tick);
                             if (state == null)
                             {

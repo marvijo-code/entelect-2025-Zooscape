@@ -261,15 +261,16 @@ namespace MCTSo4.Models
             // TODO: Add evaluation for parameters.Weight_EscapeProgress, parameters.Weight_PowerUp
             // This would require knowing how these are represented in the game state (e.g., exit points, power-up items)
 
-            GameStateLog.Verbose(
-                "Evaluate for Bot {BotId} at ({X},{Y}), Tick {Tick}, SimScore {Score}. Animal Score: {AnimalScore}",
-                botAnimalId,
-                botAnimal.X,
-                botAnimal.Y,
-                Tick,
-                evalScore,
-                botAnimal.Score
-            );
+            // This log can be very spammy, changing to Verbose.
+            // GameStateLog.Verbose(
+            //     "Evaluate for Bot {BotId} at ({X},{Y}), Tick {Tick}, SimScore {Score}. Animal Score: {AnimalScore}",
+            //     botAnimalId,
+            //     botAnimal.X,
+            //     botAnimal.Y,
+            //     Tick,
+            //     evalScore,
+            //     botAnimal.Score
+            // );
             return evalScore;
         }
     }
