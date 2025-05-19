@@ -4,11 +4,17 @@ using System.Linq;
 using HeuroBot; // for WEIGHTS
 using HeuroBot.Enums;
 using HeuroBot.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace HeuroBot.Services;
 
 public class HeuroBotService
 {
+    public HeuroBotService(string botNickname)
+    {
+        BotNickname = botNickname;
+    }
+
     private Guid _botId;
     private BotAction? _previousAction = null;
 
@@ -18,12 +24,23 @@ public class HeuroBotService
     // Track visited quadrants for exploration incentive
     private HashSet<int> _visitedQuadrants = new();
 
+    public string? BotNickname { get; }
+
     public void SetBotId(Guid botId) => _botId = botId;
 
     public BotCommand ProcessState(GameState state)
     {
+        // Start timing the processing for performance logging
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting turn processing");
+
         // Identify this bot's animal
         var me = state.Animals.First(a => a.Id == _botId);
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Current position: ({me.X}, {me.Y})");
+        Console.WriteLine(
+            $"[{DateTime.Now:HH:mm:ss.fff}] Pellets on board: {state.Cells.Count(c => c.Content == CellContent.Pellet)}"
+        );
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Animals on board: {state.Animals.Count}");
 
         // Update visit count for current cell
         var currentPos = (me.X, me.Y);
@@ -101,7 +118,7 @@ public class HeuroBotService
             int quad = GetQuadrant(nx, ny, state);
             if (!_visitedQuadrants.Contains(quad))
                 score += WEIGHTS.UnexploredQuadrantBonus;
-            Console.WriteLine($"Action {action}: Score = {score}");
+            Console.WriteLine($"{BotNickname}: Action {action}: Score = {score}");
             if (score > bestScore)
             {
                 bestScore = score;
@@ -110,7 +127,6 @@ public class HeuroBotService
         }
 
         // Store chosen action and mark new position to discourage oscillation and encourage exploration
-        _previousAction = bestAction;
         int bx = me.X,
             by = me.Y;
         switch (bestAction)
@@ -136,7 +152,26 @@ public class HeuroBotService
         int bestQuad = GetQuadrant(bx, by, state);
         if (!_visitedQuadrants.Contains(bestQuad))
             _visitedQuadrants.Add(bestQuad);
-        return new BotCommand { Action = bestAction };
+
+        // Update previous action for next turn
+        _previousAction = bestAction;
+
+        // Stop the timer and log performance metrics
+        sw.Stop();
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Selected action: {bestAction}");
+        Console.WriteLine(
+            $"[{DateTime.Now:HH:mm:ss.fff}] Processing completed in {sw.ElapsedMilliseconds}ms"
+        );
+
+        // Alert if we're close to the time limit
+        if (sw.ElapsedMilliseconds > 100)
+        {
+            Console.WriteLine(
+                $"[{DateTime.Now:HH:mm:ss.fff}] WARNING: Processing time {sw.ElapsedMilliseconds}ms approaching 150ms limit!"
+            );
+        }
+
+        return new BotCommand() { Action = bestAction };
     }
 
     private static bool IsOpposite(BotAction a, BotAction b) =>

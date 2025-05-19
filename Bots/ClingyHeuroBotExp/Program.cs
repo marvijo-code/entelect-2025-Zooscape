@@ -26,7 +26,7 @@ public class Program
             Environment.GetEnvironmentVariable("RUNNER_PORT") ?? Configuration["RunnerPort"];
         var botNickname =
             Environment.GetEnvironmentVariable("BOT_NICKNAME") ?? Configuration["BotNickname"];
-        Console.WriteLine($"Bot Nickname: {botNickname}");
+        Console.WriteLine($"Bot Nickname: {botNickname} v0.37-OptimalPath");
         var hubName = Environment.GetEnvironmentVariable("HUB_NAME") ?? Configuration["HubName"];
         var botToken = Environment.GetEnvironmentVariable("Token") ?? Guid.NewGuid().ToString();
 
@@ -55,7 +55,7 @@ public class Program
             .WithAutomaticReconnect()
             .Build();
 
-        var botService = new HeuroBotService();
+        var botService = new HeuroBotService(botNickname);
         BotCommand command = new();
 
         connection.On<Guid>("Registered", id => botService.SetBotId(id));

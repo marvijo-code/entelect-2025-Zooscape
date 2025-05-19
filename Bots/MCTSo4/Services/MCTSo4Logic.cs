@@ -4,21 +4,24 @@ using MCTSo4.Algorithms.MCTS;
 using MCTSo4.Enums;
 using MCTSo4.Models;
 using Microsoft.AspNetCore.SignalR.Client;
+using Serilog;
 
 namespace MCTSo4.Services
 {
     public class MCTSo4Logic
     {
         private readonly HubConnection _connection;
+        private readonly ILogger _log;
 
         public MCTSo4Logic(HubConnection connection)
         {
             _connection = connection;
+            _log = Log.ForContext<MCTSo4Logic>();
         }
 
         public async Task StartAsync(string token, string nickName)
         {
-            Console.WriteLine($"Starting MCTSo4Logic for {nickName}");
+            _log.Information("Starting MCTSo4Logic for {NickName}", nickName);
             try
             {
                 BotCommand botCommand = null!;
@@ -28,11 +31,11 @@ namespace MCTSo4.Services
                     {
                         try
                         {
-                            Console.WriteLine($"Registered: {id}");
+                            _log.Information("Registered with ID: {BotId}", id);
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"Error in Registered handler: {ex}");
+                            _log.Error(ex, "Error in Registered handler");
                         }
                     }
                 );
@@ -42,17 +45,25 @@ namespace MCTSo4.Services
                     {
                         try
                         {
-                            // Received state directly, no manual parsing
+                            _log.Debug("Received GameState: {@GameState}", state);
+                            if (state == null)
+                            {
+                                _log.Warning("Received null GameState.");
+                                return;
+                            }
                             var meta = AdaptiveStrategyController.DetermineCurrentMetaStrategy(
                                 state
                             );
+                            _log.Debug("Determined MetaStrategy: {MetaStrategy}", meta);
                             var parameters = AdaptiveStrategyController.ConfigureParameters(meta);
+                            _log.Debug("Configured MCTS Parameters: {@MCTSParameters}", parameters);
                             var move = MctsController.MCTS_GetBestAction(state, parameters);
+                            _log.Information("Calculated move: {Move}", move);
                             botCommand = new BotCommand { Action = move };
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"Error in GameState handler: {ex}");
+                            _log.Error(ex, "Error in GameState handler");
                         }
                     }
                 );
@@ -62,65 +73,91 @@ namespace MCTSo4.Services
                     {
                         try
                         {
-                            Console.WriteLine($"Disconnected: {reason}");
+                            _log.Information("Disconnected by server. Reason: {Reason}", reason);
                             await _connection.StopAsync();
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"Error in Disconnect handler: {ex}");
+                            _log.Error(ex, "Error in Disconnect handler");
                         }
                     }
                 );
                 _connection.Closed += async error =>
                 {
-                    Console.WriteLine($"Connection closed: {error}");
+                    if (error != null)
+                    {
+                        _log.Error(
+                            error,
+                            "Connection closed with error: {ErrorMessage}",
+                            error.Message
+                        );
+                    }
+                    else
+                    {
+                        _log.Information("Connection closed without error.");
+                    }
                     await Task.CompletedTask;
                 };
 
-                // Connection should be started in Program.cs, not here.
-                Console.WriteLine("Assuming connection already started (handled in Program.cs)");
+                _log.Information("Assuming connection already started (handled in Program.cs)");
 
                 try
                 {
                     await _connection.InvokeAsync("Register", token, nickName);
-                    Console.WriteLine("Sent Register message");
+                    _log.Information(
+                        "Sent Register message for {NickName} with token {Token}",
+                        nickName,
+                        token
+                    );
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error during registration: {ex}");
+                    _log.Error(ex, "Error during registration for {NickName}", nickName);
                     return;
                 }
 
                 try
                 {
-                    while (
-                        _connection.State == HubConnectionState.Connected
-                        || _connection.State == HubConnectionState.Connecting
-                    )
+                    _log.Information(
+                        "Entering main bot loop for {NickName}. Connection state: {ConnectionState}",
+                        nickName,
+                        _connection.State
+                    );
+                    while (_connection.State == HubConnectionState.Connected)
                     {
                         if (botCommand != null)
                         {
                             try
                             {
+                                _log.Debug(
+                                    "Attempting to send BotCommand: {@BotCommand}",
+                                    botCommand
+                                );
                                 await _connection.SendAsync("BotCommand", botCommand);
+                                _log.Information("Sent BotCommand: {Action}", botCommand.Action);
                                 botCommand = null!;
                             }
                             catch (Exception ex)
                             {
-                                Console.WriteLine($"Error sending BotCommand: {ex}");
+                                _log.Error(ex, "Error sending BotCommand");
                             }
                         }
-                        await Task.Delay(10); // Prevent tight loop
+                        await Task.Delay(10);
                     }
+                    _log.Warning(
+                        "Exited main bot loop for {NickName}. Connection state: {ConnectionState}",
+                        nickName,
+                        _connection.State
+                    );
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error in main loop: {ex}");
+                    _log.Error(ex, "Error in main bot loop for {NickName}", nickName);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fatal error in StartAsync: {ex}");
+                _log.Fatal(ex, "Fatal error in StartAsync for {NickName}", nickName);
             }
         }
     }
