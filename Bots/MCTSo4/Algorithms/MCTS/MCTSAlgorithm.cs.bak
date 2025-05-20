@@ -165,17 +165,23 @@ namespace MCTSo4.Algorithms.MCTS
                     }
 
                     var legalMoves = fastRolloutState.GetLegalMovesFast();
-                    if (!legalMoves.Any())
+                    if (
+                        !legalMoves.Any()
+                        || (legalMoves.Count == 1 && legalMoves.Contains(Move.Stay))
+                    )
                     {
-                        AlgoLog.Warning(
-                            "FastRollout for BotId {BotId}: No valid moves. Breaking.",
+                        AlgoLog.Verbose(
+                            "FastRollout for BotId {BotId}: No valid moves other than potentially Stay. Breaking.",
                             botId
                         );
                         break;
                     }
-
-                    var selectableMoves = legalMoves.ToList();
-                    if (!selectableMoves.Any())
+                    var selectableMoves = legalMoves.Where(m => m != Move.Stay).ToList();
+                    if (!selectableMoves.Any() && legalMoves.Contains(Move.Stay))
+                    {
+                        selectableMoves.Add(Move.Stay);
+                    }
+                    else if (!selectableMoves.Any())
                     {
                         AlgoLog.Warning(
                             "FastRollout for BotId {BotId}: No selectable moves found. Breaking.",

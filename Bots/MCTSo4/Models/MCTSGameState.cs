@@ -233,7 +233,7 @@ namespace MCTSo4.Models
 
             // Pellet attraction: Encourage moving towards the closest pellet
             double minDistanceToPellet = double.MaxValue;
-            Cell closestPellet = null;
+            Cell? closestPellet = null; // Indicate that closestPellet can be null
             foreach (var cell in Cells)
             {
                 if (cell.Content == CellContent.Pellet)

@@ -28,7 +28,7 @@ namespace MCTSo4
             Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(Configuration)
                 .Enrich.FromLogContext()
-                .WriteTo.Console()
+                // .WriteTo.Console() // Removed: Console sink is configured in appsettings.json
                 .WriteTo.File(
                     "logs/mctso4-.txt",
                     rollingInterval: RollingInterval.Day,
