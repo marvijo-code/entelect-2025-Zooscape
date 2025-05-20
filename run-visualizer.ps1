@@ -84,7 +84,7 @@ try {
     $frontendJob = Start-Job -ScriptBlock {
         Set-Location $using:FrontendDir
         $env:PORT = "5252"
-        npm run dev
+        vite
     }
     Write-Host "Frontend started as job $($frontendJob.Id)"
 } finally {

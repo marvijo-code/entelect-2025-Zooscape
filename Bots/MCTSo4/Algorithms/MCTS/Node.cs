@@ -47,13 +47,26 @@ namespace MCTSo4.Algorithms.MCTS
 
         public double UctValue()
         {
+            // If no visits, make it highly explorable
             if (Visits == 0)
                 return double.MaxValue;
+
+            // If parent doesn't exist or has no visits, just return raw win rate
             if (Parent == null || Parent.Visits == 0)
             {
-                return (Visits > 0) ? (Wins / Visits) : double.MaxValue;
+                return (Visits > 0) ? Wins / Visits : double.MaxValue;
             }
-            return (Wins / Visits) + UctConstant * Math.Sqrt(Math.Log(Parent.Visits) / Visits);
+
+            // Calculate UCT using raw win rate - no normalization needed anymore
+            double winRate = Wins / Visits;
+
+            // Our raw scores can be very large now (50-150+) so we need to scale down
+            // the exploration term to make it proportional
+            double explorationBalance = Math.Min(Math.Abs(winRate) * 0.1, 1.0);
+            double explorationTerm = UctConstant * Math.Sqrt(Math.Log(Parent.Visits) / Visits);
+
+            // Scale down exploration term based on the magnitude of the rewards
+            return winRate + explorationTerm * explorationBalance;
         }
 
         public MctsNode BestChild()

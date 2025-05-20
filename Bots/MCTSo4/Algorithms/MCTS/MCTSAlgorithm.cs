@@ -48,8 +48,12 @@ namespace MCTSo4.Algorithms.MCTS
                 parameters
             );
 
+            int maxSelectionDepthReached = 0;
+            int totalIterations = 0;
+
             for (int i = 0; i < parameters.MctsIterations; i++)
             {
+                totalIterations++;
                 if (stopwatch.ElapsedMilliseconds >= 140)
                 {
                     AlgoLog.Warning(
@@ -70,22 +74,54 @@ namespace MCTSo4.Algorithms.MCTS
                 var nodeToSimulateFrom = root;
                 int selectionTreeDepth = 0;
 
-                AlgoLog.Verbose("Starting Selection phase for BotId {BotId}...", botId);
-                while (
-                    !nodeToSimulateFrom.IsTerminal(0, int.MaxValue)
-                    && nodeToSimulateFrom.IsFullyExpanded
-                )
+                // Ensure initial root level exploration by forcing initial moves to be more balanced
+                if (i < 40 && root.UntriedActions.Any())
                 {
-                    nodeToSimulateFrom = nodeToSimulateFrom.BestChild();
-                    AlgoLog.Verbose(
-                        "Selected node: {NodeAction}, Visits: {Visits}, Wins: {Wins} for BotId {BotId}",
-                        nodeToSimulateFrom.Move,
-                        nodeToSimulateFrom.Visits,
-                        nodeToSimulateFrom.Wins,
-                        botId
+                    // For the first few iterations, force expansion of untried actions
+                    // This ensures we explore all moves before getting too deep in any one branch
+                    AlgoLog.Debug(
+                        "Forcing exploration of untried action for iteration {Iteration}",
+                        i + 1
                     );
-                    selectionTreeDepth++;
+                    var actionIndex = Rnd.Next(root.UntriedActions.Count);
+                    var actionToExpand = root.UntriedActions[actionIndex];
+                    root.UntriedActions.RemoveAt(actionIndex);
+                    var nextMctsState = root.State.Apply(actionToExpand, botId);
+                    var child = new MctsNode(
+                        nextMctsState,
+                        root,
+                        actionToExpand,
+                        parameters.ExplorationConstant,
+                        botId,
+                        parameters
+                    );
+                    root.Children.Add(child);
+                    nodeToSimulateFrom = child;
                 }
+                else
+                {
+                    // Standard selection phase
+                    AlgoLog.Verbose("Starting Selection phase for BotId {BotId}...", botId);
+                    while (
+                        !nodeToSimulateFrom.IsTerminal(0, int.MaxValue)
+                        && nodeToSimulateFrom.IsFullyExpanded
+                    )
+                    {
+                        nodeToSimulateFrom = nodeToSimulateFrom.BestChild();
+                        AlgoLog.Verbose(
+                            "Selected node: {NodeAction}, Visits: {Visits}, Wins: {Wins} for BotId {BotId}",
+                            nodeToSimulateFrom.Move,
+                            nodeToSimulateFrom.Visits,
+                            nodeToSimulateFrom.Wins,
+                            botId
+                        );
+                        selectionTreeDepth++;
+                    }
+                }
+
+                // Track maximum selection depth
+                maxSelectionDepthReached = Math.Max(maxSelectionDepthReached, selectionTreeDepth);
+
                 AlgoLog.Verbose(
                     "Selection phase complete for BotId {BotId}. Selected node leads with action: {Action}",
                     botId,
@@ -204,11 +240,17 @@ namespace MCTSo4.Algorithms.MCTS
                     );
                 }
 
-                var reward = fastRolloutState.EvaluateFast(parameters);
+                var baseReward = fastRolloutState.EvaluateFast(parameters);
+
+                // This no longer needs the Math.Sign adjustment since we're using raw values
+                // We still use Math.Pow but with a smaller exponent to prevent extreme values
+                var reward = Math.Pow(Math.Abs(baseReward), 1.5) * Math.Sign(baseReward);
+
                 AlgoLog.Debug(
-                    "FastSimulation (Rollout) for BotId {BotId} complete. Steps: {Steps}, Reward: {Reward}, Terminal: {IsTerminalNow}",
+                    "FastSimulation (Rollout) for BotId {BotId} complete. Steps: {Steps}, Base Reward: {BaseReward}, Modified Reward: {Reward}, Terminal: {IsTerminalNow}",
                     botId,
                     rolloutStepCount,
+                    baseReward,
                     reward,
                     fastRolloutState.IsTerminalFast(
                         rolloutStepCount,
@@ -223,6 +265,17 @@ namespace MCTSo4.Algorithms.MCTS
                 {
                     tempNode.Visits++;
                     tempNode.Wins += reward;
+
+                    // Adjust the clamping values to match our new scale
+                    if (tempNode.Wins > 10000 || tempNode.Wins < -10000)
+                    {
+                        tempNode.Wins = Math.Sign(tempNode.Wins) * 10000;
+                        AlgoLog.Debug(
+                            "Clamped extreme win value for node with move {Move}",
+                            tempNode.Move
+                        );
+                    }
+
                     AlgoLog.Verbose(
                         "Backpropagated to node: {NodeAction}, NewVisits: {Visits}, NewWins: {Wins} for BotId {BotId}",
                         tempNode.Move,
@@ -274,7 +327,73 @@ namespace MCTSo4.Algorithms.MCTS
                 }
             }
 
-            var bestChild = root.Children.OrderByDescending(c => c.Visits).FirstOrDefault();
+            // Log information about search depth and move visits
+            AlgoLog.Information(
+                "MCTS Stats - BotId {BotId}: Iterations: {Iterations}, Max Selection Depth: {MaxDepth}, Search Time: {ElapsedMs}ms",
+                botId,
+                totalIterations,
+                maxSelectionDepthReached,
+                stopwatch.ElapsedMilliseconds
+            );
+
+            // Calculate normalized win rates for all children
+            Dictionary<Move, double> moveScores = new Dictionary<Move, double>();
+            foreach (var child in root.Children)
+            {
+                // Use raw win/visit ratio without normalization to show actual differences
+                double rawWinRate = child.Visits > 0 ? child.Wins / child.Visits : 0;
+
+                // Don't apply the (x + 1.0) * 50.0 formula - just display the raw value as percentage
+                double winRatePercentage = rawWinRate;
+
+                if (child.Move.HasValue)
+                {
+                    moveScores[child.Move.Value] = winRatePercentage;
+                }
+
+                AlgoLog.Information(
+                    "Move Stats - BotId {BotId}: Move: {Move}, Visits: {Visits}, Win Rate: {WinRate:F2}, Raw Score: {RawScore:F4}",
+                    botId,
+                    child.Move,
+                    child.Visits,
+                    winRatePercentage,
+                    rawWinRate
+                );
+            }
+
+            // First find the most visited move as a baseline
+            var mostVisitedChild = root.Children.OrderByDescending(c => c.Visits).FirstOrDefault();
+
+            // Apply a minimum visit threshold before considering a move's win rate
+            var minVisitsThreshold = Math.Max(5, root.Children.Max(c => c.Visits) / 10);
+
+            // Then find the move with the best win rate among moves with sufficient visits
+            var bestWinRateChild = root
+                .Children.Where(c => c.Visits >= minVisitsThreshold)
+                .OrderByDescending(c => c.Visits > 0 ? c.Wins / c.Visits : double.MinValue)
+                .FirstOrDefault();
+
+            var bestChild = bestWinRateChild ?? mostVisitedChild;
+
+            // Log decision rationale
+            if (
+                bestWinRateChild != null
+                && mostVisitedChild != null
+                && bestWinRateChild != mostVisitedChild
+            )
+            {
+                double bestRawWinRate = bestWinRateChild.Wins / bestWinRateChild.Visits;
+                double mostVisitedRawWinRate = mostVisitedChild.Wins / mostVisitedChild.Visits;
+
+                AlgoLog.Information(
+                    "Selected move based on win rate: {Move} ({WinRate:F2}) over most visited: {VisitedMove} ({VisitedWinRate:F2})",
+                    bestWinRateChild.Move,
+                    bestRawWinRate,
+                    mostVisitedChild.Move,
+                    mostVisitedRawWinRate
+                );
+            }
+
             AlgoLog.Debug(
                 "FindBestMove for BotId {BotId} determined best child: {Move}, Visits: {V}, Wins: {W}",
                 botId,
@@ -283,6 +402,29 @@ namespace MCTSo4.Algorithms.MCTS
                 bestChild?.Wins
             );
 
+            // Find the final best move based strictly on the highest raw win rate among well-visited nodes
+            if (root.Children.Any(c => c.Visits >= minVisitsThreshold))
+            {
+                // Get the move with the absolute highest score (without any other considerations)
+                var highestScoreMove = root
+                    .Children.Where(c => c.Visits >= minVisitsThreshold)
+                    .OrderByDescending(c => c.Visits > 0 ? c.Wins / c.Visits : double.MinValue)
+                    .First();
+
+                AlgoLog.Information(
+                    "Selected final move with highest score: {Move}, Score: {Score:F2}, Visits: {Visits}",
+                    highestScoreMove.Move,
+                    highestScoreMove.Wins / highestScoreMove.Visits,
+                    highestScoreMove.Visits
+                );
+
+                if (highestScoreMove.Move.HasValue)
+                {
+                    return highestScoreMove.Move.Value;
+                }
+            }
+
+            // Fallback to the original algorithm's choice if something went wrong
             if (bestChild != null && bestChild.Move.HasValue)
             {
                 return bestChild.Move.Value;

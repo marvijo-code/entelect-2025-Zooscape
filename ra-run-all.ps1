@@ -52,7 +52,7 @@ for ($i = 1; $i -le $RunCount; $i++) {
 
     Write-Host "Waiting for engine to exit..."
 
-    Start-Sleep -Seconds 120 -Verbose
+    Start-Sleep -Seconds 140 -Verbose
 
     $engineProc | Wait-Process
 
