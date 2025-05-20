@@ -30,7 +30,7 @@ namespace MCTSo4
                 .Enrich.FromLogContext()
                 // .WriteTo.Console() // Removed: Console sink is configured in appsettings.json
                 .WriteTo.File(
-                    "logs/mctso4-.txt",
+                    "mctso4-logs/mctso4-.txt",
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 7
                 )

@@ -15,6 +15,12 @@ namespace MCTSo4.Services
         private readonly ILogger _log;
         private Guid _botId;
 
+        // Self-tuning time budget parameters
+        private int _consecutiveOverruns = 0;
+        private int _consecutiveUnderruns = 0;
+        private int _timeBudgetAdjustment = 0; // Positive means we've reduced the budget, negative means we've increased it
+        private const int MaxAdjustment = 70; // Maximum amount to adjust the time budget by (in ms)
+
         public MCTSo4Logic(HubConnection connection)
         {
             _connection = connection;
@@ -68,7 +74,18 @@ namespace MCTSo4.Services
                             );
                             _log.Debug("Determined MetaStrategy: {MetaStrategy}", meta);
                             var parameters = AdaptiveStrategyController.ConfigureParameters(meta);
-                            _log.Debug("Configured MCTS Parameters: {@MCTSParameters}", parameters);
+
+                            // Apply self-tuning adjustment to the time budget
+                            parameters.MaxTimePerMoveMs = Math.Max(
+                                50,
+                                parameters.MaxTimePerMoveMs - _timeBudgetAdjustment
+                            );
+
+                            _log.Debug(
+                                "Using time budget of {TimeBudget}ms for MCTS calculation (adjustment: {Adjustment}ms)",
+                                parameters.MaxTimePerMoveMs,
+                                _timeBudgetAdjustment
+                            );
 
                             _log.Information(
                                 "Calculating MCTS best action for Tick {Tick}...",
@@ -89,13 +106,73 @@ namespace MCTSo4.Services
                                 stopwatch.ElapsedMilliseconds
                             );
 
-                            if (stopwatch.ElapsedMilliseconds > 150)
+                            // Self-tuning logic
+                            if (stopwatch.ElapsedMilliseconds > parameters.MaxTimePerMoveMs + 10)
                             {
                                 _log.Warning(
-                                    "MCTS_GetBestAction for Tick {Tick} took {ElapsedMilliseconds}ms, exceeding 150ms budget!",
+                                    "MCTS_GetBestAction for Tick {Tick} took {ElapsedMilliseconds}ms, exceeding {TimeBudget}ms budget!",
                                     state.Tick,
-                                    stopwatch.ElapsedMilliseconds
+                                    stopwatch.ElapsedMilliseconds,
+                                    parameters.MaxTimePerMoveMs
                                 );
+
+                                // Increment consecutive overruns and adjust time budget
+                                _consecutiveOverruns++;
+                                _consecutiveUnderruns = 0;
+                                if (_consecutiveOverruns >= 3)
+                                {
+                                    // After 3 consecutive overruns, reduce the time budget
+                                    int newAdjustment = Math.Min(
+                                        MaxAdjustment,
+                                        _timeBudgetAdjustment + 5 + (_consecutiveOverruns - 3) * 2
+                                    );
+
+                                    if (newAdjustment != _timeBudgetAdjustment)
+                                    {
+                                        _log.Information(
+                                            "Auto-tuning: Increasing time budget adjustment from {OldAdjustment}ms to {NewAdjustment}ms after {Overruns} consecutive overruns",
+                                            _timeBudgetAdjustment,
+                                            newAdjustment,
+                                            _consecutiveOverruns
+                                        );
+                                        _timeBudgetAdjustment = newAdjustment;
+                                    }
+                                }
+                            }
+                            else if (
+                                stopwatch.ElapsedMilliseconds
+                                < parameters.MaxTimePerMoveMs * 0.8
+                            )
+                            {
+                                // If we're using less than 80% of the budget, we might be able to use more time
+                                _consecutiveUnderruns++;
+                                _consecutiveOverruns = 0;
+
+                                if (_consecutiveUnderruns >= 5 && _timeBudgetAdjustment > 0)
+                                {
+                                    // After 5 consecutive underruns, increase the time budget (reduce adjustment)
+                                    int newAdjustment = Math.Max(
+                                        0,
+                                        _timeBudgetAdjustment - 2 - (_consecutiveUnderruns - 5)
+                                    );
+
+                                    if (newAdjustment != _timeBudgetAdjustment)
+                                    {
+                                        _log.Information(
+                                            "Auto-tuning: Decreasing time budget adjustment from {OldAdjustment}ms to {NewAdjustment}ms after {Underruns} consecutive underruns",
+                                            _timeBudgetAdjustment,
+                                            newAdjustment,
+                                            _consecutiveUnderruns
+                                        );
+                                        _timeBudgetAdjustment = newAdjustment;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // Reset counters if we're within a good range
+                                _consecutiveOverruns = Math.Max(0, _consecutiveOverruns - 1);
+                                _consecutiveUnderruns = Math.Max(0, _consecutiveUnderruns - 1);
                             }
 
                             botCommand = new BotCommand { Action = move };

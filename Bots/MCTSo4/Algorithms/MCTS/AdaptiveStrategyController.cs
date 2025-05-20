@@ -20,6 +20,7 @@ namespace MCTSo4.Algorithms.MCTS
                 MctsIterations = 600, // Increased from 500
                 MctsDepth = 25, // Increased from 20 to account for zookeeper simulation
                 ExplorationConstant = 1.41,
+                MaxTimePerMoveMs = 140, // Default time budget per move
 
                 // Tuned heuristic weights
                 Weight_PelletValue = 15.0, // Increased from 10.0
@@ -38,16 +39,20 @@ namespace MCTSo4.Algorithms.MCTS
                 case MetaStrategy.Evading: // Changed from Escaping to Evading
                     parameters.Weight_ZkThreat = -200.0; // Even more negative when evading
                     parameters.Weight_EscapeProgress = 100.0; // Doubled
+                    parameters.MaxTimePerMoveMs = 120; // Slightly less time to react faster
                     break;
                 case MetaStrategy.EscapeFocus: // Changed from Survival to EscapeFocus
                     parameters.Weight_ZkThreat = -300.0; // Extremely negative
                     parameters.MctsDepth = 30; // Look further ahead
+                    parameters.MaxTimePerMoveMs = 100; // Urgent situation - react quickly
                     break;
                 case MetaStrategy.PowerUpHunt:
                     parameters.Weight_PowerUp = 40.0; // Prioritize power-ups
+                    parameters.MaxTimePerMoveMs = 150; // More time for strategic decisions
                     break;
                 case MetaStrategy.ZoneControl:
                     parameters.Weight_OpponentContention = -10.0; // Higher penalty for contested areas
+                    parameters.MaxTimePerMoveMs = 150; // More time for strategic decisions
                     break;
             }
 

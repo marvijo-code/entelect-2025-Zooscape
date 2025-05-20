@@ -7,8 +7,7 @@ namespace MCTSo4.Services
     {
         public static MCTSGameState Parse(string json)
         {
-            // TODO: Map JSON from engine to MCTSGameState
-            return JsonSerializer.Deserialize<MCTSGameState>(json)! ?? new MCTSGameState();
+            return JsonSerializer.Deserialize<MCTSGameState>(json);
         }
     }
 }

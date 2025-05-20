@@ -12,6 +12,12 @@ namespace MCTSo4.Models
         public int MctsDepth { get; set; } = 10;
         public double ExplorationConstant { get; set; } = 1.41;
 
+        /// <summary>
+        /// Maximum time in milliseconds allowed for MCTS to run per move.
+        /// If set to 0 or negative, the default time limit will be used.
+        /// </summary>
+        public int MaxTimePerMoveMs { get; set; } = 140;
+
         // Heuristic weights
         public double Weight_PelletValue { get; set; } = 10.0;
         public double Weight_ZkThreat { get; set; } = -100.0;

@@ -16,6 +16,12 @@ namespace MCTSo4.Algorithms.MCTS
         private static readonly Random Rnd = new Random();
         private static readonly ILogger AlgoLog = Log.ForContext(typeof(MctsAlgorithm));
 
+        // Maximum time allowed for MCTS iterations in milliseconds
+        private const int MaxIterationTimeMs = 140;
+
+        // Percentage of time budget to reserve for post-iteration overhead (selecting best move, logging, etc.)
+        private const double OverheadTimePercentage = 0.65; // 65% of budget reserved for overhead
+
         public static Move FindBestMove(
             MCTSGameState rootMctsState,
             Guid botId,
@@ -32,12 +38,21 @@ namespace MCTSo4.Algorithms.MCTS
                 return legalMoves.Any() ? legalMoves[Rnd.Next(legalMoves.Count)] : Move.Up; // Default to Up if no legal moves somehow
             }
 
+            // Get the time budget from parameters or use the default
+            int timeLimit =
+                parameters.MaxTimePerMoveMs > 0 ? parameters.MaxTimePerMoveMs : MaxIterationTimeMs;
+
+            // Reserve part of the time budget for post-iteration processing
+            int iterationTimeLimit = (int)(timeLimit * (1.0 - OverheadTimePercentage));
+
             AlgoLog.Debug(
-                "FindBestMove called for BotId: {BotId}. MctsIterations: {Iterations}, MctsDepth: {Depth}, Exploration: {Exploration}",
+                "FindBestMove called for BotId: {BotId}. MctsIterations: {Iterations}, MctsDepth: {Depth}, Exploration: {Exploration}, TimeLimit: {TimeLimit}ms, IterationTimeLimit: {IterationLimit}ms",
                 botId,
                 parameters.MctsIterations,
                 parameters.MctsDepth,
-                parameters.ExplorationConstant
+                parameters.ExplorationConstant,
+                timeLimit,
+                iterationTimeLimit
             );
             var root = new MctsNode(
                 rootMctsState.Clone(),
@@ -54,13 +69,14 @@ namespace MCTSo4.Algorithms.MCTS
             for (int i = 0; i < parameters.MctsIterations; i++)
             {
                 totalIterations++;
-                if (stopwatch.ElapsedMilliseconds >= 140)
+                if (stopwatch.ElapsedMilliseconds >= iterationTimeLimit)
                 {
                     AlgoLog.Warning(
-                        "MCTS terminating iteration {Iteration} for BotId {BotId} early due to time limit ({ElapsedMs}ms >= 140ms)",
+                        "MCTS terminating iteration {Iteration} for BotId {BotId} early due to time limit ({ElapsedMs}ms >= {TimeLimit}ms)",
                         i + 1,
                         botId,
-                        stopwatch.ElapsedMilliseconds
+                        stopwatch.ElapsedMilliseconds,
+                        iterationTimeLimit
                     );
                     break;
                 }
