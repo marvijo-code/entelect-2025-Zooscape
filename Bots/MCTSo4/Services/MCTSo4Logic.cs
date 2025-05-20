@@ -32,7 +32,6 @@ namespace MCTSo4.Services
             _log.Information("Starting MCTSo4Logic for {NickName}", nickName);
             try
             {
-                BotCommand botCommand = null!;
                 _connection.On<Guid>(
                     "Registered",
                     id =>
@@ -50,7 +49,7 @@ namespace MCTSo4.Services
                 );
                 _connection.On<MCTSGameState>(
                     "GameState",
-                    state =>
+                    async state =>
                     {
                         try
                         {
@@ -175,7 +174,21 @@ namespace MCTSo4.Services
                                 _consecutiveUnderruns = Math.Max(0, _consecutiveUnderruns - 1);
                             }
 
-                            botCommand = new BotCommand { Action = move };
+                            // Create the bot command and send it immediately
+                            var botCommand = new BotCommand { Action = move };
+                            try
+                            {
+                                _log.Debug(
+                                    "Attempting to send BotCommand: {@BotCommand}",
+                                    botCommand
+                                );
+                                await _connection.SendAsync("BotCommand", botCommand);
+                                _log.Information("Sent BotCommand: {Action}", botCommand.Action);
+                            }
+                            catch (Exception ex)
+                            {
+                                _log.Error(ex, "Error sending BotCommand");
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -232,44 +245,12 @@ namespace MCTSo4.Services
                     return;
                 }
 
-                try
-                {
-                    _log.Information(
-                        "Entering main bot loop for {NickName}. Connection state: {ConnectionState}",
-                        nickName,
-                        _connection.State
-                    );
-                    while (_connection.State == HubConnectionState.Connected)
-                    {
-                        if (botCommand != null)
-                        {
-                            try
-                            {
-                                _log.Debug(
-                                    "Attempting to send BotCommand: {@BotCommand}",
-                                    botCommand
-                                );
-                                await _connection.SendAsync("BotCommand", botCommand);
-                                _log.Information("Sent BotCommand: {Action}", botCommand.Action);
-                                botCommand = null!;
-                            }
-                            catch (Exception ex)
-                            {
-                                _log.Error(ex, "Error sending BotCommand");
-                            }
-                        }
-                        await Task.Delay(10);
-                    }
-                    _log.Warning(
-                        "Exited main bot loop for {NickName}. Connection state: {ConnectionState}",
-                        nickName,
-                        _connection.State
-                    );
-                }
-                catch (Exception ex)
-                {
-                    _log.Error(ex, "Error in main bot loop for {NickName}", nickName);
-                }
+                // No longer using a while loop - commands are sent directly in the GameState handler
+                _log.Information(
+                    "Bot ready to receive game states for {NickName}. Connection state: {ConnectionState}",
+                    nickName,
+                    _connection.State
+                );
             }
             catch (Exception ex)
             {

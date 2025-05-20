@@ -17,7 +17,7 @@ namespace MCTSo4.Algorithms.MCTS
         private static readonly ILogger AlgoLog = Log.ForContext(typeof(MctsAlgorithm));
 
         // Maximum time allowed for MCTS iterations in milliseconds
-        private const int MaxIterationTimeMs = 140;
+        private const int MaxIterationTimeMs = 130; // Limited to 130ms max
 
         // Percentage of time budget to reserve for post-iteration overhead (selecting best move, logging, etc.)
         private const double OverheadTimePercentage = 0.65; // 65% of budget reserved for overhead

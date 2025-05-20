@@ -18,6 +18,37 @@ namespace MCTSo4.Models
         /// </summary>
         public int MaxTimePerMoveMs { get; set; } = 140;
 
+        /// <summary>
+        /// Progressive widening parameter - controls how many nodes to expand based on visit count.
+        /// </summary>
+        public double ProgressiveWideningBase { get; set; } = 2.0;
+
+        /// <summary>
+        /// Progressive widening exponent - controls rate of expansion.
+        /// </summary>
+        public double ProgressiveWideningExponent { get; set; } = 0.5;
+
+        /// <summary>
+        /// Virtual loss count to apply during parallel search.
+        /// </summary>
+        public int VirtualLossCount { get; set; } = 3;
+
+        /// <summary>
+        /// Weight factor for RAVE: 0 = disabled, 1 = full RAVE.
+        /// </summary>
+        public double RaveWeight { get; set; } = 0.5;
+
+        /// <summary>
+        /// RAVE equivalence parameter - controls how RAVE influence decreases with node visits.
+        /// Higher values mean RAVE estimates stay influential longer.
+        /// </summary>
+        public double RaveEquivalenceParameter { get; set; } = 1000;
+
+        /// <summary>
+        /// Maximum depth to track moves for RAVE updates.
+        /// </summary>
+        public int RaveMaxDepth { get; set; } = 10;
+
         // Heuristic weights
         public double Weight_PelletValue { get; set; } = 10.0;
         public double Weight_ZkThreat { get; set; } = -100.0;

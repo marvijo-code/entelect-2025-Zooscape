@@ -13,46 +13,67 @@ namespace MCTSo4.Algorithms.MCTS
 
         public static BotParameters ConfigureParameters(MetaStrategy strategy)
         {
-            // Increase parameters to account for improved simulation with zookeepers
+            // Base parameters optimized for parallel MCTS search
             var parameters = new BotParameters
             {
                 Strategy = strategy,
-                MctsIterations = 600, // Increased from 500
-                MctsDepth = 25, // Increased from 20 to account for zookeeper simulation
-                ExplorationConstant = 1.41,
-                MaxTimePerMoveMs = 140, // Default time budget per move
+                MctsIterations = 800, // Increased from 600 for parallel search
+                MctsDepth = 25, // Deep simulation depth
+                ExplorationConstant = 1.5, // Slightly higher exploration for better parallelization
 
-                // Tuned heuristic weights
-                Weight_PelletValue = 15.0, // Increased from 10.0
-                Weight_ZkThreat = -150.0, // More negative to increase zookeeper avoidance
-                Weight_EscapeProgress = 50.0,
-                Weight_PowerUp = 20.0,
-                Weight_OpponentContention = -5.0,
+                // Time budget of 130ms
+                MaxTimePerMoveMs = 130,
+
+                // Progressive widening parameters
+                ProgressiveWideningBase = 2.0,
+                ProgressiveWideningExponent = 0.5,
+
+                // Virtual loss count for parallel search
+                VirtualLossCount = 3,
+
+                // RAVE parameters
+                RaveWeight = 0.5,
+                RaveEquivalenceParameter = 1000,
+                RaveMaxDepth = 10,
             };
 
-            // Adjust parameters based on strategy
+            // Strategy-specific parameter tuning
             switch (strategy)
             {
                 case MetaStrategy.Collecting:
-                    // Default weights are already optimized for collecting
+                    parameters.Weight_PelletValue = 10.0; // High value on pellet collection
+                    parameters.Weight_ZkThreat = -80.0; // Moderate penalty for zookeeper threat
+                    parameters.Weight_EscapeProgress = 5.0; // Low emphasis on escape progress
+                    parameters.Weight_PowerUp = 30.0; // High value on power-ups
+                    parameters.Weight_OpponentContention = -5.0; // Moderate penalty for opponent contention
+
+                    // RAVE tuning for collecting (higher equivalence - rely on RAVE more)
+                    parameters.RaveWeight = 0.6;
+                    parameters.RaveEquivalenceParameter = 1500;
                     break;
-                case MetaStrategy.Evading: // Changed from Escaping to Evading
-                    parameters.Weight_ZkThreat = -200.0; // Even more negative when evading
-                    parameters.Weight_EscapeProgress = 100.0; // Doubled
-                    parameters.MaxTimePerMoveMs = 120; // Slightly less time to react faster
+
+                case MetaStrategy.Evading:
+                    parameters.Weight_PelletValue = 5.0; // Lower value on pellet collection
+                    parameters.Weight_ZkThreat = -150.0; // Extreme penalty for zookeeper threat
+                    parameters.Weight_EscapeProgress = 20.0; // Moderate emphasis on escape progress
+                    parameters.Weight_PowerUp = 40.0; // Very high value on power-ups for escape
+                    parameters.Weight_OpponentContention = -2.0; // Low penalty for opponent contention
+
+                    // RAVE tuning for evading (less RAVE influence - more UCT)
+                    parameters.RaveWeight = 0.4;
+                    parameters.RaveEquivalenceParameter = 800;
                     break;
-                case MetaStrategy.EscapeFocus: // Changed from Survival to EscapeFocus
-                    parameters.Weight_ZkThreat = -300.0; // Extremely negative
-                    parameters.MctsDepth = 30; // Look further ahead
-                    parameters.MaxTimePerMoveMs = 100; // Urgent situation - react quickly
-                    break;
-                case MetaStrategy.PowerUpHunt:
-                    parameters.Weight_PowerUp = 40.0; // Prioritize power-ups
-                    parameters.MaxTimePerMoveMs = 150; // More time for strategic decisions
-                    break;
-                case MetaStrategy.ZoneControl:
-                    parameters.Weight_OpponentContention = -10.0; // Higher penalty for contested areas
-                    parameters.MaxTimePerMoveMs = 150; // More time for strategic decisions
+
+                case MetaStrategy.EscapeFocus:
+                    parameters.Weight_PelletValue = 1.0; // Minimal value on pellet collection
+                    parameters.Weight_ZkThreat = -100.0; // High penalty for zookeeper threat
+                    parameters.Weight_EscapeProgress = 100.0; // Extreme emphasis on escape progress
+                    parameters.Weight_PowerUp = 20.0; // Moderate value on power-ups
+                    parameters.Weight_OpponentContention = -1.0; // Minimal penalty for opponent contention
+
+                    // RAVE tuning for escape focus (minimal RAVE influence - most UCT)
+                    parameters.RaveWeight = 0.3;
+                    parameters.RaveEquivalenceParameter = 500;
                     break;
             }
 
