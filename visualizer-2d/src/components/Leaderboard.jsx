@@ -44,7 +44,9 @@ const Leaderboard = ({ animals = [], leaderboardData = [], loading = false, stat
                 <tr 
                   key={animalId || index} 
                   className="player-row"
-                  style={{ backgroundColor: colorMap[animalId] ? `${colorMap[animalId]}20` : undefined }}
+                  style={{ 
+                    backgroundColor: colorMap[animalId] ? `${colorMap[animalId]}40` : undefined
+                  }}
                 >
                   <td>{index + 1}</td>
                   <td>
@@ -95,8 +97,27 @@ const Leaderboard = ({ animals = [], leaderboardData = [], loading = false, stat
                 nickname = `Player-${index + 1}`;
               }
               
+              // Try to find this bot's color from the current game if possible
+              const botColor = Object.entries(colorMap).find(([id, color]) => {
+                // Match by ID or by nickname
+                return bot.id === id || (animals.some(animal => {
+                  const animalId = animal.id !== undefined ? animal.id : animal.Id;
+                  const animalNickname = animal.nickname !== undefined ? animal.nickname : animal.Nickname;
+                  return bot.nickname === animalNickname && animalId === id;
+                }));
+              });
+              
+              const rowColor = botColor ? botColor[1] : undefined;
+              
               return (
-                <tr key={bot.id || bot.nickname || index} className="player-row">
+                <tr 
+                  key={bot.id || bot.nickname || index} 
+                  className="player-row"
+                  style={{ 
+                    backgroundColor: rowColor ? `${rowColor}20` : undefined,
+                    borderLeft: rowColor ? `4px solid ${rowColor}` : undefined
+                  }}
+                >
                   <td>{index + 1}</td>
                   <td>{nickname}</td>
                   <td>{bot.wins}</td>

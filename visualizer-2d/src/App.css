@@ -856,13 +856,45 @@ html body .waiting-message {
   line-height: 1.2;
 }
 
+.file-path-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+}
+
 .file-path {
   font-size: 0.75rem; /* Reduced from 0.8rem */
   color: var(--accent-blue);
   opacity: 0.8;
-  margin-top: 1px;
   word-break: break-all;  /* Allow breaking at any character */
   max-width: 100%;        /* Ensure it doesn't overflow container */
+}
+
+.copy-path-button {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid var(--dark-border);
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--dark-text-secondary);
+  transition: all 0.2s;
+}
+
+.copy-path-button:hover {
+  background-color: var(--dark-surface-lighter);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+
+.copy-path-button:active {
+  transform: scale(0.95);
 }
 
 /* Ensure all right panel tabs have consistent styling */
@@ -940,4 +972,136 @@ html body .waiting-message {
     border-top: 1px solid var(--dark-border);
     border-right: none;
   }
+}
+
+/* Entity detail labels - shown in replay mode */
+.entity-detail-label {
+  position: absolute;
+  padding: 1px 3px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  white-space: nowrap;
+  z-index: 3;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+  animation: fadeIn 0.3s ease-in;
+}
+
+.entity-detail-label.animal {
+  top: 0;
+  left: 100%;
+  background-color: rgba(144, 238, 144, 0.85);
+  color: black;
+}
+
+.entity-detail-label.zookeeper {
+  top: 0;
+  left: 100%;
+  background-color: rgba(255, 204, 203, 0.85);
+  color: black;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Add tooltip styles for enhanced information display */
+[title] {
+  position: relative;
+}
+
+[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 10;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+/* Tournament Leaderboard section */
+.tournament-leaderboard {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.tournament-leaderboard h3 {
+  font-size: 0.85rem;
+  margin-top: 4px;
+  margin-bottom: 6px;
+  color: var(--accent-blue);
+}
+
+.tournament-leaderboard .leaderboard-table {
+  width: 100%;
+  font-size: 0.75rem; /* Smaller font size */
+  table-layout: fixed; /* Fixed layout for better column control */
+}
+
+.tournament-leaderboard .leaderboard-table th,
+.tournament-leaderboard .leaderboard-table td {
+  padding: 3px 2px; /* Reduced padding */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Column widths for the tournament table */
+.tournament-leaderboard .leaderboard-table th:nth-child(1), 
+.tournament-leaderboard .leaderboard-table td:nth-child(1) {
+  width: 10%; /* Rank column */
+}
+
+.tournament-leaderboard .leaderboard-table th:nth-child(2), 
+.tournament-leaderboard .leaderboard-table td:nth-child(2) {
+  width: 40%; /* Bot name column */
+}
+
+.tournament-leaderboard .leaderboard-table th:nth-child(3), 
+.tournament-leaderboard .leaderboard-table td:nth-child(3),
+.tournament-leaderboard .leaderboard-table th:nth-child(4), 
+.tournament-leaderboard .leaderboard-table td:nth-child(4),
+.tournament-leaderboard .leaderboard-table th:nth-child(5), 
+.tournament-leaderboard .leaderboard-table td:nth-child(5) {
+  width: 16%; /* Wins, 2nd Places, Games columns */
+  text-align: center;
+}
+
+/* Game scores section */
+.game-scores {
+  margin-bottom: 10px;
+}
+
+.game-scores h3 {
+  font-size: 0.85rem;
+  margin-top: 4px;
+  margin-bottom: 6px;
+  color: var(--accent-blue);
+}
+
+/* Players with colored rows */
+.player-row td {
+  transition: background-color 0.2s;
+}
+
+.player-row:hover td {
+  opacity: 0.9;
+}
+
+/* Better section divider */
+.section-divider {
+  height: 1px;
+  background-color: var(--dark-border);
+  margin: 8px 0;
+  opacity: 0.5;
 }

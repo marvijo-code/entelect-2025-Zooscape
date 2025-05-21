@@ -490,6 +490,7 @@ const App = () => {
                 animals={allGameStates[currentDisplayIndex].animals || allGameStates[currentDisplayIndex].Animals || []}
                 zookeepers={allGameStates[currentDisplayIndex].zookeepers || allGameStates[currentDisplayIndex].Zookeepers || []}
                 colorMap={animalColorMap}
+                showDetails={showReplayMode} /* Show detailed stats in replay mode */
               />
             )}
             {!gameInitialized && (
@@ -536,10 +537,26 @@ const App = () => {
                 <div className="tick-info">
                   <span>Tick: {currentDisplayIndex + 1}/{allGameStates.length}</span>
                   {showReplayMode && (
-                    <span className="file-path">
-                      {"C:/dev/2025-Zooscape/visualizer-2d/logs/" + (allGameStates[currentDisplayIndex]?.filePath || 
-                       `Game ${allGameStates[currentDisplayIndex]?.gameId || ''}`)}
-                    </span>
+                    <div className="file-path-container">
+                      <span className="file-path">
+                        {"C:/dev/2025-Zooscape/visualizer-2d/logs/" + (allGameStates[currentDisplayIndex]?.filePath || 
+                         `Game ${allGameStates[currentDisplayIndex]?.gameId || ''}`)}
+                      </span>
+                      <button 
+                        className="copy-path-button"
+                        onClick={() => {
+                          const path = "C:/dev/2025-Zooscape/visualizer-2d/logs/" + 
+                            (allGameStates[currentDisplayIndex]?.filePath || 
+                             `Game ${allGameStates[currentDisplayIndex]?.gameId || ''}`);
+                          navigator.clipboard.writeText(path)
+                            .then(() => alert("Path copied to clipboard!"))
+                            .catch(err => console.error("Failed to copy: ", err));
+                        }}
+                        title="Copy full path to clipboard"
+                      >
+                        📋
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : (

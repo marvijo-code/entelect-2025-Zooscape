@@ -8,11 +8,36 @@ import { CellContent } from '../models.js';
  * @param {Array} props.animals - Array of animal objects
  * @param {Array} props.zookeepers - Array of zookeeper objects
  * @param {object} props.colorMap - Map of animal IDs to colors
+ * @param {boolean} props.showDetails - Whether to show additional details like positions and scores
  */
-const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {} }) => {
+const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {}, showDetails = false }) => {
   const containerRef = useRef(null);
   const [tileSize, setTileSize] = useState(20); // Default tile size, increased from 15
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [hoveredEntity, setHoveredEntity] = useState(null); // Track which entity is being hovered
+
+  // Debug logging to help diagnose grid content issues
+  useEffect(() => {
+    console.log("Grid data debug:");
+    console.log("Cells:", cells.length, cells.slice(0, 5));
+    console.log("Animals:", animals.length, animals);
+    console.log("Zookeepers:", zookeepers.length, zookeepers);
+    
+    if (cells.length > 0) {
+      const sampleCell = cells[0];
+      console.log("Sample cell properties:", Object.keys(sampleCell));
+      console.log("Sample cell X/Y:", sampleCell.x || sampleCell.X, sampleCell.y || sampleCell.Y);
+      console.log("Sample cell content:", sampleCell.content || sampleCell.Content);
+    }
+    
+    // Check for any potential content mapping issues
+    const contentValues = new Set();
+    cells.forEach(cell => {
+      const content = cell.content !== undefined ? cell.content : cell.Content;
+      contentValues.add(content);
+    });
+    console.log("Unique content values in cells:", Array.from(contentValues));
+  }, [cells, animals, zookeepers]);
 
   console.log("Grid render with:", { 
     cellsLength: cells.length, 
@@ -49,6 +74,24 @@ const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {} }) => {
     // If no nickname found, use the ID as fallback
     const entityId = getEntityId(entity);
     return entityId ? `Bot-${entityId}` : 'Unknown Bot';
+  };
+  
+  // Get entity score - handle both lowercase and uppercase property names
+  const getEntityScore = (entity) => {
+    return entity.score !== undefined ? entity.score : 
+           entity.Score !== undefined ? entity.Score : 0;
+  };
+  
+  // Get captured counter - handle both lowercase and uppercase property names
+  const getEntityCaptured = (entity) => {
+    return entity.capturedCounter !== undefined ? entity.capturedCounter : 
+           entity.CapturedCounter !== undefined ? entity.CapturedCounter : 0;
+  };
+  
+  // Get distance covered - handle both lowercase and uppercase property names
+  const getEntityDistance = (entity) => {
+    return entity.distanceCovered !== undefined ? entity.distanceCovered : 
+           entity.DistanceCovered !== undefined ? entity.DistanceCovered : 0;
   };
   
   // Get cell content - handle both lowercase and uppercase property names
@@ -120,10 +163,32 @@ const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {} }) => {
         return 'white';
     }
   };
+  
+  // Add a helper function to convert hex color to RGBA
+  const getColorWithOpacity = (color, opacity = 0.5) => {
+    // If no color provided, return default
+    if (!color) return 'rgba(144, 238, 144, 0.5)';
+    
+    // Check if color has a valid format
+    console.log("Converting color to rgba:", color);
+    
+    // Return a fixed color based on the original (for debugging)
+    switch (color) {
+      case 'blue': return 'rgba(0, 0, 255, 0.5)';
+      case 'green': return 'rgba(0, 128, 0, 0.5)';
+      case 'purple': return 'rgba(128, 0, 128, 0.5)';
+      case 'cyan': return 'rgba(0, 255, 255, 0.5)';
+      case 'magenta': return 'rgba(255, 0, 255, 0.5)';
+      case 'yellow': return 'rgba(255, 255, 0, 0.5)';
+      case 'lime': return 'rgba(0, 255, 0, 0.5)';
+      case 'teal': return 'rgba(0, 128, 128, 0.5)';
+      default: return 'rgba(144, 238, 144, 0.5)';
+    }
+  };
 
   return (
-    <div className="grid-container" ref={containerRef} style={{ height: '100%', width: '100%' }}>
-      <div className="grid" style={{ 
+    <div className="grid-container" id="grid-main-container" ref={containerRef} style={{ height: '100%', width: '100%' }}>
+      <div className="grid-layout" id="grid-cells-layout" style={{ 
         width: gridWidth, 
         height: gridHeight 
       }}>
@@ -141,7 +206,8 @@ const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {} }) => {
           return (
             <div
               key={`cell-${x}-${y}-${index}`}
-              className={`cell cell-${content}`}
+              id={`grid-cell-${x}-${y}`}
+              className={`grid-cell cell-type-${content}`}
               style={{
                 position: 'absolute', 
                 left: x * tileSize, 
@@ -170,39 +236,86 @@ const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {} }) => {
           const animalNickname = getEntityNickname(animal);
           const fontSize = Math.max(Math.floor(tileSize / 2.5), 10);
           
+          // Get additional stats when showDetails is true
+          const animalScore = showDetails ? getEntityScore(animal) : null;
+          const animalCaptured = showDetails ? getEntityCaptured(animal) : null;
+          const animalDistance = showDetails ? getEntityDistance(animal) : null;
+          
+          // Check if this animal is being hovered
+          const isHovered = hoveredEntity === `animal-${animalId || animalIndex}`;
+          
+          // Prepare the detail text
+          let detailText = animalNickname;
+          if (showDetails && isHovered) {
+            // Only show detailed info when hovered and showDetails is true
+            detailText = `${animalNickname} (${animalX},${animalY})`;
+            if (animalScore !== null) {
+              detailText += ` S:${animalScore}`;
+            }
+            if (animalCaptured !== null) {
+              detailText += ` C:${animalCaptured}`;
+            }
+            if (animalDistance !== null) {
+              detailText += ` D:${animalDistance}`;
+            }
+          }
+          
+          // Enhanced tooltip text for hover
+          const tooltipText = showDetails 
+            ? `${animalNickname} - Position: (${animalX},${animalY}) - Score: ${animalScore} - Captured: ${animalCaptured} - Distance: ${animalDistance}`
+            : `${animalNickname} (Animal)`;
+          
+          // Get animal color
+          const animalColor = colorMap[animalId];
+          
           return (
             <React.Fragment key={`animal-group-${animalId || animalIndex}`}>
               <div // Animal circle
-                title={`${animalNickname} (Animal)`}
-                className="entity entity-animal"
+                id={`animal-circle-${animalId || animalIndex}`}
+                className="entity-marker animal-marker"
+                title={tooltipText}
                 style={{
                   position: 'absolute',
                   left: animalX * tileSize + tileSize / 4,
                   top: animalY * tileSize + tileSize / 4,
                   width: tileSize / 2,
                   height: tileSize / 2,
-                  backgroundColor: colorMap[animalId] || 'blue',
+                  backgroundColor: animalColor || 'blue',
                   borderRadius: '50%',
                   zIndex: 2,
                   boxShadow: '0 0 2px black'
                 }}
               />
               <div // Animal name label
+                id={`animal-label-${animalId || animalIndex}`}
+                className="entity-label animal-label"
+                onMouseEnter={() => setHoveredEntity(`animal-${animalId || animalIndex}`)}
+                onMouseLeave={() => setHoveredEntity(null)}
                 style={{
                   position: 'absolute',
                   left: animalX * tileSize + tileSize, // To the right of the animal
-                  top: animalY * tileSize + tileSize / 4, // Align with top of animal circle
-                  backgroundColor: 'rgba(144, 238, 144, 0.8)',
+                  top: animalY * tileSize + tileSize / 4 - 1, // Center with the circle (subtracting half of padding)
+                  backgroundColor: getColorWithOpacity(animalColor, 0.5),
                   color: 'black',
                   padding: '1px 3px',
                   fontSize: `${fontSize}px`,
+                  fontWeight: 'bold',
+                  textShadow: '0px 0px 1px white',
                   zIndex: 3,
                   whiteSpace: 'nowrap',
                   border: '1px solid #ccc',
-                  borderRadius: '3px'
+                  borderRadius: '3px',
+                  maxWidth: showDetails ? '200px' : 'auto', // Limit width when showing details
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  transition: 'background-color 0.2s ease, opacity 0.2s ease',
+                  opacity: isHovered ? 1 : 0.9,
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: `${tileSize / 2}px` // Match height of the circle
                 }}
               >
-                {animalNickname}
+                {detailText}
               </div>
             </React.Fragment>
           );
@@ -222,11 +335,24 @@ const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {} }) => {
           const zooNickname = getEntityNickname(zookeeper);
           const fontSize = Math.max(Math.floor(tileSize / 2.5), 10);
           
+          // Check if this zookeeper is being hovered
+          const isHovered = hoveredEntity === `zookeeper-${zookeeperId || zookeeperIndex}`;
+          
+          // Enhanced tooltip and detail text for zookeepers in replay mode
+          const tooltipText = showDetails 
+            ? `${zooNickname} (Zookeeper) - Position: (${zooX},${zooY})`
+            : `${zooNickname} (Zookeeper)`;
+            
+          const detailText = showDetails && isHovered
+            ? `${zooNickname} (${zooX},${zooY})`
+            : zooNickname;
+          
           return (
             <React.Fragment key={`zookeeper-group-${zookeeperId || zookeeperIndex}`}>
               <div // Zookeeper square
-                title={`${zooNickname} (Zookeeper)`}
-                className="entity entity-zookeeper"
+                id={`zookeeper-square-${zookeeperId || zookeeperIndex}`}
+                className="entity-marker zookeeper-marker"
+                title={tooltipText}
                 style={{
                   position: 'absolute',
                   left: zooX * tileSize + tileSize / 4,
@@ -240,21 +366,32 @@ const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {} }) => {
                 }}
               />
               <div // Zookeeper name label
+                id={`zookeeper-label-${zookeeperId || zookeeperIndex}`}
+                className="entity-label zookeeper-label"
+                onMouseEnter={() => setHoveredEntity(`zookeeper-${zookeeperId || zookeeperIndex}`)}
+                onMouseLeave={() => setHoveredEntity(null)}
                 style={{
                   position: 'absolute',
                   left: zooX * tileSize + tileSize, // To the right
-                  top: zooY * tileSize + tileSize / 4, // Align with top
-                  backgroundColor: 'rgba(255, 204, 203, 0.8)',
+                  top: zooY * tileSize + tileSize / 4 - 1, // Center with the square (subtracting half of padding)
+                  backgroundColor: 'rgba(255, 160, 160, 0.4)',
                   color: 'black',
                   padding: '1px 3px',
                   fontSize: `${fontSize}px`,
+                  fontWeight: 'bold',
+                  textShadow: '0px 0px 1px white',
                   zIndex: 3,
                   whiteSpace: 'nowrap',
                   border: '1px solid #ccc',
-                  borderRadius: '3px'
+                  borderRadius: '3px',
+                  transition: 'background-color 0.2s ease, opacity 0.2s ease',
+                  opacity: isHovered ? 1 : 0.85,
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: `${tileSize / 2}px` // Match height of the square
                 }}
               >
-                {zooNickname}
+                {detailText}
               </div>
             </React.Fragment>
           );

@@ -99,7 +99,20 @@ app.get('/api/games/:gameId', async (req, res) => {
     }
     
     const files = await fs.readdir(gameDir);
-    const logFiles = files.filter(file => file.endsWith('.json')).sort();
+    const logFiles = files
+      .filter(file => file.endsWith('.json'))
+      .sort((a, b) => {
+        // Extract numeric part of filename (e.g., '11.json' -> 11)
+        const numA = parseInt(a.replace(/\.json$/, ''), 10);
+        const numB = parseInt(b.replace(/\.json$/, ''), 10);
+        
+        // Handle NaN cases and ensure proper numeric sorting
+        if (isNaN(numA) && isNaN(numB)) return 0;
+        if (isNaN(numA)) return 1;
+        if (isNaN(numB)) return -1;
+        
+        return numA - numB; // Sort numerically
+      });
     
     if (logFiles.length === 0) {
       return res.status(404).json({ error: 'No log files found for this game' });
@@ -112,6 +125,17 @@ app.get('/api/games/:gameId', async (req, res) => {
         const logPath = path.join(gameDir, logFile);
         const logContent = await fs.readFile(logPath, 'utf8');
         const gameState = JSON.parse(logContent);
+        
+        // Add filePath property to each state for easier tracking
+        gameState.filePath = `${gameId}/${logFile}`;
+        
+        // Log first state's properties for debugging
+        if (worldStates.length === 0) {
+          console.log(`First game state properties: ${Object.keys(gameState).join(', ')}`);
+          console.log(`Sample cell properties: ${Object.keys(gameState.Cells ? gameState.Cells[0] : gameState.cells ? gameState.cells[0] : {}).join(', ')}`);
+          console.log(`Sample animal properties: ${Object.keys(gameState.Animals ? gameState.Animals[0] : gameState.animals ? gameState.animals[0] : {}).join(', ')}`);
+        }
+        
         worldStates.push(gameState);
       } catch (logError) {
         console.error(`Error reading log file ${logFile}:`, logError);
@@ -119,8 +143,48 @@ app.get('/api/games/:gameId', async (req, res) => {
     }
     
     console.log(`Sending game with ${worldStates.length} states`);
-    // Return entire game history for replay
-    res.json({ gameId, worldStates });
+    
+    // Log first few and last few log files to verify sorting
+    if (logFiles.length > 0) {
+      const sampleFiles = [
+        ...logFiles.slice(0, Math.min(5, logFiles.length)), 
+        ...(logFiles.length > 10 ? ['...'] : []),
+        ...(logFiles.length > 10 ? logFiles.slice(-5) : [])
+      ];
+      console.log(`Log files (sorted sample): ${sampleFiles.join(', ')}`);
+    }
+    
+    // Ensure property case consistency for frontend compatibility
+    const normalizedWorldStates = worldStates.map(state => {
+      // Create a new object to hold the normalized state
+      const normalized = { ...state };
+      
+      // Ensure animals array exists with proper casing
+      if (state.Animals && !state.animals) {
+        normalized.animals = state.Animals;
+      } else if (state.animals && !state.Animals) {
+        normalized.Animals = state.animals;
+      }
+      
+      // Ensure cells array exists with proper casing
+      if (state.Cells && !state.cells) {
+        normalized.cells = state.Cells;
+      } else if (state.cells && !state.Cells) {
+        normalized.Cells = state.cells;
+      }
+      
+      // Ensure zookeepers array exists with proper casing
+      if (state.Zookeepers && !state.zookeepers) {
+        normalized.zookeepers = state.Zookeepers;
+      } else if (state.zookeepers && !state.Zookeepers) {
+        normalized.Zookeepers = state.zookeepers;
+      }
+      
+      return normalized;
+    });
+    
+    // Return entire game history for replay with normalized data
+    res.json({ gameId, worldStates: normalizedWorldStates });
   } catch (error) {
     console.error('Error getting game data:', error);
     res.status(500).json({ error: 'Failed to get game data' });
@@ -189,7 +253,34 @@ app.get('/api/logs/:runId/:logFile', async (req, res) => {
     const logContent = await fs.readFile(logPath, 'utf8');
     const gameState = JSON.parse(logContent);
     
-    res.json(gameState);
+    // Add filePath property for tracking
+    gameState.filePath = `${runId}/${logFile}`;
+    
+    // Normalize state properties for frontend compatibility
+    const normalized = { ...gameState };
+    
+    // Ensure animals array exists with proper casing
+    if (gameState.Animals && !gameState.animals) {
+      normalized.animals = gameState.Animals;
+    } else if (gameState.animals && !gameState.Animals) {
+      normalized.Animals = gameState.animals;
+    }
+    
+    // Ensure cells array exists with proper casing
+    if (gameState.Cells && !gameState.cells) {
+      normalized.cells = gameState.Cells;
+    } else if (gameState.cells && !gameState.Cells) {
+      normalized.Cells = gameState.cells;
+    }
+    
+    // Ensure zookeepers array exists with proper casing
+    if (gameState.Zookeepers && !gameState.zookeepers) {
+      normalized.zookeepers = gameState.Zookeepers;
+    } else if (gameState.zookeepers && !gameState.Zookeepers) {
+      normalized.Zookeepers = gameState.zookeepers;
+    }
+    
+    res.json(normalized);
   } catch (error) {
     console.error('Error reading log file:', error);
     res.status(500).json({ error: 'Failed to read log file' });
@@ -217,7 +308,20 @@ app.get('/api/leaderboard_stats', async (req, res) => {
         if (!stat.isDirectory()) continue;
         
         const files = await fs.readdir(runPath);
-        const logFiles = files.filter(file => file.endsWith('.json')).sort();
+        const logFiles = files
+          .filter(file => file.endsWith('.json'))
+          .sort((a, b) => {
+            // Extract numeric part of filename (e.g., '11.json' -> 11)
+            const numA = parseInt(a.replace(/\.json$/, ''), 10);
+            const numB = parseInt(b.replace(/\.json$/, ''), 10);
+            
+            // Handle NaN cases and ensure proper numeric sorting
+            if (isNaN(numA) && isNaN(numB)) return 0;
+            if (isNaN(numA)) return 1;
+            if (isNaN(numB)) return -1;
+            
+            return numA - numB; // Sort numerically
+          });
         
         if (logFiles.length === 0) continue;
         
