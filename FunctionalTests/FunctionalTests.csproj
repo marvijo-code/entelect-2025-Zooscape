@@ -8,6 +8,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="GameStates\fj3o2f-2jkjfdslf-fjdask-gewea3.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="GameStates\fj3o2f-2jkjfdslf-fjdask-gewea3.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
     <PackageReference Include="xunit" Version="2.7.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7">

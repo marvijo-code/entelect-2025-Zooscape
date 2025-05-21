@@ -1,1 +1,16 @@
-[] 
+[
+  {
+    "name": "only move to collect pallet",
+    "description": "",
+    "stateFile": "fj3o2f-2jkjfdslf-fjdask-gewea3.json",
+    "correctActions": [
+      "right"
+    ],
+    "bots": [
+      {
+        "name": "ClingyHeuroBot",
+        "id": "bot1"
+      }
+    ]
+  }
+]
