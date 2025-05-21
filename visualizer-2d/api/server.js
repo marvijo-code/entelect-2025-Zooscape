@@ -1,286 +1,218 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs').promises;
 const path = require('path');
-const fsPromises = require('fs').promises; // Use promises API for async operations
-const fsSync = require('fs'); // For synchronous operations like existsSync
 
 const app = express();
-const port = process.env.PORT || 5008; // API will run on port 5008
+const PORT = process.env.PORT || 5008;
 
-// --- Configuration ---
-// The absolute path to the root directory where all game logs are stored.
-const LOGS_BASE_DIRECTORY = path.resolve(process.env.LOGS_DIR || 'C:/dev/2025-Zooscape/logs');
-console.log(`[API DEBUG] Attempting to use LOGS_BASE_DIRECTORY: ${LOGS_BASE_DIRECTORY}`);
-console.log(`[API] Serving logs from: ${LOGS_BASE_DIRECTORY}`);
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-// --- Middleware ---
-// More permissive CORS for development
-app.use(cors({
-    origin: '*', // Allow all origins in development
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.use(express.json()); // To parse JSON bodies
+// Path to game logs directory
+const LOGS_DIR = path.join(__dirname, '..', 'logs');
 
-// --- Helper Functions ---
-async function getLogFilePath(runId, logFilename) {
-    // Basic security check to prevent path traversal
-    if (runId.includes('..') || logFilename.includes('..')) {
-        throw { status: 400, message: 'Invalid path components.' };
-    }
-
-    const filePath = path.join(LOGS_BASE_DIRECTORY, runId, logFilename);
-    try {
-        await fsPromises.access(filePath); // Check if file exists and is accessible
-    } catch (error) {
-        throw { status: 404, message: `Log file not found: ${runId}/${logFilename}` };
-    }
-    return filePath;
+// Ensure logs directory exists
+async function ensureLogsDir() {
+  try {
+    await fs.mkdir(LOGS_DIR, { recursive: true });
+    console.log(`Logs directory created/verified at: ${LOGS_DIR}`);
+  } catch (error) {
+    console.error('Failed to create logs directory:', error);
+  }
 }
 
-// --- API Endpoints ---
-
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'API is running' });
-});
-
-app.get('/api/log_runs', async (req, res, next) => {
-    try {
-        await fsPromises.access(LOGS_BASE_DIRECTORY);
-    } catch (error) {
-        console.error(`[API Error] Logs base directory not found: ${LOGS_BASE_DIRECTORY}`);
-        return next({ status: 500, message: `Logs base directory not found: ${LOGS_BASE_DIRECTORY}` });
-    }
-
-    try {
-        const items = await fsPromises.readdir(LOGS_BASE_DIRECTORY, { withFileTypes: true });
-        const runDirectories = items
-            .filter(item => item.isDirectory())
-            .map(item => item.name);
-        res.json({ runs: runDirectories.sort() });
-    } catch (error) {
-        console.error(`[API Error] Error reading log runs: ${error.message}`);
-        return next({ status: 500, message: 'Failed to list log runs.' });
-    }
-});
-
-app.get('/api/logs/:run_id', async (req, res, next) => {
-    const { run_id } = req.params;
-    if (run_id.includes('..')) {
-        return next({ status: 400, message: 'Invalid run_id.' });
-    }
-
-    const runPath = path.join(LOGS_BASE_DIRECTORY, run_id);
-    try {
-        await fsPromises.access(runPath);
-    } catch (error) {
-        return next({ status: 404, message: `Run directory not found: ${run_id}` });
-    }
-
-    try {
-        const items = await fsPromises.readdir(runPath, { withFileTypes: true });
-        const logFiles = items
-            .filter(item => item.isFile() && path.extname(item.name).toLowerCase() === '.json')
-            .map(item => item.name);
-        res.json({ run_id: run_id, log_files: logFiles.sort() });
-    } catch (error) {
-        console.error(`[API Error] Error listing logs in run ${run_id}: ${error.message}`);
-        return next({ status: 500, message: `Failed to list logs in run ${run_id}.` });
-    }
-});
-
-app.get('/api/logs/:run_id/:log_filename', async (req, res, next) => {
-    const { run_id, log_filename } = req.params;
-    try {
-        const filePath = await getLogFilePath(run_id, log_filename);
-        const data = await fsPromises.readFile(filePath, 'utf8');
-        res.json(JSON.parse(data)); // Assuming log files are JSON
-    } catch (error) {
-        if (error instanceof SyntaxError) {
-            console.error(`[API Error] JSON SyntaxError in ${run_id}/${log_filename}: ${error.message}`);
-            return next({ status: 500, message: `Error decoding JSON from log file: ${run_id}/${log_filename}` });
+// Get list of all available games
+app.get('/api/games', async (req, res) => {
+  try {
+    await ensureLogsDir();
+    console.log("API: Fetching games list");
+    
+    // Get all game directories
+    const gameRuns = await fs.readdir(LOGS_DIR);
+    console.log(`Found ${gameRuns.length} potential game runs in ${LOGS_DIR}`);
+    
+    // Build the list of available games with metadata
+    const games = [];
+    for (const runId of gameRuns) {
+      try {
+        const runPath = path.join(LOGS_DIR, runId);
+        const stat = await fs.stat(runPath);
+        
+        if (!stat.isDirectory()) continue;
+        
+        const files = await fs.readdir(runPath);
+        const logFiles = files.filter(file => file.endsWith('.json'));
+        
+        if (logFiles.length > 0) {
+          // Get metadata from the first log file to provide game information
+          try {
+            const firstLogPath = path.join(runPath, logFiles[0]);
+            const logContent = await fs.readFile(firstLogPath, 'utf8');
+            const gameData = JSON.parse(logContent);
+            
+            games.push({
+              id: runId,
+              name: `Game ${runId}`,
+              date: stat.mtime,
+              playerCount: (gameData.animals || gameData.Animals || []).length,
+              tickCount: logFiles.length
+            });
+          } catch (metadataError) {
+            // If we can't read metadata, still include the game with basic info
+            games.push({
+              id: runId,
+              name: `Game ${runId}`,
+              date: stat.mtime,
+              tickCount: logFiles.length
+            });
+          }
         }
-        console.error(`[API Error] Reading ${run_id}/${log_filename}: ${error.message || error}`);
-        return next(error); // Forward error to the error handler
+      } catch (runError) {
+        console.error(`Error processing run ${runId}:`, runError);
+      }
     }
+    
+    // Sort games by date (newest first)
+    games.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    console.log(`Returning ${games.length} game entries`);
+    res.json({ games });
+  } catch (error) {
+    console.error('Error getting games list:', error);
+    res.status(500).json({ error: 'Failed to get games list' });
+  }
 });
 
-app.get('/api/tournament_files', async (req, res, next) => {
+// Get all data for a specific game
+app.get('/api/games/:gameId', async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const gameDir = path.join(LOGS_DIR, gameId);
+    console.log(`API: Fetching game data for: ${gameId}`);
+    
     try {
-        await fsPromises.access(LOGS_BASE_DIRECTORY);
-    } catch (error) {
-        console.error(`[API Error] Logs base directory for tournament files not found: ${LOGS_BASE_DIRECTORY}`);
-        return next({ status: 500, message: `Logs base directory not found: ${LOGS_BASE_DIRECTORY}` });
+      await fs.access(gameDir);
+    } catch {
+      return res.status(404).json({ error: 'Game not found' });
     }
+    
+    const files = await fs.readdir(gameDir);
+    const logFiles = files.filter(file => file.endsWith('.json')).sort();
+    
+    if (logFiles.length === 0) {
+      return res.status(404).json({ error: 'No log files found for this game' });
+    }
+    
+    // Load all game states
+    const worldStates = [];
+    for (const logFile of logFiles) {
+      try {
+        const logPath = path.join(gameDir, logFile);
+        const logContent = await fs.readFile(logPath, 'utf8');
+        const gameState = JSON.parse(logContent);
+        worldStates.push(gameState);
+      } catch (logError) {
+        console.error(`Error reading log file ${logFile}:`, logError);
+      }
+    }
+    
+    console.log(`Sending game with ${worldStates.length} states`);
+    // Return entire game history for replay
+    res.json({ gameId, worldStates });
+  } catch (error) {
+    console.error('Error getting game data:', error);
+    res.status(500).json({ error: 'Failed to get game data' });
+  }
+});
 
-    let tournamentLogPaths = [];
-    console.log('[API DEBUG /api/tournament_files] Starting scan...');
+// Legacy endpoints for backward compatibility
+app.get('/api/log_runs', async (req, res) => {
+  try {
+    await ensureLogsDir();
+    const runs = await fs.readdir(LOGS_DIR);
+    
+    // Filter to only include directories
+    const validRuns = [];
+    for (const run of runs) {
+      try {
+        const runPath = path.join(LOGS_DIR, run);
+        const stat = await fs.stat(runPath);
+        if (stat.isDirectory()) {
+          validRuns.push(run);
+        }
+      } catch (err) {
+        console.error(`Error checking run ${run}:`, err);
+      }
+    }
+    
+    res.json({ runs: validRuns });
+  } catch (error) {
+    console.error('Error getting runs:', error);
+    res.status(500).json({ error: 'Failed to get run list' });
+  }
+});
 
+app.get('/api/logs/:runId', async (req, res) => {
+  try {
+    const { runId } = req.params;
+    const runDir = path.join(LOGS_DIR, runId);
+    
     try {
-        const runDirsDirents = await fsPromises.readdir(LOGS_BASE_DIRECTORY, { withFileTypes: true });
-        for (const runDirDirent of runDirsDirents) {
-            if (runDirDirent.isDirectory()) {
-                const runDirName = runDirDirent.name;
-                const runDirPath = path.join(LOGS_BASE_DIRECTORY, runDirName);
-                let lastLogFile = null;
-                let maxLogNum = -1;
-
-                try {
-                    const filesInRunDir = await fsPromises.readdir(runDirPath);
-                    for (const fileName of filesInRunDir) {
-                        if (fileName.toLowerCase().endsWith('.json')) {
-                            const baseName = fileName.slice(0, -5); // Remove .json
-                            if (/^\d+$/.test(baseName)) { // Check if basename is purely numeric
-                                const num = parseInt(baseName, 10);
-                                if (num > maxLogNum) {
-                                    maxLogNum = num;
-                                    lastLogFile = fileName;
-                                }
-                            }
-                        } else {
-                            console.log(`[API DEBUG /api/tournament_files] ... skipping non-JSON file: ${fileName}`);
-                        }
-                    }
-
-                    if (lastLogFile) {
-                        console.log(`[API DEBUG /api/tournament_files] Selected for ${runDirName}: ${lastLogFile}`);
-                        tournamentLogPaths.push(`${runDirName}/${lastLogFile}`);
-                    } else {
-                        console.log(`[API DEBUG /api/tournament_files] No suitable numeric JSON log found for ${runDirName}`);
-                    }
-                } catch (err) {
-                    console.warn(`[API Warn] Could not read or process files in directory ${runDirName}: ${err.message}`);
-                    // Continue to the next run directory if one fails
-                }
-            }
-        }
-        console.log(`[API DEBUG /api/tournament_files] Final tournament_files list: [${tournamentLogPaths.join(', ')}]`);
-        res.json({ tournament_files: tournamentLogPaths.sort() });
-    } catch (error) {
-        console.error(`[API Error] Error scanning for tournament files: ${error.message}`);
-        return next({ status: 500, message: 'Failed to scan for tournament files.' });
+      await fs.access(runDir);
+    } catch {
+      return res.status(404).json({ error: 'Run not found' });
     }
+    
+    const files = await fs.readdir(runDir);
+    const logFiles = files.filter(file => file.endsWith('.json'));
+    
+    res.json({ log_files: logFiles });
+  } catch (error) {
+    console.error('Error getting log files:', error);
+    res.status(500).json({ error: 'Failed to get log files' });
+  }
 });
 
-// --- New Leaderboard Stats Endpoint ---
-app.get('/api/leaderboard_stats', async (req, res, next) => {
-    const stats = {}; // Stores { "BotNickname": { wins: 0, secondPlaces: 0, gamesPlayed: 0 } }
-
+app.get('/api/logs/:runId/:logFile', async (req, res) => {
+  try {
+    const { runId, logFile } = req.params;
+    const logPath = path.join(LOGS_DIR, runId, logFile);
+    
     try {
-        await fsPromises.access(LOGS_BASE_DIRECTORY); // Ensure base log directory is accessible
-        const runDirsDirents = await fsPromises.readdir(LOGS_BASE_DIRECTORY, { withFileTypes: true });
-
-        for (const runDirDirent of runDirsDirents) {
-            if (runDirDirent.isDirectory()) {
-                const runDirName = runDirDirent.name;
-                const runDirPath = path.join(LOGS_BASE_DIRECTORY, runDirName);
-                let lastLogFile = null;
-                let maxLogNum = -1;
-
-                // Find the last (highest numbered) JSON log file in the run directory
-                try {
-                    const filesInRunDir = await fsPromises.readdir(runDirPath);
-                    for (const fileName of filesInRunDir) {
-                        if (fileName.toLowerCase().endsWith('.json')) {
-                            const baseName = fileName.slice(0, -5); // Remove .json extension
-                            if (/^\d+$/.test(baseName)) { // Check if basename is purely numeric
-                                const num = parseInt(baseName, 10);
-                                if (num > maxLogNum) {
-                                    maxLogNum = num;
-                                    lastLogFile = fileName;
-                                }
-                            }
-                        }
-                    }
-                } catch (err) {
-                    console.warn(`[API Warn /leaderboard_stats] Could not read files in directory ${runDirName}: ${err.message}`);
-                    continue; // Skip this run directory if there's an error reading its contents
-                }
-
-                if (lastLogFile) {
-                    const filePath = path.join(runDirPath, lastLogFile);
-                    try {
-                        const fileContent = await fsPromises.readFile(filePath, 'utf8');
-                        const logData = JSON.parse(fileContent);
-
-                        if (logData.Animals && Array.isArray(logData.Animals)) {
-                            const sortedAnimals = [...logData.Animals].sort((a, b) => (b.Score || 0) - (a.Score || 0));
-
-                            // Track all participants in this game to increment gamesPlayed
-                            const participantsInGame = new Set();
-                            sortedAnimals.forEach(animal => {
-                                if (animal.Nickname) { // Ensure nickname exists
-                                    participantsInGame.add(animal.Nickname);
-                                }
-                            });
-
-                            participantsInGame.forEach(nickname => {
-                                if (!stats[nickname]) stats[nickname] = { wins: 0, secondPlaces: 0, gamesPlayed: 0 };
-                                stats[nickname].gamesPlayed += 1;
-                            });
-
-                            // Award win
-                            if (sortedAnimals.length > 0 && sortedAnimals[0].Nickname) {
-                                const winnerNickname = sortedAnimals[0].Nickname;
-                                if (!stats[winnerNickname]) stats[winnerNickname] = { wins: 0, secondPlaces: 0, gamesPlayed: stats[winnerNickname] ? stats[winnerNickname].gamesPlayed : 0 }; // Ensure gamesPlayed isn't reset
-                                stats[winnerNickname].wins += 1;
-                            }
-
-                            // Award second place
-                            if (sortedAnimals.length > 1 && sortedAnimals[1].Nickname) {
-                                const secondPlaceNickname = sortedAnimals[1].Nickname;
-                                if (!stats[secondPlaceNickname]) stats[secondPlaceNickname] = { wins: 0, secondPlaces: 0, gamesPlayed: stats[secondPlaceNickname] ? stats[secondPlaceNickname].gamesPlayed : 0 };
-                                stats[secondPlaceNickname].secondPlaces += 1;
-                            }
-                        }
-                    } catch (parseErr) {
-                        console.error(`[API Error /leaderboard_stats] Error parsing JSON from ${filePath}: ${parseErr.message}`);
-                        // Optionally skip this file or handle error differently
-                    }
-                }
-            }
-        }
-
-        // Convert stats object to array and sort
-        const leaderboardArray = Object.entries(stats).map(([nickname, data]) => ({
-            nickname,
-            ...data
-        })).sort((a, b) => {
-            if (b.wins !== a.wins) return b.wins - a.wins;
-            if (b.secondPlaces !== a.secondPlaces) return b.secondPlaces - a.secondPlaces;
-            return a.nickname.localeCompare(b.nickname);
-        });
-
-        res.json(leaderboardArray);
-
-    } catch (error) {
-        console.error(`[API Error /leaderboard_stats] Failed to generate leaderboard: ${error.message}`);
-        next({ status: 500, message: 'Failed to generate leaderboard stats.' });
+      await fs.access(logPath);
+    } catch {
+      return res.status(404).json({ error: 'Log file not found' });
     }
+    
+    const logContent = await fs.readFile(logPath, 'utf8');
+    const gameState = JSON.parse(logContent);
+    
+    res.json(gameState);
+  } catch (error) {
+    console.error('Error reading log file:', error);
+    res.status(500).json({ error: 'Failed to read log file' });
+  }
 });
 
-// --- Error Handling Middleware ---
-app.use((err, req, res, next) => {
-    console.error('[API Global Error]', err.message || err);
-    const status = err.status || 500;
-    const message = err.message || 'Something went wrong on the server.';
-    res.status(status).json({ error: message });
+// Leaderboard stats endpoint
+app.get('/api/leaderboard_stats', async (req, res) => {
+  // This would typically connect to a database or file with aggregated stats
+  // For now, we'll return sample data
+  const sampleData = [
+    { nickname: "Speedy", wins: 15, secondPlaces: 8, gamesPlayed: 30 },
+    { nickname: "Hunter", wins: 12, secondPlaces: 10, gamesPlayed: 28 },
+    { nickname: "Sneaky", wins: 10, secondPlaces: 12, gamesPlayed: 25 },
+    { nickname: "Explorer", wins: 8, secondPlaces: 9, gamesPlayed: 22 },
+    { nickname: "RandomBot", wins: 5, secondPlaces: 7, gamesPlayed: 18 }
+  ];
+  
+  res.json(sampleData);
 });
 
-// --- Start Server ---
-app.listen(port, () => {
-    console.log(`[API] Express server listening on port ${port}`);
-    // Use fsSync for the synchronous check here
-    if (!fsSync.existsSync(LOGS_BASE_DIRECTORY)) {
-        console.error(`[API CRITICAL] LOGS_BASE_DIRECTORY (${LOGS_BASE_DIRECTORY}) does NOT exist or is not accessible by the Node.js process at startup.`);
-    } else {
-        console.log(`[API INFO] LOGS_BASE_DIRECTORY (${LOGS_BASE_DIRECTORY}) confirmed to exist and is accessible at startup.`);
-        try {
-            const testRead = fsSync.readdirSync(LOGS_BASE_DIRECTORY);
-            console.log(`[API INFO] Successfully read contents of LOGS_BASE_DIRECTORY at startup. Found ${testRead.length} items.`);
-        } catch (e) {
-            console.error(`[API CRITICAL] LOGS_BASE_DIRECTORY (${LOGS_BASE_DIRECTORY}) exists, but reading its contents failed at startup:`, e.message);
-        }
-    }
+// Start server
+app.listen(PORT, () => {
+  console.log(`API server running on port ${PORT}`);
+  ensureLogsDir();
 });

@@ -1,7 +1,7 @@
 {
-  "name": "zooscape-visualizer-api",
+  "name": "visualizer-2d-api",
   "version": "1.0.0",
-  "description": "API for Zooscape Visualizer to access logs",
+  "description": "API server for Zooscape 2D Visualizer",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,10 +9,9 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "dotenv": "^16.4.5"
+    "express": "^4.18.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "nodemon": "^2.0.22"
   }
 }

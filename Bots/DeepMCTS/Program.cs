@@ -119,7 +119,7 @@ try
         "GameState",
         async (gameState) =>
         {
-            Log.Information("Received game state for tick {Tick}", gameState.CurrentTick);
+            Log.Information("Received game state for tick {Tick}", gameState.Tick);
             if (gameState.MyAnimalId == Guid.Empty && botServiceInstance.GetMyBotId() != Guid.Empty)
             {
                 gameState.MyAnimalId = botServiceInstance.GetMyBotId();

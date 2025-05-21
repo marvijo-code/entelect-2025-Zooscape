@@ -14,6 +14,12 @@ public class BotService
 {
     private Guid _myBotId; // Added to store the bot's official ID from the server
 
+    // Define time limits and buffer
+    private const int TARGET_TOTAL_RESPONSE_TIME_MS = 150; // Target for the entire ProcessState
+    private const int PROCESSING_OVERHEAD_BUFFER_MS = 20; // Buffer for non-MCTS work and network latency
+    private const int MCTS_TIME_LIMIT_MS =
+        TARGET_TOTAL_RESPONSE_TIME_MS - PROCESSING_OVERHEAD_BUFFER_MS;
+
     // Method to set the bot's official ID when received from the server
     public void SetOfficialBotId(Guid botId)
     {
@@ -29,6 +35,8 @@ public class BotService
 
     public BotCommand ProcessState(GameState state)
     {
+        var stopwatch = Stopwatch.StartNew(); // Start stopwatch
+
         // Ensure MyAnimalId is set in GameState for MonteCarlo to use state.MyAnimal
         // If state.MyAnimalId is not set by the deserializer, we can use _myBotId here.
         if (state.MyAnimalId == Guid.Empty && _myBotId != Guid.Empty)
@@ -38,9 +46,32 @@ public class BotService
         // It's crucial that state.MyAnimalId is correctly populated before InitGameState if it relies on it.
 
         MonteCarlo.InitGameState(state);
-        BotAction bestAction = MonteCarlo.FindBestMove(state, timeLimitMs: 150);
-        return new BotCommand { Action = bestAction };
+        var mctsResult = MonteCarlo.FindBestMove(state, timeLimitMs: MCTS_TIME_LIMIT_MS);
+
+        stopwatch.Stop(); // Stop stopwatch
+
+        Console.WriteLine(
+            $"[DeepMCTS Stats] Tick: {state.Tick}, TargetLimit: {MCTS_TIME_LIMIT_MS}ms, ActualDuration: {stopwatch.ElapsedMilliseconds}ms, Iterations: {mctsResult.Iterations}, SimDepth: {mctsResult.SimulationDepth}, ChosenAction: {mctsResult.Action}"
+        );
+
+        // Optional: Check if we still went over the TARGET_TOTAL_RESPONSE_TIME_MS
+        if (stopwatch.ElapsedMilliseconds > TARGET_TOTAL_RESPONSE_TIME_MS)
+        {
+            Console.WriteLine(
+                $"[DeepMCTS Warning] Tick: {state.Tick} - Total processing time {stopwatch.ElapsedMilliseconds}ms exceeded target of {TARGET_TOTAL_RESPONSE_TIME_MS}ms."
+            );
+        }
+
+        return new BotCommand { Action = mctsResult.Action };
     }
+}
+
+// Define a struct for the return type of FindBestMove
+public struct MctsResult
+{
+    public BotAction Action { get; set; }
+    public int Iterations { get; set; }
+    public int SimulationDepth { get; set; }
 }
 
 static class MonteCarlo
@@ -57,6 +88,7 @@ static class MonteCarlo
     static Random rng = new Random();
     const int PELLET_POINTS = 10; // Points per pellet (game config)
     const int RETARGET_INTERVAL = 20; // Zookeeper recalculation interval
+    public static int MaxSimulationTicks { get; set; } = 50; // Changed from const to a public static property with a default value
 
     public static void InitGameState(GameState state)
     {
@@ -122,35 +154,39 @@ static class MonteCarlo
         }
     }
 
-    public static BotAction FindBestMove(GameState state, int timeLimitMs)
+    public static MctsResult FindBestMove(GameState state, int timeLimitMs)
     {
         if (walls == null || pelletInitial == null)
         {
-            // This case should ideally not be reached if InitGameState is always called first
-            // and successfully initializes these.
-            Console.WriteLine(
-                "Error: Walls or pelletInitial not initialized in FindBestMove. Call InitGameState first."
-            );
-            // Return a default action or throw
-            return BotAction.Up; // Or some other default/safe action
+            Console.WriteLine("Error: Walls or pelletInitial not initialized in FindBestMove.");
+            return new MctsResult
+            {
+                Action = BotAction.Up,
+                Iterations = 0,
+                SimulationDepth = MaxSimulationTicks,
+            };
         }
-
         if (state.MyAnimal == null)
         {
             Console.WriteLine("Error: state.MyAnimal is null in FindBestMove.");
-            return BotAction.Up; // Default action
+            return new MctsResult
+            {
+                Action = BotAction.Up,
+                Iterations = 0,
+                SimulationDepth = MaxSimulationTicks,
+            };
         }
         if (state.Zookeepers == null || !state.Zookeepers.Any())
         {
             Console.WriteLine(
-                "Warning: state.Zookeepers is null or empty in FindBestMove. Simulating without zookeepers."
+                "Warning: state.Zookeepers is null or empty. Simulating without zookeepers."
             );
-            // Proceed, but zookeeper logic will be skipped or might error if not handled.
-            // For now, the code later accesses Zookeepers[0] which would crash.
-            // Let's provide a dummy zookeeper if none exist to prevent a crash, or adjust logic.
-            // For simplicity, returning a default action if no zookeepers.
-            // This state indicates an issue with game state data.
-            return BotAction.Up; // Or handle as a special case
+            return new MctsResult
+            {
+                Action = BotAction.Up,
+                Iterations = 0,
+                SimulationDepth = MaxSimulationTicks,
+            };
         }
 
         ulong[] pelletCurrent = new ulong[pelletInitial.Length];
@@ -231,7 +267,12 @@ static class MonteCarlo
                 bestActionInt = a;
             }
         }
-        return (BotAction)(bestActionInt + 1);
+        return new MctsResult
+        {
+            Action = (BotAction)(bestActionInt + 1),
+            Iterations = iterations,
+            SimulationDepth = MaxSimulationTicks,
+        };
     }
 
     private static int SimulatePlayout(
@@ -269,9 +310,9 @@ static class MonteCarlo
             ComputeGhostDirection(botX, botY, zooX, zooY, out dirToTargetX, out dirToTargetY);
         }
 
-        const int MAX_TICKS = 50;
+        // Using MaxSimulationTicks from class level
         int lastMove = initialAction;
-        for (int t = 1; t < MAX_TICKS; t++)
+        for (int t = 1; t < MaxSimulationTicks; t++) // Use the class-level constant
         {
             int action;
             if (rng.NextDouble() < 0.7)

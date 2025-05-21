@@ -1,3 +1,329 @@
+/* Import the tabs container styles */
+@import './styles/TabsContainer.css';
+
+/* Dark Mode Theme Colors */
+:root {
+  --dark-bg: #121212;
+  --dark-surface: #1e1e1e;
+  --dark-surface-lighter: #2d2d2d;
+  --dark-text-primary: #ffffff;
+  --dark-text-secondary: #b3b3b3;
+  --dark-border: #333333;
+  --accent-blue: #3498db;
+  --accent-green: #2ecc71;
+  --accent-red: #e74c3c;
+  --accent-purple: #9b59b6;
+}
+
+/* Reset some body styles for dark mode */
+body {
+  background-color: var(--dark-bg);
+  color: var(--dark-text-primary);
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+/* App container for SPA */
+.app-container {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--dark-bg);
+}
+
+.app-header {
+  background-color: var(--dark-surface);
+  color: var(--dark-text-primary);
+  padding: 10px;
+  height: 50px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--dark-border);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.app-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mode-switch-button {
+  background-color: var(--accent-blue);
+  color: var(--dark-text-primary);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.mode-switch-button:hover {
+  background-color: #2980b9;
+}
+
+.error-message {
+  background-color: rgba(231, 76, 60, 0.2);
+  color: var(--accent-red);
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin: 10px;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.connection-status {
+  background-color: var(--dark-surface);
+  padding: 15px;
+  text-align: center;
+  border-radius: 8px;
+  margin: 10px;
+  border: 1px solid var(--dark-border);
+}
+
+.connection-status button {
+  background-color: var(--accent-green);
+  color: var(--dark-text-primary);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.connection-status button:hover {
+  background-color: #27ae60;
+}
+
+/* Grid tab styles */
+.grid-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.grid-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.grid-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 10px;
+  background-color: var(--dark-surface);
+  border-bottom: 1px solid var(--dark-border);
+}
+
+.grid-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Leaderboard tab styles */
+.leaderboard-tab {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.leaderboard-container {
+  padding: 15px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.leaderboard-table th, 
+.leaderboard-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--dark-border);
+}
+
+.leaderboard-table th {
+  background-color: var(--dark-surface);
+  color: var(--accent-blue);
+}
+
+.leaderboard-table tr:nth-child(odd) {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Game selector tab styles */
+.game-selector-tab {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.color-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+/* Playback controls styles - fixed at bottom of grid view */
+.playback-controls-container {
+  padding: 5px 10px;
+  background-color: var(--dark-surface);
+  border-top: 1px solid var(--dark-border);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .app-header h1 {
+    font-size: 1rem;
+  }
+  
+  .tab-button {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Grid component styles */
+.grid-container {
+  overflow: auto;
+  flex: 1;
+  min-width: 300px;
+  background-color: var(--dark-surface-lighter);
+  border-radius: 8px;
+  border: 1px solid var(--dark-border);
+  padding: 10px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 30px);
+  gap: 1px;
+  background-color: var(--dark-surface-lighter);
+}
+
+.cell {
+  width: 30px;
+  height: 30px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.cell-empty {
+  background-color: var(--dark-surface);
+}
+
+.cell-wall {
+  background-color: #444;
+}
+
+.cell-pellet {
+  background-color: var(--dark-surface);
+}
+
+.cell-pellet::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background-color: #ffd700;
+  border-radius: 50%;
+  position: absolute;
+}
+
+.cell-animalspawn {
+  background-color: rgba(173, 216, 230, 0.2);
+}
+
+.cell-zookeeperspawn {
+  background-color: rgba(240, 128, 128, 0.2);
+}
+
+.entity {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--dark-text-primary);
+  font-weight: bold;
+}
+
+.entity-animal {
+  background-color: blue;
+  z-index: 10;
+}
+
+.entity-zookeeper {
+  background-color: red; /* Ensure zookeepers are consistently red */
+  z-index: 5;
+}
+
+.grid-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  color: var(--dark-text-secondary);
+  font-size: 1.2rem;
+}
+
+/* Spinner animation for connection */
+.spinner {
+  margin: auto;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #444;
+  border-top: 2px solid var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.entity-animal.captured {
+  animation: pulse 0.5s ease-in-out;
+  opacity: 0.7;
+}
+
+/* Responsive layout */
+@media (max-width: 768px) {
+  .game-view {
+    flex-direction: column;
+  }
+}
+
 .spinner {
   border: 4px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
@@ -143,20 +469,6 @@
   box-sizing: border-box;
 }
 
-.grid-container {
-  overflow: auto; /* Scroll grid if it exceeds container */
-  border: 2px solid #61dafb;
-  padding: 2px; /* Add some padding around the grid itself */
-  background-color: #3a3f47; /* Slightly lighter than main bg */
-  border-radius: 4px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 0; /* Allow grid container to shrink */
-}
-
 .scoreboard-container {
   width: 100%;
   padding: 4px;
@@ -214,6 +526,15 @@
 
 .side-panel {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+  box-sizing: border-box;
+}
 
 /* Styles for the container of the log-based leaderboard */
 .log-leaderboard-section {
@@ -231,15 +552,6 @@
   color: #61dafb; /* Default title color, can be overridden by component-specific CSS */
   margin-bottom: 15px; /* As was in inline style */
   text-align: center; /* As was in inline style */
-}
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  height: 100%;
-  overflow-y: auto;
-  padding-right: 4px;
-  box-sizing: border-box;
 }
 
 /* Spinner animation for connection */
@@ -282,4 +594,120 @@
     margin-left: 0;
     margin-top: 10px;
   }
+}
+
+/* Fix the issue where the live mode elements still have light backgrounds */
+
+/* Ensure all containers in live mode use dark mode */
+.connection-status {
+  background-color: var(--dark-surface);
+  color: var(--dark-text-primary);
+  border-color: var(--dark-border);
+}
+
+/* Update all inputs and controls */
+button, select, input {
+  background-color: var(--dark-surface-lighter);
+  color: var(--dark-text-primary);
+  border: 1px solid var(--dark-border);
+}
+
+button:hover {
+  background-color: #444;
+}
+
+/* Update any element that might still have light backgrounds */
+.leaderboard-container {
+  background-color: var(--dark-surface) !important;
+  color: var(--dark-text-primary) !important;
+  border-color: var(--dark-border) !important;
+}
+
+.leaderboard-table th {
+  background-color: var(--dark-surface-lighter) !important;
+  color: var(--dark-text-secondary) !important;
+}
+
+.leaderboard-table tr:nth-child(odd) {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+.leaderboard-table tr:nth-child(even) {
+  background-color: var(--dark-surface) !important;
+}
+
+/* Add complete specificity to override any potential conflicts */
+html body .visualization-container,
+html body .grid-container,
+html body .leaderboard-container,
+html body .waiting-message {
+  background-color: var(--dark-surface);
+  color: var(--dark-text-primary);
+  border-color: var(--dark-border);
+}
+
+/* Force dark mode for all elements */
+* {
+  color-scheme: dark;
+}
+
+/* Override any potential light-colored backgrounds */
+.game-view > * {
+  background-color: var(--dark-surface) !important;
+  color: var(--dark-text-primary) !important;
+}
+
+/* Ensure proper grid colors */
+.grid {
+  background-color: var(--dark-surface-lighter) !important;
+}
+
+.cell-empty, .cell-pellet {
+  background-color: var(--dark-surface) !important;
+}
+
+/* Override any remaining light styles */
+.scoreboard-container,
+.controls,
+.legend {
+  background-color: var(--dark-surface) !important;
+  color: var(--dark-text-primary) !important;
+  border-color: var(--dark-border) !important;
+}
+
+/* Connection debugger tab styles */
+.connection-debugger-tab {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+}
+
+.connection-container {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.connection-container h2 {
+  margin-bottom: 15px;
+  color: var(--accent-blue);
+}
+
+/* Waiting message styles */
+.waiting-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 20px;
+  text-align: center;
+  color: var(--dark-text-secondary);
+}
+
+.debug-info {
+  font-size: 0.8rem;
+  color: var(--accent-blue);
+  margin-top: 10px;
 }

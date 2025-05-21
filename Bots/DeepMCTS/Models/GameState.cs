@@ -16,7 +16,7 @@ namespace DeepMCTS.Models
 
         // Properties matching the server payload
         public DateTime TimeStamp { get; set; }
-        public int CurrentTick { get; set; } // Renamed from Tick to CurrentTick to match usage in Program.cs
+        public int Tick { get; set; } // Renamed back from CurrentTick to Tick
         public List<Cell> Cells { get; set; } = new List<Cell>();
         public List<Animal> Animals { get; set; } = new List<Animal>(); // MyAnimal will be derived from this
         public List<Zookeeper> Zookeepers { get; set; } = new List<Zookeeper>();

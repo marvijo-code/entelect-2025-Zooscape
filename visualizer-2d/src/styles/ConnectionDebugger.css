@@ -1,0 +1,100 @@
+.connection-debugger {
+  background-color: var(--dark-surface);
+  border: 1px solid var(--dark-border);
+  border-radius: 4px;
+  margin: 10px;
+  overflow: hidden;
+}
+
+.debugger-header {
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background-color: var(--dark-surface-lighter);
+}
+
+.connection-status {
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+}
+
+.connection-status::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.connection-status.connected::before {
+  background-color: var(--accent-green);
+}
+
+.connection-status.disconnected::before {
+  background-color: var(--accent-red);
+}
+
+.toggle-button {
+  border: none;
+  background: transparent;
+  color: var(--accent-blue);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+}
+
+.toggle-button:hover {
+  text-decoration: underline;
+}
+
+.debugger-content {
+  padding: 10px;
+}
+
+.connection-actions {
+  margin-bottom: 10px;
+}
+
+.connection-actions button {
+  background-color: var(--accent-blue);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.connection-actions button:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+}
+
+.debug-log {
+  background-color: var(--dark-surface-lighter);
+  padding: 10px;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+.log-entry {
+  margin-bottom: 4px;
+  display: flex;
+}
+
+.log-entry .timestamp {
+  color: var(--accent-blue);
+  margin-right: 10px;
+  white-space: nowrap;
+}
+
+.log-entry .message {
+  color: var(--dark-text-primary);
+  word-break: break-word;
+} 

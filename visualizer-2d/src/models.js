@@ -3,8 +3,8 @@ export const CellContent = {
     Empty: 0,
     Wall: 1,
     Pellet: 2,
-    ZookeeperSpawn: 3,
-    AnimalSpawn: 4,
+    AnimalSpawn: 3,
+    ZookeeperSpawn: 4,
 };
 
 // Interfaces are a TypeScript feature and do not exist in JavaScript.
@@ -13,47 +13,47 @@ export const CellContent = {
 
 /**
  * @typedef {object} Cell
- * @property {number} X
- * @property {number} Y
- * @property {number} Content - A value from CellContent (e.g., CellContent.Wall)
+ * @property {number} X - or lowercase x
+ * @property {number} Y - or lowercase y
+ * @property {number} Content - A value from CellContent (e.g., CellContent.Wall) or lowercase content
  */
 
 /**
  * @typedef {object} Zookeeper
- * @property {string} Id
- * @property {string} NickName
- * @property {number} X
- * @property {number} Y
- * @property {number} SpawnX
- * @property {number} SpawnY
+ * @property {string} Id - or lowercase id
+ * @property {string} Nickname - or lowercase nickname
+ * @property {number} X - or lowercase x
+ * @property {number} Y - or lowercase y
+ * @property {number} SpawnX - or lowercase spawnX
+ * @property {number} SpawnY - or lowercase spawnY
  */
 
 /**
  * @typedef {object} Animal
- * @property {string} Id
- * @property {string} NickName
- * @property {number} X
- * @property {number} Y
- * @property {number} SpawnX
- * @property {number} SpawnY
- * @property {number} Score
- * @property {number} CapturedCounter
- * @property {number} DistanceCovered
- * @property {boolean} IsViable
+ * @property {string} Id - or lowercase id
+ * @property {string} Nickname - or lowercase nickname
+ * @property {number} X - or lowercase x
+ * @property {number} Y - or lowercase y
+ * @property {number} SpawnX - or lowercase spawnX
+ * @property {number} SpawnY - or lowercase spawnY
+ * @property {number} Score - or lowercase score
+ * @property {number} CapturedCounter - or lowercase capturedCounter
+ * @property {number} DistanceCovered - or lowercase distanceCovered
+ * @property {boolean} IsViable - or lowercase isViable
  */
 
 /**
  * @typedef {object} GameState
- * @property {string} TimeStamp
- * @property {number} Tick
- * @property {Cell[]} Cells
- * @property {Animal[]} Animals
- * @property {Zookeeper[]} Zookeepers
+ * @property {string} TimeStamp - or lowercase timeStamp
+ * @property {number} Tick - or lowercase tick
+ * @property {Cell[]} Cells - or lowercase cells
+ * @property {Animal[]} Animals - or lowercase animals
+ * @property {Zookeeper[]} Zookeepers - or lowercase zookeepers
  */
 
 /**
  * @typedef {object} TickState
- * @property {GameState[]} WorldStates
+ * @property {GameState[]} WorldStates - or lowercase worldStates
  */
 
 /**

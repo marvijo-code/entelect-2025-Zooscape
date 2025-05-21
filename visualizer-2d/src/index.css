@@ -11,6 +11,30 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --dark-bg: #121212;
+  --dark-surface: #1e1e1e;
+  --dark-surface-lighter: #2d2d2d;
+  --dark-text-primary: #ffffff;
+  --dark-text-secondary: #b3b3b3;
+  --dark-border: #333333;
+  --accent-blue: #3498db;
+  --accent-green: #2ecc71;
+  --accent-red: #e74c3c;
+  --accent-purple: #9b59b6;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  background-color: var(--dark-bg);
+  font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--dark-text-primary);
 }
 
 a {
@@ -22,18 +46,9 @@ a:hover {
   color: #535bf2;
 }
 
-body {
-  margin: 0;
-  /* display: flex; */ /* Let App.css handle display properties */
-  /* place-items: center; */ /* Let App.css handle placement */
-  min-width: 320px;
-  min-height: 100vh;
-  background-color: #282c34; /* Default body background, App.css might override for .App div */
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+h1, h2, h3, h4, h5, h6 {
+  color: var(--dark-text-primary);
+  margin-top: 0;
 }
 
 button {
@@ -56,11 +71,9 @@ button:focus-visible {
 }
 
 #root {
-  width: 100%; /* Ensure root takes full width */
-  /* max-width: 1280px; */ /* Removed to allow App.css to control max-width if needed */
-  /* margin: 0 auto; */ /* Let App.css handle margin if necessary */
-  /* padding: 2rem; */ /* Let App.css handle padding */
-  /* text-align: center; */ /* Let App.css handle text alignment */
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 @media (prefers-color-scheme: light) {
@@ -74,4 +87,51 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  background-color: var(--dark-surface-lighter);
+  border-radius: 3px;
+  padding: 3px 5px;
+  color: var(--accent-blue);
+}
+
+/* Custom scrollbar for content that needs scrolling within tabs */
+.scroll-content {
+  overflow-y: auto;
+}
+
+.scroll-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scroll-content::-webkit-scrollbar-track {
+  background: var(--dark-surface);
+}
+
+.scroll-content::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+.scroll-content::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+button, select, input {
+  font-family: inherit;
+}
+
+/* Basic focus styles for accessibility */
+:focus {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
 }
