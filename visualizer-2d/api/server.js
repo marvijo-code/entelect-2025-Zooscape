@@ -198,17 +198,93 @@ app.get('/api/logs/:runId/:logFile', async (req, res) => {
 
 // Leaderboard stats endpoint
 app.get('/api/leaderboard_stats', async (req, res) => {
-  // This would typically connect to a database or file with aggregated stats
-  // For now, we'll return sample data
-  const sampleData = [
-    { nickname: "Speedy", wins: 15, secondPlaces: 8, gamesPlayed: 30 },
-    { nickname: "Hunter", wins: 12, secondPlaces: 10, gamesPlayed: 28 },
-    { nickname: "Sneaky", wins: 10, secondPlaces: 12, gamesPlayed: 25 },
-    { nickname: "Explorer", wins: 8, secondPlaces: 9, gamesPlayed: 22 },
-    { nickname: "RandomBot", wins: 5, secondPlaces: 7, gamesPlayed: 18 }
-  ];
-  
-  res.json(sampleData);
+  try {
+    await ensureLogsDir();
+    console.log("API: Calculating leaderboard stats from logs");
+    
+    // Get all game directories
+    const gameRuns = await fs.readdir(LOGS_DIR);
+    
+    // Stats tracker for each bot
+    const botStats = {};
+    
+    // Process each game run
+    for (const runId of gameRuns) {
+      try {
+        const runPath = path.join(LOGS_DIR, runId);
+        const stat = await fs.stat(runPath);
+        
+        if (!stat.isDirectory()) continue;
+        
+        const files = await fs.readdir(runPath);
+        const logFiles = files.filter(file => file.endsWith('.json')).sort();
+        
+        if (logFiles.length === 0) continue;
+        
+        // Get the last log file (final state of the game)
+        const finalLogPath = path.join(runPath, logFiles[logFiles.length - 1]);
+        const logContent = await fs.readFile(finalLogPath, 'utf8');
+        const gameState = JSON.parse(logContent);
+        
+        // Get animals array (handle both lowercase and uppercase property names)
+        const animals = gameState.animals || gameState.Animals || [];
+        
+        if (animals.length === 0) continue;
+        
+        // Sort animals by score to determine winners
+        const sortedAnimals = [...animals].sort((a, b) => {
+          const scoreA = a.score !== undefined ? a.score : a.Score;
+          const scoreB = b.score !== undefined ? b.score : b.Score;
+          return scoreB - scoreA;
+        });
+        
+        // Record stats for each animal/bot
+        sortedAnimals.forEach((animal, index) => {
+          const animalId = animal.id !== undefined ? animal.id : animal.Id;
+          const nickname = animal.nickname !== undefined ? animal.nickname : 
+                          animal.Nickname !== undefined ? animal.Nickname : 
+                          `Bot-${animalId}`;
+          
+          // Initialize bot stats if not exists
+          if (!botStats[nickname]) {
+            botStats[nickname] = {
+              nickname,
+              id: animalId,
+              wins: 0,
+              secondPlaces: 0,
+              gamesPlayed: 0
+            };
+          }
+          
+          // Record game participation
+          botStats[nickname].gamesPlayed++;
+          
+          // Record win (1st place)
+          if (index === 0) {
+            botStats[nickname].wins++;
+          }
+          
+          // Record 2nd place
+          if (index === 1) {
+            botStats[nickname].secondPlaces++;
+          }
+        });
+      } catch (error) {
+        console.error(`Error processing game run ${runId}:`, error);
+      }
+    }
+    
+    // Convert to array and sort by wins (descending)
+    const leaderboard = Object.values(botStats).sort((a, b) => 
+      b.wins - a.wins || b.secondPlaces - a.secondPlaces || b.gamesPlayed - a.gamesPlayed
+    );
+    
+    console.log(`Returning leaderboard with ${leaderboard.length} bots`);
+    res.json(leaderboard);
+  } catch (error) {
+    console.error('Error calculating leaderboard stats:', error);
+    res.status(500).json({ error: 'Failed to calculate leaderboard statistics' });
+  }
 });
 
 // Start server

@@ -29,7 +29,13 @@ const Leaderboard = ({ animals = [], leaderboardData = [], loading = false, stat
           <tbody>
             {sortedAnimals.map((animal, index) => {
               const animalId = animal.id !== undefined ? animal.id : animal.Id;
-              const nickname = animal.nickname !== undefined ? animal.nickname : animal.Nickname;
+              
+              // Enhanced nickname handling with better fallback
+              let nickname = null;
+              if (animal.nickname !== undefined) nickname = animal.nickname;
+              else if (animal.Nickname !== undefined) nickname = animal.Nickname;
+              else nickname = animalId ? `Bot-${animalId}` : `Unknown-${index}`;
+              
               const score = animal.score !== undefined ? animal.score : animal.Score;
               const captured = animal.capturedCounter !== undefined ? animal.capturedCounter : animal.CapturedCounter;
               const distance = animal.distanceCovered !== undefined ? animal.distanceCovered : animal.DistanceCovered;
@@ -80,15 +86,25 @@ const Leaderboard = ({ animals = [], leaderboardData = [], loading = false, stat
             </tr>
           </thead>
           <tbody>
-            {leaderboardData.map((bot, index) => (
-              <tr key={bot.nickname || index} className="player-row">
-                <td>{index + 1}</td>
-                <td>{bot.nickname}</td>
-                <td>{bot.wins}</td>
-                <td>{bot.secondPlaces}</td>
-                <td>{bot.gamesPlayed}</td>
-              </tr>
-            ))}
+            {leaderboardData.map((bot, index) => {
+              // Enhanced bot nickname handling
+              let nickname = bot.nickname;
+              if (!nickname && bot.id) {
+                nickname = `Bot-${bot.id}`;
+              } else if (!nickname) {
+                nickname = `Player-${index + 1}`;
+              }
+              
+              return (
+                <tr key={bot.id || bot.nickname || index} className="player-row">
+                  <td>{index + 1}</td>
+                  <td>{nickname}</td>
+                  <td>{bot.wins}</td>
+                  <td>{bot.secondPlaces}</td>
+                  <td>{bot.gamesPlayed}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

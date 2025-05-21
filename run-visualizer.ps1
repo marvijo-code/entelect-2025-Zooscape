@@ -63,10 +63,10 @@ try {
     Write-Host "Installing API dependencies..."
     npm install
     
-    # Start API as a background job
+    # Start API as a background job with nodemon for hot-reloading
     $apiJob = Start-Job -ScriptBlock {
         Set-Location $using:ApiDir
-        node server.js
+        npm run dev
     }
     Write-Host "API server started as job $($apiJob.Id)"
 } finally {

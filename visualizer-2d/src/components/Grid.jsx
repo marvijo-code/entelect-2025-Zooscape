@@ -42,9 +42,13 @@ const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {} }) => {
   
   // Get entity nickname - handle both lowercase and uppercase property names
   const getEntityNickname = (entity) => {
-    return entity.nickname !== undefined ? entity.nickname : 
-           entity.Nickname !== undefined ? entity.Nickname : 
-           `Entity-${getEntityId(entity) || 'unknown'}`;
+    // First, check if the entity has a nickname property (either case)
+    if (entity.nickname !== undefined) return entity.nickname;
+    if (entity.Nickname !== undefined) return entity.Nickname;
+    
+    // If no nickname found, use the ID as fallback
+    const entityId = getEntityId(entity);
+    return entityId ? `Bot-${entityId}` : 'Unknown Bot';
   };
   
   // Get cell content - handle both lowercase and uppercase property names

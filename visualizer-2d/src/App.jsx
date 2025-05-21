@@ -129,7 +129,7 @@ const App = () => {
           if (!state.filePath) {
             return {
               ...state,
-              filePath: `${gameId}/tick_${index + 1}.json`,
+              filePath: `${gameId}/${index + 1}.json`, // Files are named 1.json, 2.json, etc.
               gameId: gameId
             };
           }
@@ -458,7 +458,7 @@ const App = () => {
       gameData.worldStates = gameData.worldStates.map((state, index) => {
         return {
           ...state,
-          filePath: state.filePath || `${gameData.gameId}/tick_${index + 1}.json`,
+          filePath: state.filePath || `${gameData.gameId}/${index + 1}.json`, // Files are named 1.json, 2.json, etc.
           gameId: gameData.gameId
         };
       });
@@ -537,8 +537,8 @@ const App = () => {
                   <span>Tick: {currentDisplayIndex + 1}/{allGameStates.length}</span>
                   {showReplayMode && (
                     <span className="file-path">
-                      {allGameStates[currentDisplayIndex]?.filePath || 
-                       `Game ${allGameStates[currentDisplayIndex]?.gameId || ''}`}
+                      {"C:/dev/2025-Zooscape/visualizer-2d/logs/" + (allGameStates[currentDisplayIndex]?.filePath || 
+                       `Game ${allGameStates[currentDisplayIndex]?.gameId || ''}`)}
                     </span>
                   )}
                 </div>
