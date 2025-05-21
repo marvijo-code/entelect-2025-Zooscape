@@ -11,7 +11,7 @@ import { CellContent } from '../models.js';
  */
 const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {} }) => {
   const containerRef = useRef(null);
-  const [tileSize, setTileSize] = useState(15); // Default tile size
+  const [tileSize, setTileSize] = useState(20); // Default tile size, increased from 15
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
   console.log("Grid render with:", { 
@@ -66,10 +66,12 @@ const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {} }) => {
         height: containerHeight
       });
       
-      // Calculate the maximum possible tile size that fits the grid
+      // Calculate the maximum possible tile size that fits the grid completely
       const maxTileWidth = containerWidth / (maxX + 1);
       const maxTileHeight = containerHeight / (maxY + 1);
-      const newTileSize = Math.floor(Math.min(maxTileWidth, maxTileHeight, 30)); // Cap at 30px
+      
+      // Use Math.floor to avoid overflow, cap at 40px maximum
+      const newTileSize = Math.floor(Math.min(maxTileWidth, maxTileHeight, 40));
       
       setTileSize(Math.max(newTileSize, 8)); // Minimum tile size of 8px
     };
@@ -116,23 +118,10 @@ const Grid = ({ cells = [], animals = [], zookeepers = [], colorMap = {} }) => {
   };
 
   return (
-    <div className="grid-container" ref={containerRef} style={{ 
-      height: '100%', 
-      width: '100%', 
-      display: 'flex', 
-      alignItems: 'flex-start', 
-      justifyContent: 'flex-start',
-      padding: '0',
-      overflow: 'hidden'
-    }}>
+    <div className="grid-container" ref={containerRef} style={{ height: '100%', width: '100%' }}>
       <div className="grid" style={{ 
-        position: 'relative', 
         width: gridWidth, 
-        height: gridHeight, 
-        border: '1px solid black', 
-        backgroundColor: '#f0f0f0',
-        margin: '0',
-        boxSizing: 'border-box'
+        height: gridHeight 
       }}>
         {/* Render Cells */}
         {cells.map((cell, index) => {

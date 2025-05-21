@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 
-const TabsContainer = ({ tabs }) => {
-  const [activeTab, setActiveTab] = useState(0);
+const TabsContainer = ({ tabs, activeTabIndex = 0, onTabChange }) => {
+  const handleTabClick = (index) => {
+    if (onTabChange) {
+      onTabChange(index);
+    }
+  };
 
   return (
     <div className="tabs-container">
@@ -9,15 +13,15 @@ const TabsContainer = ({ tabs }) => {
         {tabs.map((tab, index) => (
           <button
             key={index}
-            className={`tab-button ${activeTab === index ? 'active' : ''}`}
-            onClick={() => setActiveTab(index)}
+            className={`tab-button ${activeTabIndex === index ? 'active' : ''}`}
+            onClick={() => handleTabClick(index)}
           >
             {tab.label}
           </button>
         ))}
       </div>
       <div className="tab-content">
-        {tabs[activeTab].content}
+        {tabs[activeTabIndex].content}
       </div>
     </div>
   );

@@ -38,6 +38,38 @@
   flex: 1;
   overflow: hidden;
   display: flex;
-  flex-direction: column;
   height: calc(100vh - 40px);
+  width: 100%;
+}
+
+/* When Grid View is active, create a split layout */
+.tab-content .grid-tab {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-content .grid-tab .grid-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-content .grid-tab .grid-content {
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+}
+
+/* Make the grid container fill the available space */
+.tab-content .grid-container {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
 } 
