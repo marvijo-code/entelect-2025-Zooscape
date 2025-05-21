@@ -14,7 +14,7 @@ for ($i = 1; $i -le $RunCount; $i++) {
     # Attempt to stop any running bot processes before starting new ones
     $botProcessNames = @(
         "ClingyHeuroBotExp",
-        "MCTSBot",
+        "DeepMCTS",
         "mctso4",
         "ClingyHeuroBot"    
     )
@@ -31,8 +31,9 @@ for ($i = 1; $i -le $RunCount; $i++) {
     Start-Sleep -Seconds 5
 
     $bots = @(
-        @{ Name = "ClingyHeuroBot2"; Path = "Bots\ClingyHeuroBot2\ClingyHeuroBot2.csproj" },
+        # @{ Name = "ClingyHeuroBot2"; Path = "Bots\ClingyHeuroBot2\ClingyHeuroBot2.csproj" },
         @{ Name = "ClingyHeuroBotExp"; Path = "Bots\ClingyHeuroBotExp\ClingyHeuroBotExp.csproj" },
+        @{ Name = "DeepMCTS"; Path = "Bots\DeepMCTS\DeepMCTS.csproj" },
         @{ Name = "MCTSo4"; Path = "Bots\MCTSo4\MCTSo4.csproj" },
         @{ Name = "ClingyHeuroBot"; Path = "Bots\ClingyHeuroBot\ClingyHeuroBot.csproj" }
     )

@@ -83,34 +83,72 @@ public class HeuroBotService
         BotAction bestAction = BotAction.Up;
         decimal bestScore = decimal.MinValue;
 
-        // STEP 1: Check if we're adjacent to a pellet - if so, go there immediately
-        var adjacentPelletAction = FindAdjacentPellet(state, me);
-        if (adjacentPelletAction.HasValue)
+        // EMERGENCY CHECK: Check if a zookeeper is immediately adjacent
+        var emergencyZookeeperAction = GetEmergencyZookeeperAvoidanceMove(state, me, legalActions);
+        if (emergencyZookeeperAction.HasValue)
         {
             Console.WriteLine(
-                $"{BotNickname}: Found adjacent pellet! Taking immediate action: {adjacentPelletAction.Value}"
+                $"{BotNickname}: EMERGENCY ZOOKEEPER AVOIDANCE! Taking action: {emergencyZookeeperAction.Value}"
             );
-            _previousAction = adjacentPelletAction.Value;
+            _previousAction = emergencyZookeeperAction.Value;
+
+            // Clear path cache as we need to recalculate after emergency move
+            _currentPath.Clear();
 
             // Stop timing and log performance
             sw.Stop();
             Console.WriteLine(
-                $"[{DateTime.Now:HH:mm:ss.fff}] Selected action: {adjacentPelletAction.Value}"
+                $"[{DateTime.Now:HH:mm:ss.fff}] EMERGENCY MOVE: {emergencyZookeeperAction.Value}"
             );
             Console.WriteLine(
                 $"[{DateTime.Now:HH:mm:ss.fff}] Processing completed in {sw.ElapsedMilliseconds}ms"
             );
 
-            return new BotCommand() { Action = adjacentPelletAction.Value };
+            return new BotCommand() { Action = emergencyZookeeperAction.Value };
         }
 
-        // STEP 2: If we have a cached path, follow it
+        // STEP 1: Check if we're adjacent to a pellet - if so, go there immediately (unless unsafe)
+        var adjacentPelletAction = FindAdjacentPellet(state, me);
+        if (adjacentPelletAction.HasValue)
+        {
+            // Check if the move is safe from zookeeper
+            if (IsSafeFromZookeepers(state, me, adjacentPelletAction.Value))
+            {
+                Console.WriteLine(
+                    $"{BotNickname}: Found adjacent pellet! Taking immediate action: {adjacentPelletAction.Value}"
+                );
+                _previousAction = adjacentPelletAction.Value;
+
+                // Stop timing and log performance
+                sw.Stop();
+                Console.WriteLine(
+                    $"[{DateTime.Now:HH:mm:ss.fff}] Selected action: {adjacentPelletAction.Value}"
+                );
+                Console.WriteLine(
+                    $"[{DateTime.Now:HH:mm:ss.fff}] Processing completed in {sw.ElapsedMilliseconds}ms"
+                );
+
+                return new BotCommand() { Action = adjacentPelletAction.Value };
+            }
+            else
+            {
+                Console.WriteLine(
+                    $"{BotNickname}: Found pellet but avoiding due to nearby zookeeper!"
+                );
+            }
+        }
+
+        // STEP 2: If we have a cached path, follow it (if safe from zookeepers)
         if (_currentPath.Count > 0)
         {
-            var nextAction = _currentPath.Dequeue();
-            // Verify the action is valid
-            if (legalActions.Contains(nextAction))
+            var nextAction = _currentPath.Peek(); // Look at next action without removing
+
+            // Verify the action is valid and safe from zookeepers
+            if (legalActions.Contains(nextAction) && IsSafeFromZookeepers(state, me, nextAction))
             {
+                // Now remove the action since we're using it
+                _currentPath.Dequeue();
+
                 Console.WriteLine(
                     $"{BotNickname}: Following cached path, next action: {nextAction}"
                 );
@@ -127,9 +165,14 @@ public class HeuroBotService
             }
             else
             {
-                // Path is invalid, clear it
+                // Path is invalid or unsafe, clear it
                 _currentPath.Clear();
-                Console.WriteLine($"{BotNickname}: Path invalidated, recalculating");
+                if (!IsSafeFromZookeepers(state, me, nextAction))
+                    Console.WriteLine(
+                        $"{BotNickname}: Path unsafe due to zookeeper, recalculating"
+                    );
+                else
+                    Console.WriteLine($"{BotNickname}: Path invalidated, recalculating");
             }
         }
 
@@ -211,13 +254,36 @@ public class HeuroBotService
             var targetCell = state.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
             bool hasPellet = targetCell != null && targetCell.Content == CellContent.Pellet;
 
-            // Apply MASSIVE bonus for moves that lead to pellets
+            // Apply MASSIVE bonus for moves that lead to pellets, but check zookeeper safety
             if (hasPellet)
             {
-                score += 100m; // Huge fixed bonus to prioritize pellet collection above all else
-                Console.WriteLine(
-                    $"{BotNickname}: Action {action} leads directly to a pellet! +100 bonus"
-                );
+                // Base pellet bonus
+                decimal pelletBonus = 100m;
+
+                // If there's a zookeeper collision risk, reduce the bonus significantly
+                if (IsCollidingWithZookeeper(state, nx, ny))
+                {
+                    pelletBonus = -100m; // Never go for pellets if it means collision
+                    Console.WriteLine(
+                        $"{BotNickname}: DANGER! Pellet at ({nx},{ny}) has zookeeper! AVOID"
+                    );
+                }
+                // If zookeeper adjacent but not direct collision, reduce bonus but still positive
+                else if (IsAdjacentToZookeeper(state, nx, ny))
+                {
+                    pelletBonus = 20m; // Reduced bonus for risky pellets
+                    Console.WriteLine(
+                        $"{BotNickname}: Caution: Pellet at ({nx},{ny}) near zookeeper. Reduced bonus."
+                    );
+                }
+                else
+                {
+                    Console.WriteLine(
+                        $"{BotNickname}: Action {action} leads directly to a pellet! +{pelletBonus} bonus"
+                    );
+                }
+
+                score += pelletBonus;
             }
             // If not a pellet, check if this leads toward a pellet (2 steps away)
             else if (LeadsTowardPellet(state, nx, ny))
@@ -407,6 +473,181 @@ public class HeuroBotService
         return Math.Abs(x1 - x2) <= distance && Math.Abs(y1 - y2) <= distance;
     }
 
+    // Check if position will be adjacent to a zookeeper
+    private static bool IsAdjacentToZookeeper(GameState state, int x, int y)
+    {
+        return state.Zookeepers.Any(z => Math.Abs(z.X - x) <= 1 && Math.Abs(z.Y - y) <= 1);
+    }
+
+    // Check if position is in same cell as a zookeeper (collision)
+    private static bool IsCollidingWithZookeeper(GameState state, int x, int y)
+    {
+        return state.Zookeepers.Any(z => z.X == x && z.Y == y);
+    }
+
+    // Calculates the Manhattan distance between two points
+    private static int ManhattanDistance(int x1, int y1, int x2, int y2)
+    {
+        return Math.Abs(x1 - x2) + Math.Abs(y1 - y2);
+    }
+
+    // Check if a move is safe from zookeepers (not adjacent and not in predicted path)
+    private bool IsSafeFromZookeepers(GameState state, Animal me, BotAction action)
+    {
+        // Calculate new position after action
+        int nx = me.X,
+            ny = me.Y;
+        switch (action)
+        {
+            case BotAction.Up:
+                ny--;
+                break;
+            case BotAction.Down:
+                ny++;
+                break;
+            case BotAction.Left:
+                nx--;
+                break;
+            case BotAction.Right:
+                nx++;
+                break;
+        }
+
+        // Check for direct collision - NEVER move into a zookeeper's cell
+        if (IsCollidingWithZookeeper(state, nx, ny))
+        {
+            Console.WriteLine($"{BotNickname}: AVOID COLLISION - Zookeeper at ({nx},{ny})");
+            return false;
+        }
+
+        // Check for adjacency - Avoid if possible, but not as strict
+        if (IsAdjacentToZookeeper(state, nx, ny))
+        {
+            // Only avoid if we're not already adjacent (to prevent getting stuck)
+            if (!IsAdjacentToZookeeper(state, me.X, me.Y))
+            {
+                Console.WriteLine($"{BotNickname}: AVOID ADJACENCY - Zookeeper near ({nx},{ny})");
+                return false;
+            }
+            // If we're already adjacent, try to move away from the zookeeper if possible
+            else
+            {
+                // Stay safe but don't get paralyzed if we're already adjacent
+                Console.WriteLine(
+                    $"{BotNickname}: Already adjacent to zookeeper, proceeding with caution"
+                );
+                return true;
+            }
+        }
+
+        // Check for predicted zookeeper positions (more advanced avoidance)
+        foreach (var zookeeper in state.Zookeepers)
+        {
+            // Simple prediction: assume zookeeper moves toward closest animal
+            var targetAnimal = state
+                .Animals.Where(a => a.IsViable)
+                .OrderBy(a => ManhattanDistance(a.X, a.Y, zookeeper.X, zookeeper.Y))
+                .FirstOrDefault();
+
+            if (targetAnimal != null)
+            {
+                // Is the zookeeper targeting me?
+                bool zookeeperTargetingMe = targetAnimal.Id == me.Id;
+
+                // If I'm the target, be more cautious
+                if (zookeeperTargetingMe)
+                {
+                    // Simple prediction of zookeeper's next position
+                    int zx = zookeeper.X,
+                        zy = zookeeper.Y;
+                    if (zookeeper.X < me.X)
+                        zx++;
+                    else if (zookeeper.X > me.X)
+                        zx--;
+                    else if (zookeeper.Y < me.Y)
+                        zy++;
+                    else if (zookeeper.Y > me.Y)
+                        zy--;
+
+                    // If our next position is where we predict the zookeeper will be
+                    if (nx == zx && ny == zy)
+                    {
+                        Console.WriteLine(
+                            $"{BotNickname}: AVOID PREDICTED COLLISION - Zookeeper targeting me"
+                        );
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    // Get emergency avoidance move if a zookeeper is very close
+    private BotAction? GetEmergencyZookeeperAvoidanceMove(
+        GameState state,
+        Animal me,
+        List<BotAction> legalActions
+    )
+    {
+        // First check if we're in immediate danger (zookeeper 1 cell away)
+        bool inDanger = state.Zookeepers.Any(z => ManhattanDistance(z.X, z.Y, me.X, me.Y) <= 1);
+
+        if (!inDanger)
+            return null;
+
+        Console.WriteLine($"{BotNickname}: DANGER - Zookeeper very close!");
+
+        // Find safest move - maximize distance from ALL zookeepers
+        BotAction? bestAction = null;
+        int maxMinDistance = -1;
+
+        foreach (var action in legalActions)
+        {
+            // Calculate new position
+            int nx = me.X,
+                ny = me.Y;
+            switch (action)
+            {
+                case BotAction.Up:
+                    ny--;
+                    break;
+                case BotAction.Down:
+                    ny++;
+                    break;
+                case BotAction.Left:
+                    nx--;
+                    break;
+                case BotAction.Right:
+                    nx++;
+                    break;
+            }
+
+            // Find minimum distance to any zookeeper from this new position
+            int minDistanceToZookeeper = state.Zookeepers.Min(z =>
+                ManhattanDistance(nx, ny, z.X, z.Y)
+            );
+
+            // If this move increases our minimum distance, it's better
+            if (minDistanceToZookeeper > maxMinDistance)
+            {
+                maxMinDistance = minDistanceToZookeeper;
+                bestAction = action;
+            }
+        }
+
+        // Only return if we found a move that gives us at least 2 cells of distance
+        if (maxMinDistance >= 2)
+            return bestAction;
+
+        // If no clearly safe move, take any move that gives at least some distance
+        if (bestAction.HasValue)
+            return bestAction;
+
+        return null;
+    }
+
     // Get legal moves from current position
     private List<BotAction> GetLegalMoves(GameState state, Animal me)
     {
@@ -521,7 +762,7 @@ public class HeuroBotService
         );
     }
 
-    // Find a path to the nearest pellet using breadth-first search
+    // Find a path to the nearest pellet using breadth-first search with zookeeper avoidance
     private List<BotAction> FindPathToNearestPellet(
         GameState state,
         Animal me,
@@ -532,15 +773,21 @@ public class HeuroBotService
         string cacheKey = $"{me.X},{me.Y}";
         if (_pathCache.TryGetValue(cacheKey, out var path))
         {
-            Console.WriteLine($"{BotNickname}: Using cached path for position {cacheKey}");
-            return path;
+            // Verify first step is still safe from zookeepers
+            if (path.Count > 0 && IsSafeFromZookeepers(state, me, path[0]))
+            {
+                Console.WriteLine($"{BotNickname}: Using cached path for position {cacheKey}");
+                return path;
+            }
+            // If not safe, remove from cache and recalculate
+            _pathCache.TryRemove(cacheKey, out _);
         }
 
-        // Perform breadth-first search to find closest pellet
+        // Perform breadth-first search to find closest pellet with zookeeper avoidance
         var queue = new Queue<(int x, int y, List<BotAction> path)>();
         var visited = new HashSet<(int x, int y)>();
 
-        // Initialize with all legal moves from current position
+        // Initialize with all legal and safe moves from current position
         foreach (var action in legalActions)
         {
             int nx = me.X,
@@ -562,7 +809,14 @@ public class HeuroBotService
             }
 
             var cell = state.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
-            if (cell != null && cell.Content != CellContent.Wall)
+            // Check both wall avoidance and zookeeper safety
+            if (
+                cell != null
+                && cell.Content != CellContent.Wall
+                &&
+                // Only avoid collision, not adjacency, for initial moves to avoid paralysis
+                !IsCollidingWithZookeeper(state, nx, ny)
+            )
             {
                 queue.Enqueue((nx, ny, new List<BotAction> { action }));
                 visited.Add((nx, ny));
@@ -570,10 +824,14 @@ public class HeuroBotService
         }
 
         // BFS to find nearest pellet (limiting search depth to avoid timeouts)
-        int maxDepth = 10; // Limit search depth
-        while (queue.Count > 0 && maxDepth > 0)
+        int maxDepth = 12; // Increased limit to allow finding safer routes
+        int searchedNodes = 0;
+        int maxNodes = 1000; // Limit total nodes expanded to prevent timeouts
+
+        while (queue.Count > 0 && maxDepth > 0 && searchedNodes < maxNodes)
         {
             var (x, y, currentPath) = queue.Dequeue();
+            searchedNodes++;
 
             // Check if this position has a pellet
             var cell = state.Cells.FirstOrDefault(c => c.X == x && c.Y == y);
@@ -625,10 +883,37 @@ public class HeuroBotService
                 if (nextCell == null || nextCell.Content == CellContent.Wall)
                     continue;
 
+                // Safety check - avoid cells where zookeepers are
+                if (IsCollidingWithZookeeper(state, nx, ny))
+                    continue;
+
+                // Penalize paths adjacent to zookeepers with a higher cost (expand later)
+                bool isAdjacentToZookeeper = IsAdjacentToZookeeper(state, nx, ny);
+
                 // Add to queue with updated path
                 var newPath = new List<BotAction>(currentPath) { action };
-                queue.Enqueue((nx, ny, newPath));
-                visited.Add((nx, ny));
+
+                // Add to queue - prioritize paths not adjacent to zookeepers by adding them to end of queue
+                if (isAdjacentToZookeeper)
+                {
+                    // Lower priority by adding to end of queue
+                    visited.Add((nx, ny)); // Mark as visited
+                    queue.Enqueue((nx, ny, newPath)); // Add to end - will be processed later
+                }
+                else
+                {
+                    // Higher priority - use a temporary queue to add this to front
+                    var tempQueue = new Queue<(int, int, List<BotAction>)>();
+                    tempQueue.Enqueue((nx, ny, newPath));
+
+                    // Add all existing queue items after this one
+                    while (queue.Count > 0)
+                        tempQueue.Enqueue(queue.Dequeue());
+
+                    // Replace queue with reordered queue
+                    queue = tempQueue;
+                    visited.Add((nx, ny));
+                }
             }
         }
 
