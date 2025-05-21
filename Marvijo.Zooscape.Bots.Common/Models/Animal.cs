@@ -1,6 +1,4 @@
-using System;
-
-namespace DeepMCTS.Models
+namespace Marvijo.Zooscape.Bots.Common.Models
 {
     public class Animal
     {

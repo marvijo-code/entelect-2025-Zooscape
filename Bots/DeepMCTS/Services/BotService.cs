@@ -1,12 +1,10 @@
-using System;
-using System.Collections.Generic; // Added for List and Queue
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using DeepMCTS.Enums; // Changed namespace
-using DeepMCTS.Models; // Changed namespace
+using Marvijo.Zooscape.Bots.Common.Enums;
+using Marvijo.Zooscape.Bots.Common.Models; // Changed namespace
 
-// Assuming GameState, BotCommand, BotAction, CellContent are defined in MCTSo4.Models or DeepMCTS.Models
+// Assuming GameState, BotCommand, BotAction, CellContent are defined in MCTSo4.Models or Marvijo.Zooscape.Bots.Common.Models
 // Adjust namespaces as necessary after project setup
 namespace DeepMCTS.Services;
 

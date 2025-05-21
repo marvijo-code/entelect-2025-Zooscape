@@ -1,8 +1,5 @@
-using System;
 using System.Diagnostics;
-using System.Linq;
 using MCTSo4.Algorithms.MCTS;
-using MCTSo4.Enums;
 using MCTSo4.Models;
 using Xunit;
 

@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework> <!-- Or your project's target framework -->
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Include="xunit" Version="2.7.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="NSubstitute" Version="5.1.0" />
+    <!-- Assuming System.Text.Json is implicitly available with net8.0. Add if needed. -->
+    <!-- <PackageReference Include="System.Text.Json" Version="8.0.0" /> -->
+    <PackageReference Include="Serilog" Version="3.1.1" /> <!-- Based on CommonBotTests -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Marvijo.Zooscape.Bots.Common\Marvijo.Zooscape.Bots.Common.csproj" />
+  </ItemGroup>
+
+  <!-- Add ProjectReference to your bot projects and common logic projects here -->
+  <!-- Example: -->
+  <!-- 
+  <ItemGroup>
+    <ProjectReference Include="..\MarvijoBot.Sproutopia.Common\MarvijoBot.Sproutopia.Common.csproj" />
+    <ProjectReference Include="..\MarvijoBot.Models\MarvijoBot.Models.csproj" />
+    <ProjectReference Include="..\MarvijoBot.Sproutopia.Domain\MarvijoBot.Sproutopia.Domain.csproj" />
+    <ProjectReference Include="..\Application\Application.csproj" />
+    <ProjectReference Include="..\Bots\RulesBot\RulesBot.csproj" /> 
+    <ProjectReference Include="..\Bots\GatherNearBot\GatherNearBot.csproj" />
+    -->
+    <!-- Add references for ALL bot projects in the Bots/ folder -->
+  <!--
+  </ItemGroup>
+  -->
+
+</Project> 

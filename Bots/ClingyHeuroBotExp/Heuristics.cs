@@ -1,9 +1,7 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using HeuroBot.Enums;
-using HeuroBot.Models;
+using DeepMCTS.Enums;
+using Marvijo.Zooscape.Bots.Common.Enums;
+using Marvijo.Zooscape.Bots.Common.Models;
 
 namespace HeuroBot.Services;
 

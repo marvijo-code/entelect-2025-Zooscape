@@ -1,5 +1,3 @@
-using System;
-
 namespace MCTSo4.Models
 {
     public class Zookeeper

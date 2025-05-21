@@ -948,11 +948,41 @@ html body .waiting-message {
   padding: 6px 12px;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
 .mode-switch-button:hover {
   background-color: #2980b9;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.4);
+}
+
+.mode-switch-button:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Style Exit Replay Mode button differently */
+.mode-switch-button.exit-replay {
+  background-color: var(--dark-surface-lighter);
+  border: 1px solid var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.mode-switch-button.exit-replay:hover {
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+.mode-switch-button.exit-replay:before {
+  content: "⬅ ";
+  font-size: 0.85rem;
+  margin-right: 4px;
 }
 
 /* Media query for smaller screens */

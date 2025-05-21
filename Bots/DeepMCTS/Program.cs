@@ -1,11 +1,7 @@
-using System;
-using System.Text.Json;
-using DeepMCTS.Enums; // Added for BotAction
-using DeepMCTS.Models; // Added for GameState, BotCommand
 using DeepMCTS.Services; // Changed from MCTSo4.Services
+using Marvijo.Zooscape.Bots.Common.Models; // Added for GameState, BotCommand
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 

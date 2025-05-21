@@ -524,7 +524,7 @@ const App = () => {
               </button>
             )}
             {showReplayMode && (
-              <button className="mode-switch-button" onClick={handleExitReplay}>
+              <button className="mode-switch-button exit-replay" onClick={handleExitReplay}>
                 Exit Replay Mode
               </button>
             )}

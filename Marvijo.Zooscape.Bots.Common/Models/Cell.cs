@@ -1,6 +1,6 @@
 using DeepMCTS.Enums; // Changed namespace for Enums
 
-namespace DeepMCTS.Models // Changed namespace
+namespace Marvijo.Zooscape.Bots.Common.Models // Changed namespace
 {
     public class Cell
     {

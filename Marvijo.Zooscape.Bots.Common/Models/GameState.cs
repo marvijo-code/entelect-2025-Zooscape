@@ -1,9 +1,8 @@
-namespace DeepMCTS.Models
+namespace Marvijo.Zooscape.Bots.Common.Models
 {
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using DeepMCTS.Enums;
 
     // using Serilog; // Serilog might not be needed directly in the model
 
