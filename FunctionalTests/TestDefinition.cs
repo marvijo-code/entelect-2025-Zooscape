@@ -1,9 +1,16 @@
-namespace FunctionalTests;
+namespace Marvijo.Zooscape.Bots.FunctionalTests;
+
+public class BotEntry
+{
+    public required string Name { get; set; } // Bot's class name, e.g., "ClingyHeuroBot"
+    public string? Id { get; set; } // Optional: a specific ID from the JSON, if needed for lookup beyond name
+}
 
 public class TestDefinition
 {
-    public required string TestName { get; set; }
-    public required string GameStateFile { get; set; } // e.g., "my_test_scenario.json"
-    public required List<string> AcceptableActions { get; set; } // Store as strings, convert to BotAction enum later
-    public string? SpecificBotId { get; set; } // Optional: if this test is only for a specific bot (by string ID)
+    public required string Name { get; set; } // The "name" field from JSON, used as TestName
+    public string? Description { get; set; }
+    public required string StateFile { get; set; } // The "stateFile" field from JSON
+    public required List<string> CorrectActions { get; set; } // AcceptableActions
+    public List<BotEntry>? Bots { get; set; } // List of bots this definition applies to. If null/empty, might imply all bots or needs specific handling.
 }

@@ -1,11 +1,17 @@
+/* Apple-Style Playback Controls */
+
 .playback-controls {
-  background-color: var(--dark-surface);
-  color: var(--dark-text-primary);
-  padding: 5px 10px;
+  background: var(--surface-secondary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: var(--text-primary);
+  padding: var(--spacing-lg);
   width: 100%;
   box-sizing: border-box;
   display: flex;
   align-items: center;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .playback-info {
@@ -21,130 +27,314 @@
   display: flex;
   align-items: center;
   width: 100%;
-  gap: 10px;
+  gap: var(--spacing-md);
+  justify-content: center;
 }
 
+/* Control Buttons */
 .control-button {
-  background-color: var(--accent-blue);
-  color: var(--dark-text-primary);
-  border: none;
-  border-radius: 4px;
-  width: 30px;
-  height: 30px;
+  background: var(--surface-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-medium);
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
   padding: 0;
-  font-size: 1rem;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: var(--shadow-small);
+  position: relative;
+  overflow: hidden;
+}
+
+.control-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.control-button:hover::before {
+  left: 100%;
 }
 
 .control-button:hover {
-  background-color: #2980b9;
+  background: var(--surface-elevated);
+  border-color: var(--border-tertiary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
 }
 
+.control-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-small);
+}
+
+/* Play/Pause Button - Special Styling */
 .play-pause-button {
-  background-color: var(--accent-green);
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: white;
+  width: 44px;
+  height: 44px;
+  font-size: 16px;
+  margin: 0 var(--spacing-sm);
 }
 
 .play-pause-button:hover {
-  background-color: #27ae60;
+  background: #0056cc;
+  border-color: #0056cc;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 122, 255, 0.3);
 }
 
+/* Progress Container */
 .progress-container {
   flex: 1;
-  margin: 0 5px;
+  margin: 0 var(--spacing-lg);
+  position: relative;
+  height: 36px;
+  display: flex;
+  align-items: center;
 }
 
+/* Progress Slider */
 .progress-slider {
   width: 100%;
-  height: 6px;
+  height: 4px;
   -webkit-appearance: none;
   appearance: none;
-  background: #444;
-  border-radius: 3px;
+  background: var(--surface-elevated);
+  border-radius: 2px;
   outline: none;
   cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.progress-slider:hover {
+  height: 6px;
 }
 
 .progress-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--accent-blue);
   cursor: pointer;
-  border: 1px solid var(--dark-text-primary);
+  border: 2px solid white;
+  box-shadow: var(--shadow-medium);
+  transition: all 0.2s ease;
+}
+
+.progress-slider:hover::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
 }
 
 .progress-slider::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--accent-blue);
   cursor: pointer;
-  border: 1px solid var(--dark-text-primary);
+  border: 2px solid white;
+  box-shadow: var(--shadow-medium);
+  transition: all 0.2s ease;
 }
 
+.progress-slider:hover::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+}
+
+/* Frame Counter */
 .frame-counter {
-  font-size: 0.8rem;
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 60px;
+  text-align: center;
+  color: var(--text-secondary);
+  background: var(--surface-tertiary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-small);
+  border: 1px solid var(--border-primary);
+  font-family: 'SF Mono', Monaco, monospace;
+}
+
+/* Speed Controls */
+.speed-controls {
+  display: flex;
+  align-items: center;
+  margin-left: var(--spacing-sm);
+}
+
+.speed-selector {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-medium);
+  background: var(--surface-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
   min-width: 60px;
   text-align: center;
 }
 
-.speed-controls {
-  display: flex;
-  align-items: center;
+.speed-selector:hover {
+  background: var(--surface-elevated);
+  border-color: var(--border-tertiary);
 }
 
-.speed-selector {
-  padding: 2px 5px;
-  border-radius: 3px;
-  background-color: var(--dark-surface-lighter);
-  color: var(--dark-text-primary);
-  border: 1px solid var(--dark-border);
-  cursor: pointer;
-  font-size: 0.8rem;
+.speed-selector:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 
+/* Exit Button */
 .exit-button {
-  background-color: var(--accent-red);
-  color: var(--dark-text-primary);
-  border: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 3px;
+  background: var(--accent-red);
+  color: white;
+  border: 1px solid var(--accent-red);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-medium);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
   padding: 0;
-  font-size: 0.8rem;
+  font-size: 14px;
+  font-weight: 600;
+  margin-left: var(--spacing-sm);
+  box-shadow: var(--shadow-small);
 }
 
 .exit-button:hover {
-  background-color: #c0392b;
+  background: #d70015;
+  border-color: #d70015;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 69, 58, 0.3);
 }
 
+.exit-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-small);
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
+  .playback-controls {
+    padding: var(--spacing-md);
+  }
+  
   .controls-row {
     flex-wrap: wrap;
     justify-content: center;
-    padding: 5px 0;
+    gap: var(--spacing-sm);
   }
   
   .progress-container {
     width: 100%;
     order: -1;
-    margin-bottom: 5px;
+    margin: 0 0 var(--spacing-md) 0;
+  }
+  
+  .control-button {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .play-pause-button {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+    margin: 0 var(--spacing-xs);
   }
   
   .frame-counter {
     order: 0;
+    font-size: 11px;
+    min-width: 50px;
   }
+  
+  .speed-selector {
+    font-size: 11px;
+    min-width: 50px;
+  }
+  
+  .exit-button {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+}
+
+/* Animation for smooth interactions */
+@keyframes buttonPress {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.control-button:active {
+  animation: buttonPress 0.1s ease;
+}
+
+/* Accessibility improvements */
+.control-button:focus,
+.speed-selector:focus,
+.exit-button:focus,
+.progress-slider:focus {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+/* Loading state for controls */
+.playback-controls.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.playback-controls.loading .control-button {
+  background: var(--surface-tertiary);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+/* Enhanced visual feedback */
+.control-button[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: var(--radius-small);
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
 }
 
 /* Add Font Awesome icons - make sure to include the Font Awesome library in index.html */

@@ -30,8 +30,29 @@ const App = () => {
   const [showReplayMode, setShowReplayMode] = useState(false);
   const [activeTabIndex, setActiveTabIndex] = useState(0); // 0 for Leaderboard by default
   
-  const animalColors = ['blue', 'green', 'purple', 'cyan', 'magenta', 'yellow', 'lime', 'teal'];
+  const animalColors = useMemo(() => ['blue', 'green', 'purple', 'cyan', 'magenta', 'yellow', 'lime', 'teal'], []);
   const playbackTimerRef = useRef(null);
+
+  // Memoize current game state to avoid unnecessary re-renders
+  const currentGameState = useMemo(() => {
+    if (allGameStates.length === 0 || currentDisplayIndex < 0 || currentDisplayIndex >= allGameStates.length) {
+      return null;
+    }
+    return allGameStates[currentDisplayIndex];
+  }, [allGameStates, currentDisplayIndex]);
+
+  // Memoize grid data to prevent unnecessary Grid re-renders
+  const gridData = useMemo(() => {
+    if (!currentGameState) {
+      return { cells: [], animals: [], zookeepers: [] };
+    }
+    
+    return {
+      cells: currentGameState.cells || currentGameState.Cells || [],
+      animals: currentGameState.animals || currentGameState.Animals || [],
+      zookeepers: currentGameState.zookeepers || currentGameState.Zookeepers || []
+    };
+  }, [currentGameState]);
 
   const fetchAggregateLeaderboardData = useCallback(async () => {
     setLeaderboardLoading(true);
@@ -350,7 +371,7 @@ const App = () => {
     }
   }, [connection, initializeGameHandler, tickStateChangedHandler, showReplayMode]);
 
-  // Effect 4: Auto-play animation when isPlaying is true
+  // Effect 4: Auto-play animation when isPlaying is true - optimized with useCallback
   useEffect(() => {
     clearTimeout(playbackTimerRef.current);
     
@@ -374,199 +395,202 @@ const App = () => {
     return () => clearTimeout(playbackTimerRef.current);
   }, [isPlaying, currentDisplayIndex, allGameStates.length, playbackSpeed]);
 
-  // Game controls handlers
-  const handleRewind = () => {
+  // Memoize game control handlers to prevent unnecessary re-renders
+  const handleRewind = useCallback(() => {
     setCurrentDisplayIndex(prev => Math.max(0, prev - 1));
-  };
+  }, []);
   
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     setIsPlaying(prev => !prev);
-  };
+  }, []);
   
-  const handleForward = () => {
+  const handleForward = useCallback(() => {
     setCurrentDisplayIndex(prev => Math.min(allGameStates.length - 1, prev + 1));
-  };
+  }, [allGameStates.length]);
   
-  const handleSetFrame = (frameIndex) => {
+  const handleSetFrame = useCallback((frameIndex) => {
     if (frameIndex >= 0 && frameIndex < allGameStates.length) {
       setCurrentDisplayIndex(frameIndex);
     }
-  };
+  }, [allGameStates.length]);
   
-  const handleSpeedChange = (newSpeed) => {
+  const handleSpeedChange = useCallback((newSpeed) => {
     setPlaybackSpeed(newSpeed);
-  };
+  }, []);
   
-  const handleRestart = () => {
+  const handleRestart = useCallback(() => {
     setCurrentDisplayIndex(0);
     setIsPlaying(true);
-  };
+  }, []);
   
-  const handleExitReplay = () => {
+  const handleExitReplay = useCallback(() => {
     setShowReplayMode(false);
+    setIsReplaying(false);
     setAllGameStates([]);
     setCurrentDisplayIndex(0);
     setGameInitialized(false);
-    setIsReplaying(false);
-    // Reset active tab to Grid View 
-    setActiveTabIndex(0);
-  };
-
-  const handleEnterReplayMode = () => {
-    // Stop and disconnect from SignalR
-    if (connection && connection.state === signalR.HubConnectionState.Connected) {
-      connection.stop()
-        .then(() => {
-          console.log("Connection stopped for replay mode");
-          setConnection(null);
-          
-          // Reset game state for replay
-          setAllGameStates([]);
-          setCurrentDisplayIndex(0);
-          setGameInitialized(false);
-          setIsGameOver(false);
-          setError(null);
-          setIsConnected(false);
-          
-          // Enter replay mode
-          setShowReplayMode(true);
-          setIsReplaying(true);
-          // Set active tab to Game Selector (index 1 in the right panel)
-          setActiveTabIndex(1);
-        })
-        .catch(err => {
-          console.error("Error stopping connection for replay mode:", err);
-          setError(`Failed to enter replay mode: ${err.message}`);
-        });
-    } else {
-      // If not connected, just enter replay mode
-      setShowReplayMode(true);
-      setIsReplaying(true);
-      setGameInitialized(false);
-      setAllGameStates([]);
-      setCurrentDisplayIndex(0);
-      // Set active tab to Game Selector (index 1 in the right panel)
-      setActiveTabIndex(1);
-    }
-  };
-
-  const handleGameSelected = (gameData) => {
-    console.log("Game selected for replay:", gameData);
+    setIsGameOver(false);
+    setAnimalColorMap({});
+    setError(null);
+  }, []);
+  
+  const handleEnterReplayMode = useCallback(() => {
+    setShowReplayMode(true);
+    setIsReplaying(true);
     
-    // Add file path to each game state if not present
-    if (gameData.worldStates && Array.isArray(gameData.worldStates)) {
-      gameData.worldStates = gameData.worldStates.map((state, index) => {
-        return {
-          ...state,
-          filePath: state.filePath || `${gameData.gameId}/${index + 1}.json`, // Files are named 1.json, 2.json, etc.
-          gameId: gameData.gameId
-        };
+    // Stop any existing SignalR connection when entering replay mode
+    if (connection && connection.state === signalR.HubConnectionState.Connected) {
+      connection.stop().then(() => {
+        console.log("SignalR connection stopped for replay mode");
+        setIsConnected(false);
+      }).catch(err => {
+        console.error("Error stopping SignalR connection for replay mode:", err);
       });
     }
     
-    // Process game data
-    initializeGameHandler(gameData);
+    // Clear any existing game state
+    setAllGameStates([]);
+    setCurrentDisplayIndex(0);
+    setGameInitialized(false);
+    setIsGameOver(false);
+    setAnimalColorMap({});
+    setError(null);
     
-    // Switch to Leaderboard tab in the right panel after loading a game
-    setTimeout(() => {
-      setActiveTabIndex(0); // 0 is for Leaderboard
-    }, 100);
-  };
+    // Switch to Game Selector tab
+    setActiveTabIndex(1);
+  }, [connection]);
 
-  // Add handler for tab changes
-  const handleTabChange = (tabIndex) => {
+  const handleGameSelected = useCallback((gameData) => {
+    console.log("Game selected for replay:", gameData);
+    setError(null);
+    
+    try {
+      // Expecting gameData to have worldStates array
+      if (gameData.worldStates && Array.isArray(gameData.worldStates)) {
+        console.log(`Loading replay with ${gameData.worldStates.length} states`);
+        
+        setAllGameStates(gameData.worldStates);
+        setCurrentDisplayIndex(0);
+        setGameInitialized(true);
+        setIsPlaying(true);
+        setIsGameOver(false);
+        
+        // Map initial animals to colors from first state
+        const firstState = gameData.worldStates[0];
+        if (firstState) {
+          const animalsArray = firstState.animals || firstState.Animals || [];
+          setAnimalColorMap(animalsArray.reduce((map, a, idx) => {
+            const animalKey = a.id || a.Id;
+            if (animalKey) {
+              map[animalKey] = animalColors[idx % animalColors.length];
+            }
+            return map;
+          }, {}));
+        }
+        
+        console.log("Replay game loaded successfully");
+      } else {
+        console.error("Invalid game data format for replay:", gameData);
+        setError("Failed to load replay: Invalid game data format");
+      }
+    } catch (e) {
+      console.error("Error loading replay game:", e);
+      setError(`Failed to load replay: ${e.message}`);
+    }
+  }, [animalColors]);
+
+  const handleTabChange = useCallback((tabIndex) => {
     setActiveTabIndex(tabIndex);
-  };
+  }, []);
+
+  // Memoize tab content to prevent unnecessary re-renders
+  const tabContent = useMemo(() => {
+    switch (activeTabIndex) {
+      case 0:
+        return (
+          <Leaderboard 
+            data={leaderboardData}
+            loading={leaderboardLoading}
+            statusMessage={leaderboardStatusMessage}
+            onRefresh={fetchAggregateLeaderboardData}
+          />
+        );
+      case 1:
+        return (
+          <GameSelector 
+            onGameSelected={handleGameSelected}
+            apiBaseUrl={API_BASE_URL}
+          />
+        );
+      case 2:
+        return (
+          <ConnectionDebugger 
+            connection={connection}
+            isConnected={isConnected}
+            hubUrl={HUB_URL}
+          />
+        );
+      default:
+        return null;
+    }
+  }, [activeTabIndex, leaderboardData, leaderboardLoading, leaderboardStatusMessage, fetchAggregateLeaderboardData, handleGameSelected, connection, isConnected]);
+
+  // Memoize current tick display
+  const currentTick = useMemo(() => {
+    if (!currentGameState) return 0;
+    return currentGameState.tick !== undefined ? currentGameState.tick : currentGameState.Tick || 0;
+  }, [currentGameState]);
 
   return (
     <div className="app-container">
       <div className="split-layout">
-        {/* Left side - Grid ONLY, filling entire left side */}
+        {/* Left Panel - Grid Only */}
         <div className="left-panel">
           <div className="grid-content">
-            {gameInitialized && allGameStates.length > 0 && (
-              <Grid
-                cells={allGameStates[currentDisplayIndex].cells || allGameStates[currentDisplayIndex].Cells || []}
-                animals={allGameStates[currentDisplayIndex].animals || allGameStates[currentDisplayIndex].Animals || []}
-                zookeepers={allGameStates[currentDisplayIndex].zookeepers || allGameStates[currentDisplayIndex].Zookeepers || []}
-                colorMap={animalColorMap}
-                showDetails={showReplayMode} /* Show detailed stats in replay mode */
-              />
-            )}
-            {!gameInitialized && (
-              <div className="waiting-message">
-                {error ? (
-                  <p>{error}</p>
-                ) : (
-                  showReplayMode ? (
-                    <p>Select a game to replay from the right panel</p>
-                  ) : (
-                    <p>Waiting for game to start...</p>
-                  )
-                )}
-              </div>
-            )}
+            <Grid 
+              cells={gridData.cells}
+              animals={gridData.animals}
+              zookeepers={gridData.zookeepers}
+              colorMap={animalColorMap}
+              showDetails={isReplaying}
+            />
           </div>
         </div>
         
-        {/* Right side - ALL OTHER CONTROLS including header and playback */}
+        {/* Right Panel - All Controls */}
         <div className="right-panel">
-          <header className="app-header">
+          {/* App Header */}
+          <div className="app-header">
             <h1>Zooscape 2D Visualizer</h1>
-            {!showReplayMode && !isConnected && (
-              <button className="mode-switch-button" onClick={handleEnterReplayMode}>
-                Switch to Replay Mode
-              </button>
-            )}
-            {!showReplayMode && isConnected && (
-              <button className="mode-switch-button" onClick={handleEnterReplayMode}>
-                Switch to Replay Mode
-              </button>
-            )}
-            {showReplayMode && (
-              <button className="mode-switch-button exit-replay" onClick={handleExitReplay}>
-                Exit Replay Mode
-              </button>
-            )}
-          </header>
-          
-          {/* Grid header with tick info moved to right panel */}
-          <div className="grid-header">
-            <div>
-              {gameInitialized ? (
-                <div className="tick-info">
-                  <span>Tick: {currentDisplayIndex + 1}/{allGameStates.length}</span>
-                  {showReplayMode && (
-                    <div className="file-path-container">
-                      <span className="file-path">
-                        {"C:/dev/2025-Zooscape/visualizer-2d/logs/" + (allGameStates[currentDisplayIndex]?.filePath || 
-                         `Game ${allGameStates[currentDisplayIndex]?.gameId || ''}`)}
-                      </span>
-                      <button 
-                        className="copy-path-button"
-                        onClick={() => {
-                          const path = "C:/dev/2025-Zooscape/visualizer-2d/logs/" + 
-                            (allGameStates[currentDisplayIndex]?.filePath || 
-                             `Game ${allGameStates[currentDisplayIndex]?.gameId || ''}`);
-                          navigator.clipboard.writeText(path)
-                            .then(() => alert("Path copied to clipboard!"))
-                            .catch(err => console.error("Failed to copy: ", err));
-                        }}
-                        title="Copy full path to clipboard"
-                      >
-                        📋
-                      </button>
-                    </div>
-                  )}
-                </div>
+            <div className="mode-buttons">
+              {!showReplayMode ? (
+                <button 
+                  onClick={handleEnterReplayMode}
+                  className="mode-button replay-button"
+                >
+                  📼 Replay Mode
+                </button>
               ) : (
-                <span>Waiting for game to start...</span>
+                <button 
+                  onClick={handleExitReplay}
+                  className="mode-button live-button"
+                >
+                  🔴 Live Mode
+                </button>
               )}
             </div>
-            {isGameOver && <span className="game-status">Game Over</span>}
           </div>
           
-          {/* Playback controls moved to right panel */}
+          {/* Grid Header - Tick Info and Game Status */}
+          <div className="grid-header">
+            <div className="tick-info">
+              <span className="tick-label">Tick:</span>
+              <span className="tick-value">{currentTick}</span>
+              {isGameOver && <span className="game-over-indicator">🏁 Game Over</span>}
+            </div>
+          </div>
+          
+          {/* Playback Controls - Only show when game is initialized */}
           {gameInitialized && (
             <div className="playback-controls-container">
               <PlaybackControls
@@ -579,78 +603,39 @@ const App = () => {
                 onSetFrame={handleSetFrame}
                 onSpeedChange={handleSpeedChange}
                 onRestart={handleRestart}
-                onExitReplay={handleExitReplay}
+                onExitReplay={showReplayMode ? handleExitReplay : null}
               />
             </div>
           )}
           
-          {error && <div className="error-message">{error}</div>}
-      
-          {!showReplayMode && !isConnected && !error && (
-            <div className="connection-status">
-              <p>Connecting to server at {HUB_URL}...</p>
+          {/* Error Message */}
+          {error && (
+            <div className="error-message">
+              <strong>Error:</strong> {error}
             </div>
           )}
           
+          {/* Connection Status - Only show in live mode */}
+          {!showReplayMode && (
+            <div className="connection-status">
+              <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+                {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+              </span>
+            </div>
+          )}
+          
+          {/* Tabs Header */}
           <div className="tabs-header">
-            <button 
-              className={`tab-button ${activeTabIndex === 0 ? 'active' : ''}`}
-              onClick={() => handleTabChange(0)}
-            >
-              Leaderboard
-            </button>
-            
-            {showReplayMode ? (
-              <button 
-                className={`tab-button ${activeTabIndex === 1 ? 'active' : ''}`}
-                onClick={() => handleTabChange(1)}
-              >
-                Game Selector
-              </button>
-            ) : (
-              <button 
-                className={`tab-button ${activeTabIndex === 1 ? 'active' : ''}`}
-                onClick={() => handleTabChange(1)}
-              >
-                Connection
-              </button>
-            )}
+            <TabsContainer 
+              activeTabIndex={activeTabIndex}
+              onTabChange={handleTabChange}
+              showReplayMode={showReplayMode}
+            />
           </div>
           
+          {/* Right Panel Content */}
           <div className="right-panel-content">
-            {activeTabIndex === 0 && (
-              <div className="leaderboard-tab">
-                <div className="leaderboard-container scroll-content">
-                  <Leaderboard
-                    animals={gameInitialized && allGameStates.length > 0 ? allGameStates[currentDisplayIndex].animals : []}
-                    leaderboardData={leaderboardData}
-                    loading={leaderboardLoading}
-                    statusMessage={leaderboardStatusMessage}
-                    colorMap={animalColorMap}
-                  />
-                </div>
-              </div>
-            )}
-            
-            {activeTabIndex === 1 && showReplayMode && (
-              <div className="game-selector-tab">
-                <div className="selector-container scroll-content">
-                  <GameSelector 
-                    onGameSelected={handleGameSelected} 
-                    apiBaseUrl={API_BASE_URL}
-                  />
-                </div>
-              </div>
-            )}
-            
-            {activeTabIndex === 1 && !showReplayMode && (
-              <div className="connection-debugger-tab">
-                <div className="connection-container">
-                  <h2>Connection Status</h2>
-                  <ConnectionDebugger connection={connection} hubUrl={HUB_URL} />
-                </div>
-              </div>
-            )}
+            {tabContent}
           </div>
         </div>
       </div>

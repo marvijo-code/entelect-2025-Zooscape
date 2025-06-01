@@ -1,11 +1,11 @@
 // Assuming ASP.NET Core. Adjust namespaces and attributes for your framework.
 // using Microsoft.AspNetCore.Mvc;
-// using FunctionalTests.APIModels;
+// using Marvijo.Zooscape.Bots.FunctionalTests.APIModels; // Updated namespace
 // using Serilog;
 
 using Serilog;
 
-namespace FunctionalTests.Controllers; // Or your preferred namespace for controllers
+namespace Marvijo.Zooscape.Bots.FunctionalTests.Controllers; // Or your preferred namespace for controllers
 
 // [ApiController]
 // [Route("api/[controller]")]

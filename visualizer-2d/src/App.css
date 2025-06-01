@@ -29,9 +29,8 @@ body {
   height: 100vh;
   overflow: hidden;
   display: flex;
-  background-color: var(--dark-bg);
-  padding: 0;
-  margin: 0;
+  background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', Inter, system-ui, sans-serif;
 }
 
 /* Split layout for grid left, content right */
@@ -40,27 +39,28 @@ body {
   width: 100%;
   height: 100vh;
   overflow: hidden;
+  gap: 0;
 }
 
 /* Left panel with ONLY the grid - fills full height */
 .left-panel {
-  flex: 3; /* 3/4 of the width */
+  flex: 1;
   height: 100vh;
   overflow: hidden;
-  border-right: 1px solid var(--dark-border);
-  padding: 0;
-  margin: 0;
+  background-color: var(--surface-primary);
+  border-right: 1px solid var(--border-primary);
 }
 
 /* Right panel with all controls */
 .right-panel {
-  flex: 1; /* 1/4 of the width */
+  flex: 0 0 420px;
   height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-left: 1px solid var(--dark-border);
-  font-size: 0.9rem; /* Reduce overall font size */
+  background-color: var(--surface-primary);
+  box-shadow: var(--shadow-large);
+  border-left: 1px solid var(--border-primary);
 }
 
 /* Grid content fills entire left panel */
@@ -69,112 +69,148 @@ body {
   height: 100%;
   overflow: hidden;
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  background-color: var(--dark-surface);
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--surface-secondary) 0%, var(--surface-tertiary) 100%);
+  position: relative;
+}
+
+.grid-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(0, 122, 255, 0.1) 0%, transparent 50%);
+  pointer-events: none;
 }
 
 /* Grid container and grid */
 .grid-container {
   width: 100%;
-  height: 100%; 
+  height: 100%;
   overflow: hidden;
-  padding: 0;
-  margin: 0;
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  background-color: var(--dark-surface);
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  will-change: transform;
+  contain: layout style paint;
 }
 
 .grid {
-  position: relative;
-  border: none;
-  background-color: #f0f0f0;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  top: 0;
-  left: 0;
+  border-radius: var(--radius-medium);
+  box-shadow: var(--shadow-medium);
+  background-color: #f5f5f7;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Right panel styling */
 .app-header {
-  background-color: var(--dark-surface);
-  color: var(--dark-text-primary);
-  padding: 4px 8px;
-  height: 36px; /* Reduced from 40px */
+  background: var(--surface-secondary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: var(--text-primary);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  height: 64px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--dark-border);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: 1rem; /* Reduced from 1.1rem */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Grid header now in right panel */
 .grid-header {
   display: flex;
   justify-content: space-between;
-  padding: 4px 8px;
-  background-color: var(--dark-surface-lighter);
-  border-bottom: 1px solid var(--dark-border);
-  min-height: 24px; /* Reduced from 30px */
   align-items: center;
-  font-size: 0.85rem;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  min-height: 48px;
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 
 /* Playback controls now in right panel */
 .playback-controls-container {
-  padding: 4px;
-  background-color: var(--dark-surface-lighter);
-  border-bottom: 1px solid var(--dark-border);
-  min-height: 26px; /* Reduced from 30px */
+  padding: var(--spacing-lg) var(--spacing-xl);
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--spacing-sm);
+  min-height: 56px;
 }
 
 .playback-controls-container button {
-  padding: 3px 6px;
-  font-size: 0.8rem;
+  min-height: 36px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 13px;
+  border-radius: var(--radius-medium);
+  background: var(--surface-tertiary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+}
+
+.playback-controls-container button:hover {
+  background: var(--surface-elevated);
+  border-color: var(--border-tertiary);
+}
+
+.playback-controls-container button:active {
+  transform: scale(0.98);
 }
 
 .error-message {
-  background-color: rgba(231, 76, 60, 0.2);
+  background: linear-gradient(135deg, rgba(255, 69, 58, 0.1) 0%, rgba(255, 69, 58, 0.05) 100%);
   color: var(--accent-red);
-  padding: 6px 8px;
+  padding: var(--spacing-lg) var(--spacing-xl);
   margin: 0;
-  border-bottom: 1px solid rgba(231, 76, 60, 0.3);
-  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(255, 69, 58, 0.2);
+  font-size: 14px;
+  font-weight: 500;
+  border-left: 3px solid var(--accent-red);
 }
 
 .connection-status {
-  background-color: var(--dark-surface);
-  padding: 6px 8px;
+  background: var(--surface-secondary);
+  padding: var(--spacing-lg) var(--spacing-xl);
   text-align: center;
-  border-radius: 0;
-  margin: 0;
-  border-bottom: 1px solid var(--dark-border);
-  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border-primary);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.connection-status p {
+  margin-bottom: var(--spacing-md);
 }
 
 .connection-status button {
-  background-color: var(--accent-green);
-  color: var(--dark-text-primary);
+  background: var(--accent-green);
+  color: white;
   border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
-  margin-top: 8px;
-  cursor: pointer;
-  font-size: 0.8rem;
+  border-radius: var(--radius-medium);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-weight: 500;
+}
+
+.connection-status button:hover {
+  background: #248a3d;
 }
 
 /* Grid tab styles */
@@ -196,15 +232,28 @@ body {
 }
 
 .leaderboard-container {
-  padding: 15px;
-  height: 100%;
-  overflow-y: auto;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-xl);
+  background: var(--surface-primary);
+}
+
+.leaderboard-container h2 {
+  margin-bottom: var(--spacing-xl);
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: -0.02em;
 }
 
 .leaderboard-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 5px;
+  contain: layout style;
 }
 
 .leaderboard-table th, 
@@ -242,7 +291,7 @@ body {
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .app-header h1 {
-    font-size: 1rem;
+    font-size: 18px;
   }
   
   .tab-button {
@@ -259,35 +308,45 @@ body {
   align-items: center;
   justify-content: center;
   position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.1s ease;
 }
 
 .cell-empty {
-  background-color: var(--dark-surface);
+  background-color: #f5f5f7;
 }
 
 .cell-wall {
-  background-color: #444;
+  background-color: #1d1d1f;
+  border-color: #2c2c2e;
 }
 
 .cell-pellet {
-  background-color: var(--dark-surface);
+  background-color: #f5f5f7;
+  position: relative;
 }
 
 .cell-pellet::after {
   content: '';
-  width: 8px;
-  height: 8px;
-  background-color: #ffd700;
-  border-radius: 50%;
   position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  background-color: var(--accent-yellow);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255, 214, 10, 0.6);
 }
 
 .cell-animalspawn {
-  background-color: rgba(173, 216, 230, 0.2);
+  background-color: rgba(0, 122, 255, 0.2);
+  border-color: var(--accent-blue);
 }
 
 .cell-zookeeperspawn {
-  background-color: rgba(240, 128, 128, 0.2);
+  background-color: rgba(255, 69, 58, 0.2);
+  border-color: var(--accent-red);
 }
 
 .entity {
@@ -301,16 +360,27 @@ body {
   font-size: 12px;
   color: var(--dark-text-primary);
   font-weight: bold;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-small);
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .entity-animal {
   background-color: blue;
   z-index: 10;
+  animation: pulse 2s infinite;
 }
 
 .entity-zookeeper {
   background-color: red; /* Ensure zookeepers are consistently red */
-  z-index: 5;
+  z-index: 11;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.entity-animal.captured {
+  opacity: 0.6;
+  transform: scale(0.8);
+  animation: none;
 }
 
 .grid-loading {
@@ -331,6 +401,7 @@ body {
   border-top: 2px solid var(--accent-blue);
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  will-change: transform;
 }
 
 @keyframes spin {
@@ -818,6 +889,7 @@ html body .waiting-message {
   border-collapse: collapse;
   margin-top: 2px;
   font-size: 0.85rem; /* Reduced from 0.9rem */
+  contain: layout style;
 }
 
 .leaderboard-container h2 {
@@ -929,6 +1001,7 @@ html body .waiting-message {
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.85rem;
+  contain: layout style;
 }
 
 .game-item:hover {
@@ -992,15 +1065,15 @@ html body .waiting-message {
   }
   
   .left-panel {
-    flex: none;
-    height: 70%;
+    flex: 1;
+    border-right: none;
+    border-bottom: 1px solid var(--border-primary);
   }
   
   .right-panel {
-    flex: none;
-    height: 30%;
-    border-top: 1px solid var(--dark-border);
-    border-right: none;
+    flex: 0 0 350px;
+    border-left: none;
+    border-top: 1px solid var(--border-primary);
   }
 }
 
@@ -1134,4 +1207,30 @@ html body .waiting-message {
   background-color: var(--dark-border);
   margin: 8px 0;
   opacity: 0.5;
+}
+
+/* Performance optimizations */
+.grid-layout {
+  will-change: transform;
+  contain: layout style paint;
+}
+
+.entity-marker {
+  will-change: transform;
+  contain: layout style paint;
+}
+
+.entity-label {
+  will-change: transform, opacity;
+  contain: layout style paint;
+}
+
+/* Optimize animations */
+.loading-indicator {
+  will-change: transform;
+}
+
+/* Reduce repaints */
+.game-item {
+  contain: layout style;
 }

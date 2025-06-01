@@ -4,7 +4,7 @@ using Marvijo.Zooscape.Bots.FunctionalTests;
 using Serilog;
 using Xunit;
 
-namespace FunctionalTests;
+namespace Marvijo.Zooscape.Bots.FunctionalTests;
 
 public class AllBotsTests
 {

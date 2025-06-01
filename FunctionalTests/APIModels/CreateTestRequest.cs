@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace FunctionalTests.APIModels; // Or your preferred namespace for API models
+namespace Marvijo.Zooscape.Bots.FunctionalTests.APIModels; // Or your preferred namespace for API models
 
 public class CreateTestRequest
 {

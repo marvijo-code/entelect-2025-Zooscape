@@ -1,30 +1,34 @@
 import React from 'react';
 
-const TabsContainer = ({ tabs, activeTabIndex = 0, onTabChange }) => {
-  const handleTabClick = (index) => {
-    if (onTabChange) {
-      onTabChange(index);
-    }
-  };
-
+const TabsContainer = React.memo(({ activeTabIndex, onTabChange, showReplayMode }) => {
   return (
-    <div className="tabs-container">
-      <div className="tabs-header">
-        {tabs.map((tab, index) => (
-          <button
-            key={index}
-            className={`tab-button ${activeTabIndex === index ? 'active' : ''}`}
-            onClick={() => handleTabClick(index)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      <div className="tab-content">
-        {tabs[activeTabIndex].content}
-      </div>
-    </div>
+    <>
+      <button 
+        className={`tab-button ${activeTabIndex === 0 ? 'active' : ''}`}
+        onClick={() => onTabChange(0)}
+      >
+        Leaderboard
+      </button>
+      
+      {showReplayMode ? (
+        <button 
+          className={`tab-button ${activeTabIndex === 1 ? 'active' : ''}`}
+          onClick={() => onTabChange(1)}
+        >
+          Game Selector
+        </button>
+      ) : (
+        <button 
+          className={`tab-button ${activeTabIndex === 2 ? 'active' : ''}`}
+          onClick={() => onTabChange(2)}
+        >
+          Connection
+        </button>
+      )}
+    </>
   );
-};
+});
+
+TabsContainer.displayName = 'TabsContainer';
 
 export default TabsContainer; 

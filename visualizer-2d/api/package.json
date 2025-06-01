@@ -15,9 +15,13 @@
     "nodemon": "^2.0.22"
   },
   "nodemonConfig": {
-    "watch": ["./"],
+    "watch": [
+      "./"
+    ],
     "ext": "js,json",
-    "ignore": ["node_modules/*"],
+    "ignore": [
+      "node_modules/*"
+    ],
     "delay": "500"
   }
 }

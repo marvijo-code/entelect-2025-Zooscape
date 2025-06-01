@@ -1,29 +1,41 @@
 using System.Collections;
+using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
-using Marvijo.Zooscape.Bots.FunctionalTests;
+using Marvijo.Zooscape.Bots.Common.Models;
+using NSubstitute;
+using Serilog;
 
-namespace FunctionalTests;
+namespace Marvijo.Zooscape.Bots.FunctionalTests;
 
 public class TestDataSource : IEnumerable<object[]>
 {
+    private readonly ILogger _logger;
+
+    public TestDataSource()
+    {
+        _logger = Substitute.For<ILogger>();
+    }
+
     public IEnumerator<object[]> GetEnumerator()
     {
         var testDefinitions = BotTestHelper.LoadTestDefinitions();
-        var allBots = BotFactory.GetAllBots().ToList(); //ToList to avoid multiple enumerations
+        var allAvailableBots = BotFactory.GetAllBots(_logger).ToList();
 
-        if (!allBots.Any())
+        if (!allAvailableBots.Any())
         {
-            // Yield a dummy object or throw to indicate no bots were loaded.
-            // This prevents xUnit from erroring out if no tests are found due to no bots.
-            // However, it might be better to let it fail if bot loading is critical.
-            // For now, let's assume if no bots, no tests to run for this source.
+            _logger.Warning(
+                "TestDataSource: No bots available from BotFactory. No tests will be generated."
+            );
             yield break;
         }
+        _logger.Information(
+            $"TestDataSource: Found {allAvailableBots.Count} available bot types from BotFactory."
+        );
 
         foreach (var definition in testDefinitions)
         {
             var acceptableActions = definition
-                .AcceptableActions.Select(actionStr =>
+                .CorrectActions.Select(actionStr =>
                     Enum.TryParse<BotAction>(actionStr, true, out var action)
                         ? action
                         : (BotAction?)null
@@ -34,60 +46,83 @@ public class TestDataSource : IEnumerable<object[]>
 
             if (!acceptableActions.Any())
             {
-                // Log or handle cases where actions couldn't be parsed
-                // For now, skip this test definition if no valid actions
+                _logger.Warning(
+                    $"TestDataSource: Test definition '{definition.Name}' (file: {definition.StateFile}) has no parsable CorrectActions. Skipping."
+                );
                 continue;
             }
 
-            var testParamsBase = new FunctionalTestParams
-            {
-                TestName = definition.TestName,
-                TestFileName = definition.GameStateFile,
-                AcceptableActions = acceptableActions,
-                // ExpectedAction can be set if the first acceptable action is considered the primary expected one
-                ExpectedAction = acceptableActions.FirstOrDefault(),
-            };
+            List<IBot<GameState>> botsToTestForThisDefinition = new();
 
-            if (!string.IsNullOrEmpty(definition.SpecificBotId))
+            if (definition.Bots != null && definition.Bots.Any())
             {
-                // If the test definition is for a specific bot, try to find it.
-                // This assumes SpecificBotId in JSON is the Guid string.
-                var specificBot = allBots.FirstOrDefault(b =>
-                    b.BotId.ToString()
-                        .Equals(definition.SpecificBotId, StringComparison.OrdinalIgnoreCase)
-                );
-                if (specificBot != null)
+                foreach (var botEntry in definition.Bots)
                 {
-                    var specificTestParams = new FunctionalTestParams
+                    var foundBot = allAvailableBots.FirstOrDefault(b =>
+                        b.GetType().Name.Equals(botEntry.Name, StringComparison.OrdinalIgnoreCase)
+                        || b.GetType()
+                            .Name.Replace("Bot", "", StringComparison.OrdinalIgnoreCase)
+                            .Equals(botEntry.Name, StringComparison.OrdinalIgnoreCase)
+                    );
+                    if (foundBot != null)
                     {
-                        TestName = $"{definition.TestName}_SpecificTo_{specificBot.GetType().Name}",
-                        TestFileName = definition.GameStateFile,
-                        AcceptableActions = acceptableActions,
-                        ExpectedAction = acceptableActions.FirstOrDefault(),
-                        BotIdToTest = definition.SpecificBotId, // Pass the specific bot ID
-                    };
-                    yield return new object[] { specificBot, specificTestParams };
-                }
-                else
-                {
-                    // Log that the specific bot was not found
+                        botsToTestForThisDefinition.Add(foundBot);
+                    }
+                    else
+                    {
+                        _logger.Warning(
+                            $"TestDataSource: Bot '{botEntry.Name}' specified in test definition '{definition.Name}' was not found in available bots. Skipping this entry."
+                        );
+                    }
                 }
             }
             else
             {
-                // If not for a specific bot, create a test case for each bot
-                foreach (var bot in allBots)
+                _logger.Information(
+                    $"TestDataSource: Test definition '{definition.Name}' does not specify any bots. Applying to all {allAvailableBots.Count} available bots."
+                );
+                botsToTestForThisDefinition.AddRange(allAvailableBots);
+            }
+
+            if (!botsToTestForThisDefinition.Any())
+            {
+                _logger.Warning(
+                    $"TestDataSource: No bots to test for definition '{definition.Name}' (file: {definition.StateFile}) after filtering. Skipping definition."
+                );
+                continue;
+            }
+
+            foreach (var bot in botsToTestForThisDefinition)
+            {
+                string? botIdInStateFile = null;
+                if (definition.Bots != null && definition.Bots.Any())
                 {
-                    var botTestParams = new FunctionalTestParams
+                    var entryForThisBot = definition.Bots.FirstOrDefault(be =>
+                        be.Name.Equals(bot.GetType().Name, StringComparison.OrdinalIgnoreCase)
+                        || be.Name.Equals(
+                            bot.GetType()
+                                .Name.Replace("Bot", "", StringComparison.OrdinalIgnoreCase),
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    );
+                    if (!string.IsNullOrEmpty(entryForThisBot?.Id))
                     {
-                        TestName = $"{definition.TestName}_{bot.GetType().Name}",
-                        TestFileName = definition.GameStateFile,
-                        AcceptableActions = acceptableActions,
-                        ExpectedAction = acceptableActions.FirstOrDefault(),
-                        BotIdToTest = bot.BotId.ToString(), // Use the bot's actual ID
-                    };
-                    yield return new object[] { bot, botTestParams };
+                        botIdInStateFile = entryForThisBot.Id;
+                        _logger.Information(
+                            $"Test '{definition.Name}' for bot '{bot.GetType().Name}': Using explicit BotId '{botIdInStateFile}' from test_definitions.json for loading game state context."
+                        );
+                    }
                 }
+
+                var testParams = new FunctionalTestParams
+                {
+                    TestName = $"{definition.Name}_{bot.GetType().Name}",
+                    TestFileName = definition.StateFile,
+                    AcceptableActions = new List<BotAction>(acceptableActions),
+                    ExpectedAction = acceptableActions.FirstOrDefault(),
+                    BotIdToTest = botIdInStateFile,
+                };
+                yield return new object[] { bot, testParams };
             }
         }
     }

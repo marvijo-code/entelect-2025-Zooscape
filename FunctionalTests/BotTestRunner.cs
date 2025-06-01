@@ -19,96 +19,127 @@ public class BotTestRunner
 
     public void RunTest(IBot<GameState> bot, FunctionalTestParams testParams)
     {
-        _logger.Information($"Running test: {testParams.TestName} for bot: {bot.GetType().Name}");
+        _logger.Information(
+            $"BOT_TEST_RUNNER: Running test '{testParams.TestName}' for bot type '{bot.GetType().Name}'. Game state file: '{testParams.TestFileName}'. BotId for state loading: '{testParams.BotIdToTest ?? "(not specified, will infer from state)"}'."
+        );
 
         GameState gameState;
         try
         {
+            // testParams.BotIdToTest is the ID of the player whose turn it is in the GameStateFile.
+            // This helps LoadGameState to correctly identify the CurrentPlayer if the JSON contains multiple animals.
             gameState = BotTestHelper.LoadGameState(
                 testParams.TestFileName,
-                testParams.BotIdToTest ?? bot.BotId.ToString(),
-                testParams.StartingPosition
+                testParams.BotIdToTest,
+                testParams.StartingPosition,
+                _logger
             );
         }
         catch (Exception ex)
         {
             _logger.Error(
                 ex,
-                $"Failed to load game state for test: {testParams.TestName}, file: {testParams.TestFileName}"
+                $"BOT_TEST_RUNNER: Failed to load game state for test: {testParams.TestName}, file: {testParams.TestFileName}. Error: {ex.Message}"
             );
             Assert.Fail(
-                $"Failed to load game state for test: {testParams.TestName}, file: {testParams.TestFileName}. Error: {ex.Message}"
+                $"BOT_TEST_RUNNER: Failed to load game state for test: {testParams.TestName}, file: {testParams.TestFileName}. Error: {ex.Message}"
             );
-            return; // Keep analyzer happy
+            return;
         }
 
         if (testParams.Tick.HasValue)
         {
             gameState.Tick = testParams.Tick.Value;
+            _logger.Information(
+                $"BOT_TEST_RUNNER: Test '{testParams.TestName}', Bot '{bot.GetType().Name}': Set GameState.Tick to {gameState.Tick}."
+            );
         }
 
-        //// Ensure bot ID is correctly set for the game state, especially if BotIdToTest was used in LoadGameState
-        //// and the bot instance itself might have a different default ID.
-        //// This assumes the bot.BotId can be set or is already correctly initialized.
-        //if (gameState.CurrentPlayer != null) // CurrentPlayer should be the bot being tested
-        //{
-        //    bot.BotId = Guid.Parse(gameState.CurrentPlayer.Id);
-        //     _logger.Information($"Ensuring bot {bot.GetType().Name} has ID {bot.BotId} for test {testParams.TestName}");
-        //}
-        //else
-        //{
-        //    _logger.Warning($"CurrentPlayer is null in GameState for test {testParams.TestName}. Bot ID might not be set correctly for the bot instance.");
-        //    // If BotIdToTest is provided, we should ensure the bot instance uses it.
-        //    if (!string.IsNullOrEmpty(testParams.BotIdToTest) && Guid.TryParse(testParams.BotIdToTest, out var parsedBotId))
-        //    {
-        //        bot.BotId = parsedBotId;
-        //        _logger.Information($"Setting bot {bot.GetType().Name} ID to {bot.BotId} from TestParams for test {testParams.TestName}");
-        //    }
-        //}
-
+        // Critical step: Align the bot instance's ID with the CurrentPlayer in the loaded GameState.
+        // The bot.GetAction(gameState) will likely use bot.BotId to find itself within gameState.Animals or gameState.CurrentPlayer.
+        if (gameState.CurrentPlayer != null)
+        {
+            if (Guid.TryParse(gameState.CurrentPlayer.Id, out var currentPlayerIdFromState))
+            {
+                bot.BotId = currentPlayerIdFromState;
+                _logger.Information(
+                    $"BOT_TEST_RUNNER: Test '{testParams.TestName}', Bot '{bot.GetType().Name}': Aligned bot instance ID to GameState.CurrentPlayer.Id: {bot.BotId}."
+                );
+            }
+            else
+            {
+                _logger.Warning(
+                    $"BOT_TEST_RUNNER: Test '{testParams.TestName}', Bot '{bot.GetType().Name}': GameState.CurrentPlayer.Id '{gameState.CurrentPlayer.Id}' is not a valid Guid. Cannot align bot instance ID."
+                );
+                Assert.Fail(
+                    $"GameState.CurrentPlayer.Id '{gameState.CurrentPlayer.Id}' is not a valid Guid for test '{testParams.TestName}'."
+                );
+                return;
+            }
+        }
+        else
+        {
+            _logger.Error(
+                $"BOT_TEST_RUNNER: Test '{testParams.TestName}', Bot '{bot.GetType().Name}': GameState.CurrentPlayer is null after loading state '{testParams.TestFileName}'. Cannot run test meaningfully as bot ID cannot be aligned."
+            );
+            Assert.Fail(
+                $"GameState.CurrentPlayer is null for test '{testParams.TestName}' using file '{testParams.TestFileName}'. Check GameState loading and BotIdToTest ('{testParams.BotIdToTest}')."
+            );
+            return;
+        }
 
         BotAction chosenAction;
         try
         {
+            _logger.Information(
+                $"BOT_TEST_RUNNER: Test '{testParams.TestName}', Bot '{bot.GetType().Name} (ID: {bot.BotId})': Calling GetAction()."
+            );
             chosenAction = bot.GetAction(gameState);
         }
         catch (Exception ex)
         {
             _logger.Error(
                 ex,
-                $"Bot {bot.GetType().Name} threw an exception during GetAction for test: {testParams.TestName}"
+                $"BOT_TEST_RUNNER: Bot '{bot.GetType().Name}' (ID: {bot.BotId}) threw an exception during GetAction() for test: {testParams.TestName}. Error: {ex.Message}"
             );
             Assert.Fail(
-                $"Bot {bot.GetType().Name} threw an exception for test: {testParams.TestName}. Error: {ex.Message}"
+                $"Bot '{bot.GetType().Name}' (ID: {bot.BotId}) threw an exception for test: {testParams.TestName}. Error: {ex.Message}"
             );
-            return; // Keep analyzer happy
+            return;
         }
 
         _logger.Information(
-            $"Bot {bot.GetType().Name} chose action: {chosenAction} for test: {testParams.TestName}"
+            $"BOT_TEST_RUNNER: Test '{testParams.TestName}', Bot '{bot.GetType().Name}' (ID: {bot.BotId}) chose action: {chosenAction}."
         );
 
-        if (testParams.ExpectedAction.HasValue)
+        var effectiveAcceptableActions = new List<BotAction>(testParams.AcceptableActions);
+        if (
+            testParams.ExpectedAction.HasValue
+            && !effectiveAcceptableActions.Contains(testParams.ExpectedAction.Value)
+        )
         {
-            // If an ExpectedAction is specified, it must be one of the AcceptableActions
-            if (!testParams.AcceptableActions.Contains(testParams.ExpectedAction.Value))
-            {
-                testParams.AcceptableActions.Add(testParams.ExpectedAction.Value);
-                _logger.Warning(
-                    $"ExpectedAction {testParams.ExpectedAction.Value} was not in AcceptableActions for test {testParams.TestName}. It has been added."
-                );
-            }
-            Assert.True(
-                testParams.AcceptableActions.Contains(chosenAction),
-                $"Test: {testParams.TestName}, Bot: {bot.GetType().Name}. Expected one of [{string.Join(", ", testParams.AcceptableActions)}] but got {chosenAction}. Preferred was {testParams.ExpectedAction.Value}"
+            _logger.Warning(
+                $"BOT_TEST_RUNNER: Test '{testParams.TestName}': ExpectedAction '{testParams.ExpectedAction.Value}' was not in AcceptableActions. It has been added for this assertion."
             );
+            effectiveAcceptableActions.Add(testParams.ExpectedAction.Value);
         }
-        else
+
+        if (!effectiveAcceptableActions.Any())
         {
-            Assert.True(
-                testParams.AcceptableActions.Contains(chosenAction),
-                $"Test: {testParams.TestName}, Bot: {bot.GetType().Name}. Expected one of [{string.Join(", ", testParams.AcceptableActions)}] but got {chosenAction}."
+            _logger.Error(
+                $"BOT_TEST_RUNNER: Test '{testParams.TestName}', Bot '{bot.GetType().Name}': No acceptable actions defined or parsed. Cannot assert."
             );
+            Assert.Fail($"No acceptable actions defined for test '{testParams.TestName}'.");
+            return;
         }
+
+        Assert.True(
+            effectiveAcceptableActions.Contains(chosenAction),
+            $"Test: '{testParams.TestName}', Bot: '{bot.GetType().Name}' (ID: {bot.BotId}). Expected one of [{string.Join(", ", effectiveAcceptableActions)}] but got '{chosenAction}'. {(testParams.ExpectedAction.HasValue ? "Preferred was " + testParams.ExpectedAction.Value : "")}"
+        );
+
+        _logger.Information(
+            $"BOT_TEST_RUNNER: Test '{testParams.TestName}' for bot '{bot.GetType().Name}' (ID: {bot.BotId}) PASSED. Action '{chosenAction}' was acceptable."
+        );
     }
 }

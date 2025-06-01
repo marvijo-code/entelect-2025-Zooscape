@@ -1,163 +1,80 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import './Leaderboard.css'; // We'll create this for styling
 
-const Leaderboard = ({ animals = [], leaderboardData = [], loading = false, statusMessage = '', colorMap = {} }) => {
-  // Handle in-game animal scores display
-  const renderAnimalScores = () => {
-    if (!animals || animals.length === 0) return null;
-
-    // Sort animals by score
-    const sortedAnimals = [...animals].sort((a, b) => {
-      const scoreA = a.score !== undefined ? a.score : a.Score;
-      const scoreB = b.score !== undefined ? b.score : b.Score;
-      return scoreB - scoreA;
-    });
-
-    return (
-      <div className="game-scores">
-        <h3>Current Game Scores</h3>
-        <table className="leaderboard-table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Animal</th>
-              <th>Score</th>
-              <th>Captured</th>
-              <th>Distance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedAnimals.map((animal, index) => {
-              const animalId = animal.id !== undefined ? animal.id : animal.Id;
-              
-              // Enhanced nickname handling with better fallback
-              let nickname = null;
-              if (animal.nickname !== undefined) nickname = animal.nickname;
-              else if (animal.Nickname !== undefined) nickname = animal.Nickname;
-              else nickname = animalId ? `Bot-${animalId}` : `Unknown-${index}`;
-              
-              const score = animal.score !== undefined ? animal.score : animal.Score;
-              const captured = animal.capturedCounter !== undefined ? animal.capturedCounter : animal.CapturedCounter;
-              const distance = animal.distanceCovered !== undefined ? animal.distanceCovered : animal.DistanceCovered;
-              
-              return (
-                <tr 
-                  key={animalId || index} 
-                  className="player-row"
-                  style={{ 
-                    backgroundColor: colorMap[animalId] ? `${colorMap[animalId]}40` : undefined
-                  }}
-                >
-                  <td>{index + 1}</td>
-                  <td>
-                    <span 
-                      className="color-dot" 
-                      style={{ backgroundColor: colorMap[animalId] || 'gray' }}
-                    ></span>
-                    {nickname}
-                  </td>
-                  <td>{score}</td>
-                  <td>{captured}</td>
-                  <td>{distance}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  // Handle tournament leaderboard display
-  const renderLeaderboard = () => {
-    if (!leaderboardData || leaderboardData.length === 0) {
+const Leaderboard = React.memo(({ data = [], loading = false, statusMessage = '', onRefresh }) => {
+  // Memoize the leaderboard rows to prevent unnecessary re-renders
+  const leaderboardRows = useMemo(() => {
+    if (!data || data.length === 0) {
       return null;
     }
 
-    return (
-      <div className="tournament-leaderboard">
-        <h3>Tournament Leaderboard</h3>
-        <table className="leaderboard-table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Bot Name</th>
-              <th>Wins</th>
-              <th>2nd Places</th>
-              <th>Games</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leaderboardData.map((bot, index) => {
-              // Enhanced bot nickname handling
-              let nickname = bot.nickname;
-              if (!nickname && bot.id) {
-                nickname = `Bot-${bot.id}`;
-              } else if (!nickname) {
-                nickname = `Player-${index + 1}`;
-              }
-              
-              // Try to find this bot's color from the current game if possible
-              const botColor = Object.entries(colorMap).find(([id, color]) => {
-                // Match by ID or by nickname
-                return bot.id === id || (animals.some(animal => {
-                  const animalId = animal.id !== undefined ? animal.id : animal.Id;
-                  const animalNickname = animal.nickname !== undefined ? animal.nickname : animal.Nickname;
-                  return bot.nickname === animalNickname && animalId === id;
-                }));
-              });
-              
-              const rowColor = botColor ? botColor[1] : undefined;
-              
-              return (
-                <tr 
-                  key={bot.id || bot.nickname || index} 
-                  className="player-row"
-                  style={{ 
-                    backgroundColor: rowColor ? `${rowColor}20` : undefined,
-                    borderLeft: rowColor ? `4px solid ${rowColor}` : undefined
-                  }}
-                >
-                  <td>{index + 1}</td>
-                  <td>{nickname}</td>
-                  <td>{bot.wins}</td>
-                  <td>{bot.secondPlaces}</td>
-                  <td>{bot.gamesPlayed}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
+    return data.map((bot, index) => (
+      <tr key={bot.nickname || bot.id || index} className="leaderboard-row">
+        <td className="rank-cell">{index + 1}</td>
+        <td className="nickname-cell">{bot.nickname || `Bot-${bot.id}`}</td>
+        <td className="wins-cell">{bot.wins || 0}</td>
+        <td className="second-places-cell">{bot.secondPlaces || 0}</td>
+        <td className="games-played-cell">{bot.gamesPlayed || 0}</td>
+        <td className="win-rate-cell">
+          {bot.gamesPlayed > 0 ? `${((bot.wins / bot.gamesPlayed) * 100).toFixed(1)}%` : '0%'}
+        </td>
+      </tr>
+    ));
+  }, [data]);
 
   return (
     <div className="leaderboard-container">
-      <h2>Scores & Leaderboard</h2>
+      <div className="leaderboard-header">
+        <h2>Bot Leaderboard</h2>
+        <button 
+          onClick={onRefresh} 
+          className="refresh-button"
+          disabled={loading}
+          title="Refresh leaderboard data"
+        >
+          {loading ? '🔄' : '↻'} Refresh
+        </button>
+      </div>
       
-      {loading && (
-        <div className="leaderboard-loading">
-          <div className="loading-spinner"></div>
-          <p>{statusMessage || 'Loading...'}</p>
+      {statusMessage && (
+        <div className={`status-message ${loading ? 'loading' : ''}`}>
+          {statusMessage}
         </div>
       )}
       
-      {!loading && renderAnimalScores()}
-      
-      {!loading && leaderboardData.length > 0 && (
-        <div className="section-divider"></div>
-      )}
-      
-      {!loading && renderLeaderboard()}
-      
-      {!loading && animals.length === 0 && leaderboardData.length === 0 && (
-        <p className="no-data-message">
-          {statusMessage || 'No score or leaderboard data available.'}
-        </p>
+      {loading ? (
+        <div className="loading-indicator">
+          <div className="spinner"></div>
+          <p>Loading leaderboard data...</p>
+        </div>
+      ) : data && data.length > 0 ? (
+        <div className="leaderboard-table-container">
+          <table className="leaderboard-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Bot Name</th>
+                <th>Wins</th>
+                <th>2nd Places</th>
+                <th>Games Played</th>
+                <th>Win Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboardRows}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="no-data-message">
+          <p>No leaderboard data available.</p>
+          <p>Play some games to see statistics here.</p>
+        </div>
       )}
     </div>
   );
-};
+});
+
+Leaderboard.displayName = 'Leaderboard';
 
 export default Leaderboard;
