@@ -52,6 +52,7 @@ const App = () => {
   const [processingQueue, setProcessingQueue] = useState([]);
   const processingTimeoutRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [finalScoresMap, setFinalScoresMap] = useState({});
 
   const fetchAndDisplayReplayTick = useCallback(async (gameId, tickNumber) => {
     if (isFetchingTick) return;
@@ -147,17 +148,34 @@ const App = () => {
     const tickCount = typeof gameData === 'object' && gameData.tickCount ? gameData.tickCount : 0;
     
     console.log("handleReplayGame - Received gameData:", gameData); // DEBUG LINE
+    console.log("handleReplayGame - Original gameId:", gameId);
     console.log("handleReplayGame - Extracted tickCount:", tickCount); // DEBUG LINE
     
     if (!gameId) {
       setError('Invalid game selected - no ID found');
       return;
     }
+
+    // Construct full path for selectedFile for display purposes.
+    // This assumes the API server (localhost:5008) is serving logs from the specified fixed base path.
+    // This is for UI display only. The relative gameId is used for API calls.
+    const assumedApiLogsBasePath = 'C:\\dev\\2025-Zooscape\\visualizer-2d\\logs\\';
     
+    // Check if gameId already looks like an absolute path (e.g., from a different source or future API change)
+    const isAbsolute = gameId.includes(':') || gameId.startsWith('/') || gameId.startsWith('\\');
+    
+    const fullDisplayPath = isAbsolute 
+                           ? gameId 
+                           : assumedApiLogsBasePath + gameId.replace(/\//g, '\\');
+    
+    console.log("handleReplayGame - Original gameId (for API calls):", gameId);
+    console.log("handleReplayGame - Assumed API logs base path (for display):", assumedApiLogsBasePath);
+    console.log("handleReplayGame - Constructed fullDisplayPath (for UI):", fullDisplayPath);
+
     try {
-      setSelectedFile(gameId); // Store the game ID as the selected file path
-      setReplayingGameName(gameName); // Store the game name
-      setReplayGameId(gameId); // <--- FIX: Set replayGameId so controls work
+      setSelectedFile(fullDisplayPath); // Store the constructed full path for UI display
+      setReplayingGameName(gameName); 
+      setReplayGameId(gameId); // Use the ORIGINAL relative gameId for API calls
       setShowReplayMode(true);
       setIsReplaying(true);
       setIsPlaying(false); // Start paused
@@ -170,6 +188,31 @@ const App = () => {
       
       // Load initial tick
       await fetchAndDisplayReplayTick(gameId, 0);
+
+      // Fetch the last tick to get final scores if tickCount is available
+      if (tickCount > 0) {
+        try {
+          const finalTickResponse = await fetch(`${API_BASE_URL}/replay/${gameId}/${tickCount}`);
+          if (finalTickResponse.ok) {
+            const finalTickData = await finalTickResponse.json();
+            const animalsInFinalTick = finalTickData.animals || finalTickData.Animals || [];
+            const finalScores = {};
+            animalsInFinalTick.forEach(animal => {
+              const id = animal.id || animal.Id;
+              const score = animal.score || animal.Score || 0;
+              if (id) {
+                finalScores[id] = score;
+              }
+            });
+            setFinalScoresMap(finalScores);
+            console.log("Final scores map populated:", finalScores);
+          } else {
+            console.warn(`Failed to fetch final tick data to populate final scores: ${finalTickResponse.status}`);
+          }
+        } catch (e) {
+          console.error("Error fetching final tick data for scores:", e);
+        }
+      }
       
       console.log(`Replay initialized for ${gameId}, total ticks: ${tickCount}`);
     } catch (error) {
@@ -692,7 +735,32 @@ const App = () => {
     setAnimalColorMap({});
     setError(null);
     setReplayingGameName(null);
-  }, []);
+  }, [connection]); // Added missing dependency: connection
+
+  // Effect for keyboard navigation in replay mode
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (!showReplayMode || !replayGameId) return;
+
+      // Prevent interference with input fields or other interactive elements
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'BUTTON' || event.target.isContentEditable) {
+        return;
+      }
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        handleRewind();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        handleForward();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showReplayMode, replayGameId, handleRewind, handleForward]);
 
   // Effect to process the queue
   useEffect(() => {
@@ -806,13 +874,13 @@ const App = () => {
           {scoresData.map((entry, index) => (
             <li key={entry.id || index}>
               <span>{index + 1}. {entry.nickname}:</span>
-              <span>{entry.score}</span>
+              <span>{entry.score} / {finalScoresMap[entry.id] !== undefined ? finalScoresMap[entry.id] : 'N/A'}</span>
             </li>
           ))}
         </ul>
       </div>
     );
-  }, [isReplaying, currentGameState]);
+  }, [isReplaying, currentGameState, finalScoresMap]);
 
   // Memoize tab content based on active tab
   const tabContent = useMemo(() => {

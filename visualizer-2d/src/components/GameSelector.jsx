@@ -17,6 +17,7 @@ const GameSelector = React.memo(({ onGameSelected, apiBaseUrl }) => {
       }
       
       const data = await response.json();
+      console.log("Full response from /api/games:", data);
       setGames(data.games || []);
     } catch (err) {
       console.error('Error fetching games:', err);

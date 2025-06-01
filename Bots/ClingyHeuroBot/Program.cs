@@ -1,11 +1,11 @@
-using HeuroBot.Services;
+using HeuroBotV2.Services;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace HeuroBot;
+namespace HeuroBotV2;
 
 public class Program
 {

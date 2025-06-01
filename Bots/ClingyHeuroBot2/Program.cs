@@ -1,5 +1,6 @@
-using HeuroBot.Models;
 using HeuroBot.Services;
+using Marvijo.Zooscape.Bots.Common.Enums;
+using Marvijo.Zooscape.Bots.Common.Models;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -104,8 +105,8 @@ public class Program
         {
             if (
                 command != null
-                && command.Action >= Enums.BotAction.Up
-                && command.Action <= Enums.BotAction.Right
+                && command.Action >= BotAction.Up
+                && command.Action <= BotAction.Right
             )
             {
                 await connection.SendAsync("BotCommand", command);

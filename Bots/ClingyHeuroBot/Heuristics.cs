@@ -2,7 +2,7 @@ using DeepMCTS.Enums;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 
-namespace HeuroBot.Services;
+namespace HeuroBotV2.Services;
 
 public static class Heuristics
 {

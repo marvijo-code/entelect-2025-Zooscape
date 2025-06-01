@@ -3,8 +3,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics; //  >>> NEW (time-budget guard)
 using System.Linq; //  >>> NEW (move up for grouping)
-using HeuroBot.Enums;
-using HeuroBot.Models;
+using DeepMCTS.Enums;
+using Marvijo.Zooscape.Bots.Common.Enums;
+using Marvijo.Zooscape.Bots.Common.Models;
 
 namespace HeuroBot.Services;
 

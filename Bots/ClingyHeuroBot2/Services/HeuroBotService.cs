@@ -2,14 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using HeuroBot; // for WEIGHTS
-using HeuroBot.Enums;
-using HeuroBot.Models;
+using Marvijo.Zooscape.Bots.Common;
+using Marvijo.Zooscape.Bots.Common.Enums;
+using Marvijo.Zooscape.Bots.Common.Models;
 
 namespace HeuroBot.Services;
 
-public class HeuroBotService
+public class HeuroBotService : IBot<HeuroBotService>
 {
-    private Guid _botId;
+    public Guid BotId { get; set; }
     private BotAction? _previousAction = null;
 
     // Track visit counts per cell to discourage repeat visits
@@ -18,12 +19,12 @@ public class HeuroBotService
     // Track visited quadrants for exploration incentive
     private HashSet<int> _visitedQuadrants = new();
 
-    public void SetBotId(Guid botId) => _botId = botId;
+    public void SetBotId(Guid botId) => BotId = botId;
 
-    public BotCommand ProcessState(GameState state)
+    public BotAction GetAction(GameState gameState)
     {
         // Identify this bot's animal
-        var me = state.Animals.First(a => a.Id == _botId);
+        var me = gameState.Animals.First(a => a.Id == BotId);
 
         // Update visit count for current cell
         var currentPos = (me.X, me.Y);
@@ -32,7 +33,7 @@ public class HeuroBotService
         else
             _visitCounts[currentPos] = 1;
         // Mark current quadrant visited
-        int currentQuadrant = GetQuadrant(me.X, me.Y, state);
+        int currentQuadrant = GetQuadrant(me.X, me.Y, gameState);
         if (!_visitedQuadrants.Contains(currentQuadrant))
             _visitedQuadrants.Add(currentQuadrant);
 
@@ -60,8 +61,8 @@ public class HeuroBotService
                     nx++;
                     break;
             }
-            var cell = state.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
-            if (cell != null && cell.Content != CellContent.Wall)
+            var cell = gameState.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
+            if (cell != null && cell.Content != DeepMCTS.Enums.CellContent.Wall)
                 legalActions.Add(a);
         }
         if (!legalActions.Any())
@@ -72,7 +73,7 @@ public class HeuroBotService
 
         foreach (var action in legalActions)
         {
-            var score = Heuristics.ScoreMove(state, me, action);
+            var score = Heuristics.ScoreMove(gameState, me, action);
             // Penalty for reversing the previous move
             if (_previousAction.HasValue && IsOpposite(_previousAction.Value, action))
                 score += WEIGHTS.ReverseMovePenalty;
@@ -98,7 +99,7 @@ public class HeuroBotService
             score += WEIGHTS.VisitPenalty * visits;
             if (visits == 0)
                 score += WEIGHTS.UnexploredBonus;
-            int quad = GetQuadrant(nx, ny, state);
+            int quad = GetQuadrant(nx, ny, gameState);
             if (!_visitedQuadrants.Contains(quad))
                 score += WEIGHTS.UnexploredQuadrantBonus;
             Console.WriteLine($"Action {action}: Score = {score}");
@@ -133,10 +134,17 @@ public class HeuroBotService
             _visitCounts[bestPos]++;
         else
             _visitCounts[bestPos] = 1;
-        int bestQuad = GetQuadrant(bx, by, state);
+        int bestQuad = GetQuadrant(bx, by, gameState);
         if (!_visitedQuadrants.Contains(bestQuad))
             _visitedQuadrants.Add(bestQuad);
-        return new BotCommand { Action = bestAction };
+
+        return bestAction;
+    }
+
+    public BotCommand ProcessState(GameState state)
+    {
+        var action = GetAction(state);
+        return new BotCommand { Action = action };
     }
 
     private static bool IsOpposite(BotAction a, BotAction b) =>

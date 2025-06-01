@@ -1,145 +1,63 @@
+using System;
+using System.IO;
 using System.Reflection;
-using System.Text.Json;
-using Marvijo.Zooscape.Bots.Common.Abstractions;
 using Marvijo.Zooscape.Bots.Common.Models;
-using Marvijo.Zooscape.Bots.Common.Services;
-using NSubstitute;
+using Newtonsoft.Json;
 using Serilog;
 
-namespace Marvijo.Zooscape.Bots.FunctionalTests;
+namespace FunctionalTests;
 
+/// <summary>
+/// Helper class for loading game states from JSON files
+/// </summary>
 public static class BotTestHelper
 {
-    private static readonly string BasePath = Path.GetDirectoryName(
-        Assembly.GetExecutingAssembly().Location
-    )!;
-    private static readonly string TestStatesPath = Path.Combine(BasePath, "GameStates");
-
-    public static GameState LoadGameState(
-        string testFileName,
-        string? botIdForState = null,
-        Position? startingPosition = null,
-        ILogger? logger = null
-    )
+    /// <summary>
+    /// Load a game state from a JSON file
+    /// </summary>
+    /// <param name="fileName">The JSON file name (relative to GameStates directory)</param>
+    /// <param name="logger">Logger for debugging</param>
+    /// <returns>Loaded GameState object</returns>
+    public static GameState LoadGameState(string fileName, ILogger logger)
     {
-        logger ??= Substitute.For<ILogger>();
-        var filePath = Path.Combine(TestStatesPath, testFileName);
-        if (!File.Exists(filePath))
+        try
         {
-            logger.Error($"Test state file not found: {filePath}");
-            throw new FileNotFoundException($"Test state file not found: {filePath}");
-        }
+            // Get the directory where the test assembly is located
+            var assemblyLocation = Assembly.GetExecutingAssembly().Location;
+            var assemblyDirectory = Path.GetDirectoryName(assemblyLocation);
 
-        var json = File.ReadAllText(filePath);
-        var botStateDto = JsonSerializer.Deserialize<BotStateDTO>(
-            json,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-        );
+            // Construct the full path to the game state file in GameStates subdirectory
+            var gameStatesPath = Path.Combine(assemblyDirectory!, "GameStates", fileName);
 
-        if (botStateDto == null)
-        {
-            logger.Error($"Failed to deserialize BotStateDTO from {testFileName}");
-            throw new InvalidOperationException(
-                $"Failed to deserialize BotStateDTO from {testFileName}"
-            );
-        }
+            logger.Information("Loading game state from: {FilePath}", gameStatesPath);
 
-        if (!string.IsNullOrEmpty(botIdForState) && botStateDto.Animals != null)
-        {
-            var playerAnimal = botStateDto.Animals.FirstOrDefault(a => a.Id == botIdForState);
-            if (playerAnimal != null)
+            if (!File.Exists(gameStatesPath))
             {
-                botStateDto.PlayerId = playerAnimal.Id;
+                throw new FileNotFoundException($"Game state file not found: {gameStatesPath}");
             }
-            else
+
+            var jsonContent = File.ReadAllText(gameStatesPath);
+            logger.Information("JSON content length: {Length} characters", jsonContent.Length);
+
+            var gameState = JsonConvert.DeserializeObject<GameState>(jsonContent);
+
+            if (gameState == null)
             {
-                logger.Warning(
-                    $"Specified botIdForState '{botIdForState}' not found in Animals list in {testFileName}."
-                );
+                throw new InvalidOperationException("Failed to deserialize game state from JSON");
             }
-        }
 
-        var gameState = new GameState(botStateDto, logger);
-
-        if (startingPosition != null && gameState.CurrentPlayer != null)
-        {
-            gameState.CurrentPlayer.Position = startingPosition;
             logger.Information(
-                $"Set starting position for CurrentPlayer {gameState.CurrentPlayer.Id} to {startingPosition}"
+                "Successfully loaded game state with {AnimalCount} animals and {CellCount} cells",
+                gameState.Animals?.Count ?? 0,
+                gameState.Cells?.Count ?? 0
             );
+
+            return gameState;
         }
-        else if (startingPosition != null)
+        catch (Exception ex)
         {
-            logger.Warning("StartingPosition provided but CurrentPlayer is null in GameState.");
+            logger.Error(ex, "Error loading game state from {FileName}", fileName);
+            throw;
         }
-
-        return gameState;
-    }
-
-    public static List<TestDefinition> LoadTestDefinitions()
-    {
-        var filePath = Path.Combine(BasePath, "test_definitions.json");
-        if (!File.Exists(filePath))
-        {
-            return new List<TestDefinition>();
-        }
-        var json = File.ReadAllText(filePath);
-        return JsonSerializer.Deserialize<List<TestDefinition>>(
-                json,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    AllowTrailingCommas = true,
-                }
-            ) ?? new List<TestDefinition>();
-    }
-
-    public static void SaveTestDefinition(TestDefinition testDefinition)
-    {
-        var definitions = LoadTestDefinitions();
-        definitions.RemoveAll(td =>
-            td.Name == testDefinition.Name && td.StateFile == testDefinition.StateFile
-        );
-        definitions.Add(testDefinition);
-        var filePath = Path.Combine(BasePath, "test_definitions.json");
-        var json = JsonSerializer.Serialize(
-            definitions,
-            new JsonSerializerOptions { WriteIndented = true, PropertyNameCaseInsensitive = true }
-        );
-        File.WriteAllText(filePath, json);
-    }
-
-    public static string SaveGameStateFile(string testName, string jsonContent)
-    {
-        var gameStatesDir = Path.Combine(BasePath, "GameStates");
-        if (!Directory.Exists(gameStatesDir))
-        {
-            Directory.CreateDirectory(gameStatesDir);
-        }
-        var invalidChars = Path.GetInvalidFileNameChars();
-        var safeTestName = new string(
-            testName.Where(ch => !invalidChars.Contains(ch)).ToArray()
-        ).Replace(" ", "_");
-        var fileName = $"{safeTestName}_{DateTime.Now:yyyyMMddHHmmssfff}.json";
-        var filePath = Path.Combine(gameStatesDir, fileName);
-        File.WriteAllText(filePath, jsonContent);
-        return fileName;
-    }
-
-    public static IActionHistoryService CreateActionHistoryService(ILogger? logger = null)
-    {
-        return new ActionHistoryService(logger ?? Substitute.For<ILogger>());
-    }
-
-    public static IScoreManager CreateScoreManager(ILogger? logger = null)
-    {
-        logger?.Debug("Creating NSubstitute.For<IScoreManager>() as actual not specified.");
-        return Substitute.For<IScoreManager>();
-    }
-
-    public static IGameActionPlayer CreateGameActionPlayer(ILogger? logger = null)
-    {
-        logger?.Debug("Creating NSubstitute.For<IGameActionPlayer>() as actual not specified.");
-        return Substitute.For<IGameActionPlayer>();
     }
 }

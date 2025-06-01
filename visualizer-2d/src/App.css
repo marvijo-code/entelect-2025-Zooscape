@@ -998,9 +998,7 @@ html body .waiting-message {
 }
 
 .copy-path-button:hover {
-  background-color: var(--dark-surface-lighter);
-  color: var(--accent-blue);
-  border-color: var(--accent-blue);
+  background-color: var(--surface-elevated);
 }
 
 .copy-path-button:active {
@@ -1384,13 +1382,16 @@ html body .waiting-message {
 }
 
 .full-path {
-  font-size: 11px;
-  color: #6c757d;
-  word-break: break-all;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 6px 8px;
-  border-radius: 4px;
-  border: 1px solid #e9ecef;
-  font-family: 'Courier New', monospace;
-  line-height: 1.3;
+  font-size: 0.8em;
+  color: var(--text-secondary);
+  margin-top: var(--spacing-xs);
+  overflow-wrap: break-word; /* Changed from break-all */
+  white-space: normal; /* Ensure wrapping is allowed */
+  max-height: 80px; /* Increased max-height */
+  overflow-y: auto;
+  overflow-x: auto; /* Added for very long path segments */
+  padding: var(--spacing-xs);
+  background: var(--surface-tertiary);
+  border-radius: var(--radius-small);
+  border: 1px solid var(--border-secondary);
 }

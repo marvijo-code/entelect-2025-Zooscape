@@ -1,4 +1,4 @@
-namespace HeuroBot;
+namespace HeuroBotV2;
 
 public static class WEIGHTS
 {

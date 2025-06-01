@@ -1,12 +1,14 @@
 using DeepMCTS.Enums;
+using HeuroBotV2; // for WEIGHTS
+using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 
-namespace HeuroBot.Services;
+namespace HeuroBotV2.Services;
 
-public class HeuroBotService
+public class HeuroBotService : IBot<HeuroBotService>
 {
-    private Guid _botId;
+    public Guid BotId { get; set; }
     private BotAction? _previousAction = null;
 
     // Track visit counts per cell to discourage repeat visits
@@ -15,12 +17,17 @@ public class HeuroBotService
     // Track visited quadrants for exploration incentive
     private HashSet<int> _visitedQuadrants = new();
 
-    public void SetBotId(Guid botId) => _botId = botId;
+    public void SetBotId(Guid botId) => BotId = botId;
+
+    public BotAction GetAction(GameState gameState)
+    {
+        return ProcessState(gameState).Action;
+    }
 
     public BotCommand ProcessState(GameState state)
     {
         // Identify this bot's animal
-        var me = state.Animals.First(a => a.Id == _botId);
+        var me = state.Animals.First(a => a.Id == BotId);
 
         // Update visit count for current cell
         var currentPos = (me.X, me.Y);
