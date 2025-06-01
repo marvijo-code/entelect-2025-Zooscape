@@ -175,6 +175,38 @@
   font-family: 'SF Mono', Monaco, monospace;
 }
 
+/* Loading Indicator */
+.loading-indicator {
+  color: var(--accent-blue);
+  animation: pulse 1.5s infinite;
+  font-weight: 600;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* Disabled Controls */
+.control-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--surface-tertiary);
+  border-color: var(--border-secondary);
+  transform: none;
+  box-shadow: none;
+}
+
+.control-button:disabled::before {
+  display: none;
+}
+
+.progress-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Speed Controls */
 .speed-controls {
   display: flex;

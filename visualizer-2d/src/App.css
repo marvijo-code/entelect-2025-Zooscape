@@ -137,17 +137,55 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-md) var(--spacing-xl);
-  background: var(--surface-secondary);
-  border-bottom: 1px solid var(--border-primary);
-  min-height: 48px;
-  font-size: 14px;
-  color: var(--text-secondary);
+  padding: 8px 12px;
+  background-color: #2f3136; /* Darker background for header */
+  border-bottom: 1px solid #202225;
+  min-height: 40px; /* Ensure consistent height */
+}
+
+.tick-info {
+  font-size: 1.1em;
+  color: #b9bbbe; /* Lighter text for tick info */
+  display: flex;
+  align-items: center;
+}
+
+.tick-label {
+  margin-right: 8px;
+  font-weight: 500;
+}
+
+.tick-value {
+  font-weight: bold;
+  color: #ffffff; /* White color for tick value */
+  min-width: 30px; /* Ensure space for tick number */
+  text-align: left;
+}
+
+.game-over-indicator {
+  margin-left: 12px;
+  font-weight: bold;
+  color: #f04747; /* Red color for game over */
+  background-color: rgba(240, 71, 71, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.replay-game-name {
+  font-size: 0.9em;
+  color: #b9bbbe;
+  margin-left: auto; /* Pushes to the right if space allows, or wraps */
+  padding-left: 15px; /* Spacing from tick info if on same line */
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%; /* Prevents it from taking too much space */
 }
 
 /* Playback controls now in right panel */
 .playback-controls-container {
-  padding: var(--spacing-lg) var(--spacing-xl);
+  padding: 10px;
   background: var(--surface-secondary);
   border-bottom: 1px solid var(--border-primary);
   display: flex;

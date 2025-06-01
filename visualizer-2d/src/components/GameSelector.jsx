@@ -30,25 +30,25 @@ const GameSelector = React.memo(({ onGameSelected, apiBaseUrl }) => {
     fetchGames();
   }, [fetchGames]);
 
-  const handleGameSelect = useCallback(async (gameId) => {
+  const handleGameSelect = useCallback(async (gameFromList) => {
+    if (!gameFromList || !gameFromList.id) {
+      console.error("Game ID is missing in handleGameSelect");
+      setError("Cannot load game: Game ID is missing.");
+      return;
+    }
     setLoading(true);
     setError(null);
     
     try {
-      const response = await fetch(`${apiBaseUrl}/games/${gameId}`);
-      if (!response.ok) {
-        throw new Error(`Failed to load game: ${response.status}`);
-      }
-      
-      const gameData = await response.json();
-      onGameSelected(gameData);
+      console.log("Selecting game for per-tick replay:", gameFromList);
+      onGameSelected(gameFromList);
     } catch (err) {
-      console.error('Error loading game:', err);
+      console.error('Error selecting game:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [apiBaseUrl, onGameSelected]);
+  }, [onGameSelected]);
 
   // Memoize the game list to prevent unnecessary re-renders
   const gameList = useMemo(() => {
@@ -64,7 +64,15 @@ const GameSelector = React.memo(({ onGameSelected, apiBaseUrl }) => {
     }
 
     return games.map((game) => (
-      <div key={game.id} className="game-item">
+      <div 
+        key={game.id} 
+        className="game-item" 
+        onClick={() => !loading && handleGameSelect(game)}
+        role="button" 
+        tabIndex={loading ? -1 : 0}
+        onKeyPress={(e) => !loading && e.key === 'Enter' && handleGameSelect(game)}
+        aria-disabled={loading}
+      >
         <div className="game-info">
           <h4>{game.name}</h4>
           <div className="game-details">
@@ -74,7 +82,10 @@ const GameSelector = React.memo(({ onGameSelected, apiBaseUrl }) => {
           </div>
         </div>
         <button 
-          onClick={() => handleGameSelect(game.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleGameSelect(game);
+          }}
           className="select-game-button"
           disabled={loading}
         >

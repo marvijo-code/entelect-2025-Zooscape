@@ -89,14 +89,14 @@
 
 /* Game Item Cards */
 .game-item {
-  padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid #333;
+  background-color: #282c34;
+  transition: background-color 0.2s ease-in-out;
   cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  background: var(--surface-secondary);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .game-item:last-child {
@@ -125,9 +125,7 @@
 }
 
 .game-item:hover {
-  background: var(--surface-tertiary);
-  transform: translateX(4px);
-  box-shadow: var(--shadow-small);
+  background-color: #3a3f47;
 }
 
 .game-item:hover::before {
@@ -147,6 +145,22 @@
 
 .game-item:active {
   transform: translateX(2px) scale(0.98);
+}
+
+/* Style for when the game item is focused via keyboard */
+.game-item:focus {
+  outline: 2px solid #61dafb;
+  outline-offset: -2px;
+  background-color: #3a3f47;
+}
+
+.game-item[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.game-item[aria-disabled="true"]:hover {
+  background-color: #282c34;
 }
 
 /* Game Info */

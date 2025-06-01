@@ -117,6 +117,29 @@ public static class Heuristics
         score += HeuristicsImpl.DirectionalVariety(state, me, move) * WEIGHTS.DirectionalVariety;
         score += HeuristicsImpl.EmptyCellAvoidance(state, me, move) * WEIGHTS.EmptyCellAvoidance;
 
+        // >>> NEW: Heuristics inspired by GatherNear bot for maze navigation
+        score += HeuristicsImpl.MoveIfIdle(state, me, move) * WEIGHTS.MoveIfIdle;
+        score +=
+            HeuristicsImpl.ChangeDirectionWhenStuck(state, me, move)
+            * WEIGHTS.ChangeDirectionWhenStuck;
+        score += HeuristicsImpl.ShortestPathToGoal(state, me, move) * WEIGHTS.ShortestPathToGoal;
+        score += HeuristicsImpl.EdgeAwareness(state, me, move) * WEIGHTS.EdgeAwareness;
+        score += HeuristicsImpl.UnoccupiedCellBonus(state, me, move) * WEIGHTS.UnoccupiedCellBonus;
+        score +=
+            HeuristicsImpl.OpponentTrailChasing(state, me, move) * WEIGHTS.OpponentTrailChasing;
+        score += HeuristicsImpl.CenterDistanceBonus(state, me, move) * WEIGHTS.CenterDistanceBonus;
+        score += HeuristicsImpl.MovementConsistency(state, me, move) * WEIGHTS.MovementConsistency;
+        score += HeuristicsImpl.TunnelNavigation(state, me, move) * WEIGHTS.TunnelNavigation;
+        score +=
+            HeuristicsImpl.EarlyGameZookeeperAvoidance(state, me, move)
+            * WEIGHTS.EarlyGameZookeeperAvoidance;
+
+        // >>> NEW: Territory control inspired heuristics for pellet area domination
+        score += HeuristicsImpl.PelletAreaControl(state, me, move) * WEIGHTS.PelletAreaControl;
+        score += HeuristicsImpl.DensityMapping(state, me, move) * WEIGHTS.DensityMapping;
+        score += HeuristicsImpl.CornerControl(state, me, move) * WEIGHTS.CornerControl;
+        score += HeuristicsImpl.AdaptivePathfinding(state, me, move) * WEIGHTS.AdaptivePathfinding;
+
         return score;
     }
 
@@ -193,20 +216,14 @@ public static class Heuristics
 
         /// <summary>Because the map is symmetrical, controlling the centre denies pellets to
         /// _all_ quadrants while minimising travel.  We give a small, smooth bonus for staying
-        /// within a Manhattan radius ≤ 2 of centre.</summary>
+        /// within a Manhattan radius ≤ 2 of centre.</summary>
         public static decimal CenterControl(GameState st, Animal me, BotAction m) //  >>> NEW
         {
             int cx = (st.Cells.Min(c => c.X) + st.Cells.Max(c => c.X)) / 2;
             int cy = (st.Cells.Min(c => c.Y) + st.Cells.Max(c => c.Y)) / 2;
             var (nx, ny) = ApplyMove(me.X, me.Y, m);
-            int d = ManhattanDistance(nx, ny, cx, cy);
-            return d switch
-            {
-                0 => 1.0m,
-                1 => 0.7m,
-                2 => 0.3m,
-                _ => 0m,
-            };
+            int distToCenter = ManhattanDistance(nx, ny, cx, cy);
+            return distToCenter <= 2 ? 0.3m : 0m;
         }
 
         private static (int x, int y) ApplyMove(int x, int y, BotAction m) =>
@@ -1220,6 +1237,486 @@ public static class Heuristics
                     // Penalize moving to empty cells when we're moving away from nearby pellets
                     if (newDist > currentDist)
                         return -1.0m * pelletCount;
+                }
+            }
+
+            return 0m;
+        }
+
+        //  ————————————————————————— **GETHERNEAR-INSPIRED HEURISTICS** —————————————————————————
+
+        /// <summary>Strongly encourage movement when idle - based on GatherNear's MoveIfIdle heuristic</summary>
+        public static decimal MoveIfIdle(GameState state, Animal me, BotAction move)
+        {
+            // Since we don't have queue info, just provide a small bonus for any movement
+            return move != default(BotAction) ? 1.0m : 0m;
+        }
+
+        /// <summary>Change direction when stuck against a wall - based on GatherNear's ChangeDirectionWhenStuck</summary>
+        public static decimal ChangeDirectionWhenStuck(GameState state, Animal me, BotAction move)
+        {
+            var (currentX, currentY) = (me.X, me.Y);
+
+            // Since we don't have action history, we'll use a simple wall detection approach
+            // Try each direction and see if any would result in hitting a wall
+            var directions = new[]
+            {
+                BotAction.Up,
+                BotAction.Down,
+                BotAction.Left,
+                BotAction.Right,
+            };
+            int blockedDirections = 0;
+
+            foreach (var dir in directions)
+            {
+                var (testX, testY) = ApplyMove(currentX, currentY, dir);
+                if (!IsTraversable(state, testX, testY))
+                {
+                    blockedDirections++;
+                }
+            }
+
+            // If we're in a tight spot with many blocked directions, reward any valid move
+            if (blockedDirections >= 2)
+            {
+                var (newX, newY) = ApplyMove(currentX, currentY, move);
+                return IsTraversable(state, newX, newY) ? 2.0m : -1.0m;
+            }
+
+            return 0m;
+        }
+
+        /// <summary>Use A* pathfinding to find optimal routes to pellets - inspired by GatherNear's pathfinding</summary>
+        public static decimal ShortestPathToGoal(GameState state, Animal me, BotAction move)
+        {
+            var (newX, newY) = ApplyMove(me.X, me.Y, move);
+            var nearestPellet = state
+                .Cells.Where(c => c.Content == CellContent.Pellet)
+                .OrderBy(c => ManhattanDistance(newX, newY, c.X, c.Y))
+                .FirstOrDefault();
+
+            if (nearestPellet == null)
+                return 0m;
+
+            // Simple heuristic: prefer moves that reduce Manhattan distance to nearest pellet
+            int currentDist = ManhattanDistance(me.X, me.Y, nearestPellet.X, nearestPellet.Y);
+            int newDist = ManhattanDistance(newX, newY, nearestPellet.X, nearestPellet.Y);
+
+            if (newDist < currentDist)
+            {
+                return 2.0m; // Bonus for getting closer to pellet
+            }
+            else if (newDist > currentDist)
+            {
+                return -1.0m; // Penalty for moving away
+            }
+
+            return 0m;
+        }
+
+        /// <summary>Stay aware of map edges and avoid getting trapped - inspired by GatherNear's edge detection</summary>
+        public static decimal EdgeAwareness(GameState state, Animal me, BotAction move)
+        {
+            var (newX, newY) = ApplyMove(me.X, me.Y, move);
+
+            // Calculate distance to nearest edge
+            int minX = state.Cells.Min(c => c.X);
+            int maxX = state.Cells.Max(c => c.X);
+            int minY = state.Cells.Min(c => c.Y);
+            int maxY = state.Cells.Max(c => c.Y);
+
+            int distToEdge = Math.Min(
+                Math.Min(newX - minX, maxX - newX),
+                Math.Min(newY - minY, maxY - newY)
+            );
+
+            // Slight penalty for being too close to edges (can limit escape routes)
+            if (distToEdge <= 1)
+            {
+                return -1.5m;
+            }
+            else if (distToEdge == 2)
+            {
+                return -0.5m;
+            }
+
+            return 0m;
+        }
+
+        /// <summary>Bonus for moving towards unoccupied/unexplored areas - inspired by GatherNear's exploration</summary>
+        public static decimal UnoccupiedCellBonus(GameState state, Animal me, BotAction move)
+        {
+            var (newX, newY) = ApplyMove(me.X, me.Y, move);
+
+            // Count how many neighboring cells around the new position are empty
+            var directions = new[]
+            {
+                (0, 1),
+                (0, -1),
+                (1, 0),
+                (-1, 0),
+                (1, 1),
+                (1, -1),
+                (-1, 1),
+                (-1, -1),
+            };
+
+            int emptyNeighbors = 0;
+            foreach (var (dx, dy) in directions)
+            {
+                int checkX = newX + dx;
+                int checkY = newY + dy;
+
+                // Check if this cell is empty (no wall, no other animals)
+                if (IsTraversable(state, checkX, checkY))
+                {
+                    bool hasAnimal = state.Animals.Any(a => a.X == checkX && a.Y == checkY);
+                    if (!hasAnimal)
+                    {
+                        emptyNeighbors++;
+                    }
+                }
+            }
+
+            // Bonus based on how many open spaces are around us (mobility)
+            return emptyNeighbors * 0.3m;
+        }
+
+        /// <summary>Track and follow opponent movement patterns - inspired by GatherNear's opponent trail chasing</summary>
+        public static decimal OpponentTrailChasing(GameState state, Animal me, BotAction move)
+        {
+            var (newX, newY) = ApplyMove(me.X, me.Y, move);
+
+            // Find the nearest opponent
+            var nearestOpponent = state
+                .Animals.Where(a => a.Id != me.Id && a.IsViable)
+                .OrderBy(a => ManhattanDistance(newX, newY, a.X, a.Y))
+                .FirstOrDefault();
+
+            if (nearestOpponent == null)
+                return 0m;
+
+            int distToOpponent = ManhattanDistance(
+                newX,
+                newY,
+                nearestOpponent.X,
+                nearestOpponent.Y
+            );
+
+            // If we're moving closer to an opponent, small bonus (but not too close to avoid capture)
+            if (distToOpponent > 3 && distToOpponent < 8)
+            {
+                int currentDist = ManhattanDistance(
+                    me.X,
+                    me.Y,
+                    nearestOpponent.X,
+                    nearestOpponent.Y
+                );
+                if (distToOpponent < currentDist)
+                {
+                    return 1.0m; // Small bonus for moving towards opponents at safe distance
+                }
+            }
+
+            return 0m;
+        }
+
+        /// <summary>Bonus for staying reasonably close to map center - inspired by GatherNear's MoveToCenterBonus</summary>
+        public static decimal CenterDistanceBonus(GameState state, Animal me, BotAction move)
+        {
+            int centerX = (state.Cells.Min(c => c.X) + state.Cells.Max(c => c.X)) / 2;
+            int centerY = (state.Cells.Min(c => c.Y) + state.Cells.Max(c => c.Y)) / 2;
+
+            var (newX, newY) = ApplyMove(me.X, me.Y, move);
+            int currentDist = ManhattanDistance(me.X, me.Y, centerX, centerY);
+            int newDist = ManhattanDistance(newX, newY, centerX, centerY);
+
+            // Small bonus for moving towards center, penalty for moving too far away
+            if (newDist < currentDist && newDist > 2) // Don't cluster exactly at center
+            {
+                return 0.8m;
+            }
+            else if (newDist > 15) // Penalty for being too far from center
+            {
+                return -0.4m;
+            }
+
+            return 0m;
+        }
+
+        /// <summary>Encourage consistent movement direction to avoid oscillation - inspired by GatherNear's consistency</summary>
+        public static decimal MovementConsistency(GameState state, Animal me, BotAction move)
+        {
+            // Without action history, we'll use a simple heuristic based on position
+            // Favor moves that continue in a straight line when possible
+
+            // Use the recent positions to infer direction (if available through static tracking)
+            string animalKey = me.Id.ToString();
+            if (_recentPositions.ContainsKey(animalKey))
+            {
+                var positions = _recentPositions[animalKey];
+                if (positions.Count >= 2)
+                {
+                    var recentPos = positions.ToArray();
+                    var lastPos = recentPos[recentPos.Length - 1];
+                    var secondLastPos = recentPos[recentPos.Length - 2];
+
+                    // Infer the recent direction
+                    int deltaX = lastPos.Item1 - secondLastPos.Item1;
+                    int deltaY = lastPos.Item2 - secondLastPos.Item2;
+
+                    BotAction inferredDirection = BotAction.Up;
+                    if (deltaX > 0)
+                        inferredDirection = BotAction.Right;
+                    else if (deltaX < 0)
+                        inferredDirection = BotAction.Left;
+                    else if (deltaY > 0)
+                        inferredDirection = BotAction.Down;
+                    else if (deltaY < 0)
+                        inferredDirection = BotAction.Up;
+
+                    // Bonus for continuing in the same direction
+                    if (move == inferredDirection)
+                    {
+                        return 0.6m;
+                    }
+
+                    // Penalty for reversing direction
+                    var opposites = new Dictionary<BotAction, BotAction>
+                    {
+                        { BotAction.Up, BotAction.Down },
+                        { BotAction.Down, BotAction.Up },
+                        { BotAction.Left, BotAction.Right },
+                        { BotAction.Right, BotAction.Left },
+                    };
+
+                    if (
+                        opposites.ContainsKey(inferredDirection)
+                        && opposites[inferredDirection] == move
+                    )
+                    {
+                        return -1.2m;
+                    }
+                }
+            }
+
+            return 0m;
+        }
+
+        /// <summary>Navigate through tight spaces and tunnels effectively - inspired by maze navigation</summary>
+        public static decimal TunnelNavigation(GameState state, Animal me, BotAction move)
+        {
+            var (newX, newY) = ApplyMove(me.X, me.Y, move);
+
+            // Count traversable neighbors around new position
+            var directions = new[] { (0, 1), (0, -1), (1, 0), (-1, 0) };
+            int traversableNeighbors = 0;
+
+            foreach (var (dx, dy) in directions)
+            {
+                if (IsTraversable(state, newX + dx, newY + dy))
+                {
+                    traversableNeighbors++;
+                }
+            }
+
+            // If we're in a tunnel (only 2 directions available), encourage continuing
+            if (traversableNeighbors == 2)
+            {
+                return 1.0m; // Bonus for tunnel navigation
+            }
+
+            // If we have many options, we're in an open area
+            if (traversableNeighbors >= 3)
+            {
+                return 0.4m; // Small bonus for being in open areas with options
+            }
+
+            return 0m;
+        }
+
+        /// <summary>Move away from zookeeper at game start when it's in the center - critical early survival</summary>
+        public static decimal EarlyGameZookeeperAvoidance(
+            GameState state,
+            Animal me,
+            BotAction move
+        )
+        {
+            // Only apply this heuristic in the first 10 ticks of the game
+            if (state.Tick > 10)
+                return 0m;
+
+            // Calculate map center (where zookeeper starts)
+            int centerX = (state.Cells.Min(c => c.X) + state.Cells.Max(c => c.X)) / 2;
+            int centerY = (state.Cells.Min(c => c.Y) + state.Cells.Max(c => c.Y)) / 2;
+
+            var (newX, newY) = ApplyMove(me.X, me.Y, move);
+
+            // Calculate current and new distances from center
+            int currentDistFromCenter = ManhattanDistance(me.X, me.Y, centerX, centerY);
+            int newDistFromCenter = ManhattanDistance(newX, newY, centerX, centerY);
+
+            // Strong bonus for moving away from center, strong penalty for moving toward it
+            if (newDistFromCenter > currentDistFromCenter)
+            {
+                return 5.0m; // Strong bonus for moving away from center at start
+            }
+            else if (newDistFromCenter < currentDistFromCenter)
+            {
+                return -3.0m; // Strong penalty for moving toward center at start
+            }
+
+            // Additional bonus if we're still very close to center (emergency escape)
+            if (currentDistFromCenter <= 3)
+            {
+                return 2.0m; // Extra urgency to get away
+            }
+
+            return 0m;
+        }
+
+        // >>> NEW: Territory control inspired heuristics for pellet area domination
+
+        /// <summary>Control key areas that have high pellet density - inspired by territory control</summary>
+        public static decimal PelletAreaControl(GameState state, Animal me, BotAction move)
+        {
+            var (newX, newY) = ApplyMove(me.X, me.Y, move);
+
+            // Find areas with highest pellet concentration within a radius
+            int radius = 4;
+            int pelletsInArea = 0;
+
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dy = -radius; dy <= radius; dy++)
+                {
+                    int checkX = newX + dx;
+                    int checkY = newY + dy;
+
+                    if (
+                        state.Cells.Any(c =>
+                            c.X == checkX && c.Y == checkY && c.Content == CellContent.Pellet
+                        )
+                    )
+                    {
+                        pelletsInArea++;
+                    }
+                }
+            }
+
+            // Bonus for moving into areas with many pellets nearby
+            return pelletsInArea * 0.2m;
+        }
+
+        /// <summary>Map and prioritize high-density pellet areas - like territory value calculation</summary>
+        public static decimal DensityMapping(GameState state, Animal me, BotAction move)
+        {
+            var (newX, newY) = ApplyMove(me.X, me.Y, move);
+
+            // Calculate local pellet density
+            var nearbyPellets = state
+                .Cells.Where(c => c.Content == CellContent.Pellet)
+                .Where(c => ManhattanDistance(newX, newY, c.X, c.Y) <= 3)
+                .ToList();
+
+            if (!nearbyPellets.Any())
+                return 0m;
+
+            // Calculate density (pellets per unit area)
+            decimal density = nearbyPellets.Count / 9.0m; // 3x3 area
+
+            return density * 1.5m;
+        }
+
+        /// <summary>Control map corners for strategic advantage - inspired by GatherNear's corner strategies</summary>
+        public static decimal CornerControl(GameState state, Animal me, BotAction move)
+        {
+            var (newX, newY) = ApplyMove(me.X, me.Y, move);
+
+            // Get map boundaries
+            int minX = state.Cells.Min(c => c.X);
+            int maxX = state.Cells.Max(c => c.X);
+            int minY = state.Cells.Min(c => c.Y);
+            int maxY = state.Cells.Max(c => c.Y);
+
+            // Check if we're moving towards a corner
+            bool nearCorner =
+                (newX <= minX + 2 || newX >= maxX - 2) && (newY <= minY + 2 || newY >= maxY - 2);
+
+            if (nearCorner)
+            {
+                // Count pellets in corner areas
+                int cornerPellets = state
+                    .Cells.Where(c => c.Content == CellContent.Pellet)
+                    .Where(c =>
+                        (c.X <= minX + 3 || c.X >= maxX - 3) && (c.Y <= minY + 3 || c.Y >= maxY - 3)
+                    )
+                    .Count();
+
+                return cornerPellets > 0 ? 1.5m : 0.3m; // Bonus if corner has pellets
+            }
+
+            return 0m;
+        }
+
+        /// <summary>Adapt pathfinding based on game state - inspired by dynamic strategy adjustment</summary>
+        public static decimal AdaptivePathfinding(GameState state, Animal me, BotAction move)
+        {
+            var (newX, newY) = ApplyMove(me.X, me.Y, move);
+
+            // Adapt strategy based on game progress
+            int totalPellets = state.Cells.Count(c => c.Content == CellContent.Pellet);
+            int viableOpponents = state.Animals.Count(a => a.Id != me.Id && a.IsViable);
+
+            // Early game: focus on exploration
+            if (totalPellets > 100)
+            {
+                // Bonus for moving to unexplored areas
+                bool isUnexplored = !state.Animals.Any(a =>
+                    ManhattanDistance(a.X, a.Y, newX, newY) < 3
+                );
+                return isUnexplored ? 1.0m : 0m;
+            }
+            // Mid game: balanced approach
+            else if (totalPellets > 30)
+            {
+                // Balance between efficiency and safety
+                var nearestPellet = state
+                    .Cells.Where(c => c.Content == CellContent.Pellet)
+                    .OrderBy(c => ManhattanDistance(newX, newY, c.X, c.Y))
+                    .FirstOrDefault();
+
+                if (nearestPellet != null)
+                {
+                    int distToPellet = ManhattanDistance(
+                        newX,
+                        newY,
+                        nearestPellet.X,
+                        nearestPellet.Y
+                    );
+                    return distToPellet <= 2 ? 0.8m : 0m;
+                }
+            }
+            // Endgame: aggressive pellet collection
+            else
+            {
+                // Prioritize getting the last pellets
+                var nearestPellet = state
+                    .Cells.Where(c => c.Content == CellContent.Pellet)
+                    .OrderBy(c => ManhattanDistance(newX, newY, c.X, c.Y))
+                    .FirstOrDefault();
+
+                if (nearestPellet != null)
+                {
+                    int currentDist = ManhattanDistance(
+                        me.X,
+                        me.Y,
+                        nearestPellet.X,
+                        nearestPellet.Y
+                    );
+                    int newDist = ManhattanDistance(newX, newY, nearestPellet.X, nearestPellet.Y);
+                    return newDist < currentDist ? 2.0m : -0.5m;
                 }
             }
 

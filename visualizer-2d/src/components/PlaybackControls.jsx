@@ -11,7 +11,8 @@ const PlaybackControls = ({
   onSetFrame,
   onSpeedChange,
   onRestart,
-  onExitReplay
+  onExitReplay,
+  isFetchingTick
 }) => {
   const [speed, setSpeed] = useState(1.0);
   
@@ -31,13 +32,28 @@ const PlaybackControls = ({
         <button onClick={onRestart} className="control-button" title="Restart">
           ⏮
         </button>
-        <button onClick={onRewind} className="control-button" title="Previous frame">
+        <button 
+          onClick={onRewind} 
+          className="control-button" 
+          title="Previous frame"
+          disabled={isFetchingTick}
+        >
           ⏪
         </button>
-        <button onClick={onPlayPause} className="control-button play-pause-button" title={isPlaying ? "Pause" : "Play"}>
+        <button 
+          onClick={onPlayPause} 
+          className="control-button play-pause-button" 
+          title={isPlaying ? "Pause" : "Play"}
+          disabled={isFetchingTick}
+        >
           {isPlaying ? '⏸' : '▶'}
         </button>
-        <button onClick={onForward} className="control-button" title="Next frame">
+        <button 
+          onClick={onForward} 
+          className="control-button" 
+          title="Next frame"
+          disabled={isFetchingTick}
+        >
           ⏩
         </button>
         
@@ -49,10 +65,17 @@ const PlaybackControls = ({
             max={totalFrames > 0 ? totalFrames - 1 : 0}
             value={currentFrame}
             onChange={handleSliderChange}
+            disabled={isFetchingTick}
           />
         </div>
         
-        <span className="frame-counter">{currentFrame + 1}/{totalFrames}</span>
+        <span className="frame-counter">
+          {isFetchingTick ? (
+            <span className="loading-indicator">Loading...</span>
+          ) : (
+            `${currentFrame + 1}/${totalFrames}`
+          )}
+        </span>
         
         <div className="speed-controls">
           <select 

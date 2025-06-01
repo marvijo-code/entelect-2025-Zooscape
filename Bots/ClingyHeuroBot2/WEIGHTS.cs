@@ -2,7 +2,6 @@ namespace HeuroBot;
 
 public static class WEIGHTS
 {
-    // Original heuristic weights
     public const decimal DistanceToGoal = 1.0m;
     public const decimal OpponentProximity = -0.8m;
     public const decimal ResourceClustering = 0.5m;
@@ -55,4 +54,20 @@ public static class WEIGHTS
     public const decimal PelletRace = 1.1m;
     public const decimal RecalcWindowSafety = 0.8m;
     public const decimal CenterControl = 0.6m;
+
+    public const decimal MoveIfIdle = 3.0m;
+    public const decimal ChangeDirectionWhenStuck = 2.5m;
+    public const decimal ShortestPathToGoal = 1.8m;
+    public const decimal EdgeAwareness = 0.7m;
+    public const decimal UnoccupiedCellBonus = 1.0m;
+    public const decimal OpponentTrailChasing = 0.5m;
+    public const decimal CenterDistanceBonus = 0.4m;
+    public const decimal MovementConsistency = 0.8m;
+    public const decimal TunnelNavigation = 1.2m;
+    public const decimal EarlyGameZookeeperAvoidance = 4.0m;
+
+    public const decimal PelletAreaControl = 1.6m;
+    public const decimal DensityMapping = 1.3m;
+    public const decimal CornerControl = 0.9m;
+    public const decimal AdaptivePathfinding = 1.1m;
 }

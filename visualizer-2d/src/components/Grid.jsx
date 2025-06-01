@@ -2,6 +2,14 @@ import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 // Import from the new JavaScript models file
 import { CellContent } from '../models.js'; 
 
+// Performance optimization constants
+const RENDER_OPTIMIZATION = {
+  USE_TRANSFORM: true,  // Use CSS transforms instead of top/left for better performance
+  WILL_CHANGE: true,    // Use will-change CSS property for GPU acceleration
+  CONTAIN: true,        // Use CSS containment for better rendering isolation
+  BATCH_SIZE: 100       // Process entities in batches to avoid blocking the main thread
+};
+
 /**
  * @param {object} props
  * @param {Array} props.cells - Array of cell objects
@@ -13,6 +21,7 @@ import { CellContent } from '../models.js';
 const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap = {}, showDetails = false }) => {
   // Early return BEFORE any hooks to avoid Rules of Hooks violation
   if (!cells || cells.length === 0) {
+    console.log("Grid component: No cells provided, showing loading message");
     return (
       <div className="grid-loading">
         <p>Waiting for grid data...</p>
@@ -20,6 +29,9 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       </div>
     );
   }
+
+  console.log(`Grid component received: ${cells.length} cells, ${animals.length} animals, ${zookeepers.length} zookeepers`);
+  console.log("Grid component sample cells:", cells.slice(0, 3));
 
   const containerRef = useRef(null);
   const [tileSize, setTileSize] = useState(20); // Default tile size, increased from 15
@@ -72,21 +84,25 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
   }, [cells, getCellX, getCellY]);
 
   // Debug logging to help diagnose grid content issues - only log when data changes
+  // Reduced logging frequency to improve performance
   useEffect(() => {
-    if (cells.length > 0) {
+    if (cells.length > 0 && cells.length % 10 === 0) { // Only log every 10th update
       console.log("Grid data debug:", {
         cellsLength: cells.length,
         animalsLength: animals.length,
         zookeepersLength: zookeepers.length,
         maxX,
-        maxY
+        maxY,
+        tileSize
       });
     }
-  }, [cells.length, animals.length, zookeepers.length, maxX, maxY]);
+  }, [cells.length, animals.length, zookeepers.length, maxX, maxY, tileSize]);
 
-  // Calculate the optimal tile size based on container dimensions
+  // Calculate the optimal tile size based on container dimensions - optimized with debounce
   useEffect(() => {
     if (!containerRef.current) return;
+    
+    let resizeTimeout;
     
     const updateSize = () => {
       const containerWidth = containerRef.current.clientWidth;
@@ -104,18 +120,25 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       // Use Math.floor to avoid overflow, cap at 40px maximum
       const newTileSize = Math.floor(Math.min(maxTileWidth, maxTileHeight, 40));
       
-      setTileSize(Math.max(newTileSize, 8)); // Minimum tile size of 8px
+      setTileSize(Math.max(newTileSize, 12)); // Increased minimum tile size from 8px to 12px
+    };
+    
+    // Debounced resize handler
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(updateSize, 100);
     };
     
     // Initial size calculation
     updateSize();
     
     // Add resize observer to handle container size changes
-    const resizeObserver = new ResizeObserver(updateSize);
+    const resizeObserver = new ResizeObserver(debouncedResize);
     resizeObserver.observe(containerRef.current);
     
     // Cleanup
     return () => {
+      clearTimeout(resizeTimeout);
       if (containerRef.current) {
         resizeObserver.unobserve(containerRef.current);
       }
@@ -126,25 +149,38 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
   const gridWidth = (maxX + 1) * tileSize;
   const gridHeight = (maxY + 1) * tileSize;
 
+  console.log(`Grid dimensions: ${gridWidth}x${gridHeight} (maxX=${maxX}, maxY=${maxY}, tileSize=${tileSize})`);
+  console.log(`Container size: ${containerSize.width}x${containerSize.height}`);
+
+  // Debug: Check if we have cells across different X coordinates
+  const uniqueXCoords = new Set();
+  const uniqueYCoords = new Set();
+  cells.slice(0, 100).forEach(cell => {
+    uniqueXCoords.add(getCellX(cell));
+    uniqueYCoords.add(getCellY(cell));
+  });
+  console.log(`Unique X coordinates (first 100 cells): [${Array.from(uniqueXCoords).sort((a,b) => a-b).slice(0, 10).join(', ')}...]`);
+  console.log(`Unique Y coordinates (first 100 cells): [${Array.from(uniqueYCoords).sort((a,b) => a-b).slice(0, 10).join(', ')}...]`);
+
   // Memoize cell color function
   const getCellColor = useCallback((content) => {
     switch (content) {
       case CellContent.Wall:
       case 1: // Numeric value for Wall
-        return 'grey';
+        return '#404040'; // Darker grey for better visibility
       case CellContent.Pellet:
       case 2: // Numeric value for Pellet
-        return 'yellow';
+        return '#FFD700'; // Gold color for pellets
       case CellContent.AnimalSpawn:
       case 3: // Numeric value for AnimalSpawn
-        return 'lightblue';
+        return '#87CEEB'; // Sky blue
       case CellContent.ZookeeperSpawn:
       case 4: // Numeric value for ZookeeperSpawn
-        return 'lightcoral';
+        return '#F08080'; // Light coral
       case CellContent.Empty:
       case 0: // Numeric value for Empty
       default:
-        return 'white';
+        return '#F5F5F5'; // Light grey for empty cells
     }
   }, []);
   
@@ -167,34 +203,76 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
 
   // Memoize rendered cells to avoid recreating on every render
   const renderedCells = useMemo(() => {
-    return cells.map((cell, index) => {
-      const x = getCellX(cell);
-      const y = getCellY(cell);
-      const content = getCellContent(cell);
+    console.log(`Grid: Processing ${cells.length} cells for rendering`);
+    
+    // Process cells in batches to avoid blocking the main thread
+    const batchedCells = [];
+    const cellsLength = cells.length;
+    
+    for (let i = 0; i < cellsLength; i += RENDER_OPTIMIZATION.BATCH_SIZE) {
+      const batch = cells.slice(i, i + RENDER_OPTIMIZATION.BATCH_SIZE);
       
-      if (x === undefined || y === undefined) {
-        console.warn("Cell missing coordinates:", cell);
-        return null;
-      }
+      const batchElements = batch.map((cell, batchIndex) => {
+        const index = i + batchIndex;
+        const x = getCellX(cell);
+        const y = getCellY(cell);
+        const content = getCellContent(cell);
+        const color = getCellColor(content);
+        const cellBorder = '1px solid #333';
+        const zIndex = 1; // Default z-index for cells, above background
+        
+        // Debug first few cells with raw cell data
+        if (index < 5) {
+          console.log(`Cell ${index} raw data:`, cell);
+          console.log(`Cell ${index}: x=${x}, y=${y}, content=${content}, color=${color}`);
+        }
+        
+        if (x === undefined || y === undefined) {
+          console.warn(`Cell ${index} has undefined coordinates:`, cell);
+          return null;
+        }
+        
+        const positionStyle = RENDER_OPTIMIZATION.USE_TRANSFORM ? {
+          transform: `translate(${x * tileSize}px, ${y * tileSize}px)`
+        } : {
+          left: x * tileSize,
+          top: y * tileSize
+        };
+        
+        // Debug positioning for first few cells
+        if (index < 10) {
+          console.log(`Cell ${index} positioning: x=${x}, y=${y}, tileSize=${tileSize}, transform=translate(${x * tileSize}px, ${y * tileSize}px)`);
+        }
+        
+        return (
+          <div
+            key={`cell-${x}-${y}-${index}`}
+            id={`grid-cell-${x}-${y}`}
+            className={`dynamic-grid-cell cell-content-${content}`}
+            style={{
+              position: 'absolute',
+              ...positionStyle,
+              width: tileSize,
+              height: tileSize,
+              backgroundColor: color,
+              border: cellBorder,
+              boxSizing: 'border-box',
+              zIndex: zIndex, 
+              opacity: 1, // Ensure cells are opaque
+            }}
+          />
+        );
+      }).filter(Boolean); // Remove null elements
       
-      return (
-        <div
-          key={`cell-${x}-${y}-${index}`}
-          id={`grid-cell-${x}-${y}`}
-          className={`grid-cell cell-type-${content}`}
-          style={{
-            position: 'absolute', 
-            left: x * tileSize, 
-            top: y * tileSize,
-            width: tileSize, 
-            height: tileSize,
-            backgroundColor: getCellColor(content),
-            border: '1px solid #ddd', 
-            boxSizing: 'border-box',
-          }}
-        />
-      );
-    });
+      batchedCells.push(...batchElements);
+    }
+    
+    console.log(`Grid: Created ${batchedCells.length} cell elements for rendering`);
+    if (batchedCells.length > 0) {
+      console.log(`First cell element:`, batchedCells[0]);
+    }
+    
+    return batchedCells;
   }, [cells, tileSize, getCellX, getCellY, getCellContent, getCellColor]);
 
   // Memoize rendered animals
@@ -376,19 +454,28 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
   }, [zookeepers, tileSize, showDetails, hoveredEntity, getEntityId, getEntityX, getEntityY, getEntityNickname]);
 
   return (
-    <div className="grid-container" id="grid-main-container" ref={containerRef} style={{ height: '100%', width: '100%' }}>
-      <div className="grid-layout" id="grid-cells-layout" style={{ 
-        width: gridWidth, 
-        height: gridHeight 
-      }}>
-        {/* Render Cells */}
+    <div className="grid-container" ref={containerRef}>
+      <div 
+        className="grid"
+        style={{
+          position: 'relative',
+          width: `${gridWidth}px`,
+          height: `${gridHeight}px`,
+          willChange: RENDER_OPTIMIZATION.WILL_CHANGE ? 'transform' : 'auto',
+          contain: RENDER_OPTIMIZATION.CONTAIN ? 'layout style paint' : 'none',
+          transform: 'translateZ(0)', // Force GPU acceleration
+        }}
+      >
         {renderedCells}
-        
-        {/* Render Animals */}
         {renderedAnimals}
-        
-        {/* Render Zookeepers */}
         {renderedZookeepers}
+        
+        {/* Hover tooltip */}
+        {hoveredEntity && (
+          <div className="entity-tooltip">
+            {hoveredEntity}
+          </div>
+        )}
       </div>
     </div>
   );

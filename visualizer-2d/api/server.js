@@ -208,6 +208,60 @@ app.get('/api/games/:gameId', async (req, res) => {
   }
 });
 
+// Endpoint to get a specific game state by tick for replay
+app.get('/api/replay/:gameId/:tick', async (req, res) => {
+  try {
+    const { gameId, tick } = req.params;
+    const logFileName = `${tick}.json`;
+    const logFilePath = path.join(LOGS_DIR, gameId, logFileName);
+    console.log(`API: Fetching replay state for game: ${gameId}, tick: ${tick}`);
+
+    const gameState = await getCachedData(`replay-${gameId}-${tick}`, async () => {
+      try {
+        await fs.access(logFilePath); // Check if file exists
+      } catch {
+        // This error will be caught by the outer try-catch, leading to a 404 if specific handling is needed
+        // Or, we can throw a custom error to be more specific if getCachedData doesn't propagate it well
+        console.warn(`Log file not found: ${logFilePath}`);
+        return null; // Indicate not found to be handled by the caller
+      }
+
+      const state = await readJsonFile(logFilePath);
+      if (!state) {
+        return null; // Indicate error or not found
+      }
+
+      // Normalize property case for frontend compatibility
+      const normalized = { ...state };
+      if (state.Animals && !state.animals) normalized.animals = state.Animals;
+      else if (state.animals && !state.Animals) normalized.Animals = state.animals;
+      
+      if (state.Cells && !state.cells) normalized.cells = state.Cells;
+      else if (state.cells && !state.Cells) normalized.Cells = state.cells;
+      
+      if (state.Zookeepers && !state.zookeepers) normalized.zookeepers = state.Zookeepers;
+      else if (state.zookeepers && !state.Zookeepers) normalized.Zookeepers = state.zookeepers;
+      
+      // Add filePath for consistency if needed, though less relevant for single tick
+      normalized.filePath = `${gameId}/${logFileName}`;
+      normalized.gameId = gameId;
+      normalized.tick = parseInt(tick, 10);
+
+      return normalized;
+    });
+
+    if (!gameState) {
+      return res.status(404).json({ error: 'Game state for the specified tick not found' });
+    }
+
+    res.json(gameState);
+
+  } catch (error) {
+    console.error(`Error getting replay state for game ${req.params.gameId}, tick ${req.params.tick}:`, error);
+    res.status(500).json({ error: 'Failed to get replay game state' });
+  }
+});
+
 // Legacy endpoints for backward compatibility
 app.get('/api/log_runs', async (req, res) => {
   try {

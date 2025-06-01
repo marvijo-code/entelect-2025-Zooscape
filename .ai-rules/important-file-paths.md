@@ -12,4 +12,12 @@ This file tracks important and frequently accessed file paths within the project
 
 ## Scripts
 
-- `RunAllScript`: ra-run-all.ps1 
+- `RunAllScript`: ra-run-all.ps1
+
+## React Visualizer Components
+
+- `VisualizerApp`: visualizer-2d/src/App.jsx
+- `VisualizerGrid`: visualizer-2d/src/components/Grid.jsx
+- `VisualizerGameSelector`: visualizer-2d/src/components/GameSelector.jsx
+- `VisualizerAppCSS`: visualizer-2d/src/App.css
+- `VisualizerGameSelectorCSS`: visualizer-2d/src/styles/GameSelector.css 

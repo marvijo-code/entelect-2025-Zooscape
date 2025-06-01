@@ -66,7 +66,8 @@ try {
     # Start API as a background job with nodemon for hot-reloading
     $apiJob = Start-Job -ScriptBlock {
         Set-Location $using:ApiDir
-        vite
+        # Call nodemon directly from node_modules/.bin
+        & ".\node_modules\.bin\nodemon.cmd" --watch ./ server.js
     }
     Write-Host "API server started as job $($apiJob.Id)"
 } finally {
