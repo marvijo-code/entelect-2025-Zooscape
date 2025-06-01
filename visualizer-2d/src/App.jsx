@@ -51,22 +51,35 @@ const App = () => {
   const playbackTimerRef = useRef(null);
   const [processingQueue, setProcessingQueue] = useState([]);
   const processingTimeoutRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const fetchAndDisplayReplayTick = useCallback(async (gameId, tickNumber) => {
     if (isFetchingTick) return;
     setIsFetchingTick(true);
     setError(null);
     console.log(`Fetching replay tick: ${gameId}, tick number: ${tickNumber}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      console.warn(`Fetch for tick ${tickNumber} timed out after 15 seconds.`);
+    }, 15000); // 15 seconds timeout
+
     try {
       // API ticks are 1-based, internal (currentReplayTick) is 0-based
       const apiTickNumber = tickNumber + 1;
       const url = `${API_BASE_URL}/replay/${gameId}/${apiTickNumber}`;
       console.log(`Making API request to: ${url}`);
       
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId); // Clear timeout if fetch completes in time
+      
       console.log(`API response status: ${response.status}`);
       
       if (!response.ok) {
+        if (response.statusText === 'Aborted') { // Or check controller.signal.aborted
+             throw new Error(`Fetch aborted for tick ${apiTickNumber}: Request timed out.`);
+        }
         const errorText = await response.text();
         console.error(`API error response: ${errorText}`);
         throw new Error(`Failed to fetch tick ${apiTickNumber} for game ${gameId}: ${response.status} ${errorText}`);
@@ -117,6 +130,7 @@ const App = () => {
       setError(null);
       console.log(`Successfully processed tick ${tickNumber} (API tick ${apiTickNumber})`);
     } catch (e) {
+      clearTimeout(timeoutId); // Ensure timeout is cleared on any error
       console.error("Error fetching replay tick:", e);
       setError(`Failed to load tick ${tickNumber + 1}: ${e.message}`);
       setAllGameStates([]); // Clear states on error
@@ -124,34 +138,49 @@ const App = () => {
     setIsFetchingTick(false);
   }, [isFetchingTick, animalColors, animalColorMap, API_BASE_URL]);
 
-  const handleGameSelected = useCallback(async (game) => { // game object from GameSelector now contains id, name, tickCount etc.
-    if (!game || !game.id) {
-      setError('Invalid game selected.');
+  const handleReplayGame = useCallback(async (gameData) => {
+    console.log(`Starting replay for game:`, gameData);
+    
+    // Handle both game object and gameId string
+    const gameId = typeof gameData === 'string' ? gameData : gameData.id;
+    const gameName = typeof gameData === 'string' ? gameData : (gameData.name || `Game ${gameData.id}`);
+    const tickCount = typeof gameData === 'object' && gameData.tickCount ? gameData.tickCount : 0;
+    
+    console.log("handleReplayGame - Received gameData:", gameData); // DEBUG LINE
+    console.log("handleReplayGame - Extracted tickCount:", tickCount); // DEBUG LINE
+    
+    if (!gameId) {
+      setError('Invalid game selected - no ID found');
       return;
     }
-    console.log(`Game selected for replay:`, game); // More detailed logging
-    console.log(`Game properties - ID: ${game.id}, Name: ${game.name}, TickCount: ${game.tickCount}`);
     
-    setShowReplayMode(true);
-    setIsReplaying(true);
-    setIsPlaying(false); // Start paused
-    setGameInitialized(true); // Game is considered initialized once a replay is selected
-    setError(null);
-
-    setReplayGameId(game.id);
-    setReplayTickCount(game.tickCount || 0); // Ensure tickCount is a number
-    setReplayingGameName(game.name || `Game ${game.id}`);
-    setCurrentReplayTick(0); // Start from the first tick
-    setAllGameStates([]); // Clear any previous game states
-    
-    // Fetch the first tick to start
-    console.log(`About to fetch first tick for game ${game.id}`);
     try {
-      await fetchAndDisplayReplayTick(game.id, 0);
-      console.log(`Successfully loaded first tick for game ${game.id}`);
+      setSelectedFile(gameId); // Store the game ID as the selected file path
+      setReplayingGameName(gameName); // Store the game name
+      setReplayGameId(gameId); // <--- FIX: Set replayGameId so controls work
+      setShowReplayMode(true);
+      setIsReplaying(true);
+      setIsPlaying(false); // Start paused
+      setGameInitialized(true); // Game is considered initialized once a replay is selected
+      setCurrentReplayTick(0);
+      setError(null);
+      
+      // Use tick count from game object instead of making API call
+      setReplayTickCount(tickCount);
+      
+      // Load initial tick
+      await fetchAndDisplayReplayTick(gameId, 0);
+      
+      console.log(`Replay initialized for ${gameId}, total ticks: ${tickCount}`);
     } catch (error) {
-      console.error(`Failed to load initial replay tick for game ${game.id}:`, error);
-      setError(`Failed to load initial replay tick: ${error.message}`);
+      console.error('Error starting replay:', error);
+      setError(`Failed to start replay: ${error.message}`);
+      // Reset replay state on error
+      setShowReplayMode(false);
+      setIsReplaying(false);
+      setSelectedFile(null);
+      setReplayingGameName('');
+      setGameInitialized(false);
     }
   }, [fetchAndDisplayReplayTick]);
 
@@ -221,7 +250,7 @@ const App = () => {
   const gridData = useMemo(() => {
     if (!currentGameState) {
       console.log("No currentGameState available for grid");
-      return { cells: [], animals: [], zookeepers: [] };
+      return { cells: [], animals: [], zookeepers: [], leaderBoard: {} };
     }
     
     console.log("Current game state keys:", Object.keys(currentGameState));
@@ -230,8 +259,11 @@ const App = () => {
     const cells = currentGameState.cells || currentGameState.Cells || [];
     const animals = currentGameState.animals || currentGameState.Animals || [];
     const zookeepers = currentGameState.zookeepers || currentGameState.Zookeepers || [];
+    // Ensure LeaderBoard is an object, even if missing or null in currentGameState
+    const leaderBoard = currentGameState.LeaderBoard || currentGameState.leaderBoard || {};
     
     console.log(`Grid data extracted - Cells: ${cells.length}, Animals: ${animals.length}, Zookeepers: ${zookeepers.length}`);
+    console.log(`LeaderBoard data for Grid:`, leaderBoard);
     
     if (cells.length === 0) {
       console.warn("No cells found in game state. Available properties:", Object.keys(currentGameState));
@@ -251,7 +283,8 @@ const App = () => {
     return {
       cells,
       animals,
-      zookeepers
+      zookeepers,
+      leaderBoard // Pass the per-tick LeaderBoard data
     };
   }, [currentGameState]);
 
@@ -620,30 +653,21 @@ const App = () => {
   }, [showReplayMode, replayGameId, fetchAndDisplayReplayTick]);
   
   const handleExitReplay = useCallback(() => {
-    // Clear replay mode flags
+    console.log('Exiting replay mode');
     setShowReplayMode(false);
     setIsReplaying(false);
     setIsPlaying(false);
-    
-    // Clear replay data
-    setAllGameStates([]);
-    setCurrentDisplayIndex(0);
-    setReplayGameId(null);
-    setReplayTickCount(0);
     setCurrentReplayTick(0);
-    setReplayingGameName(null);
-    
-    // Reset game state
-    setGameInitialized(false);
-    setIsGameOver(false);
-    setAnimalColorMap({});
+    setReplayTickCount(0);
+    setReplayGameId(null);
+    setReplayingGameName('');
+    setSelectedFile(null); // Clear selected file
+    setCurrentGameState(null);
+    setAllGameStates([]);
     setError(null);
     
-    // Clear any pending timers
-    if (playbackTimerRef.current) {
-      clearTimeout(playbackTimerRef.current);
-      playbackTimerRef.current = null;
-    }
+    // Reset the active tab back to Live Feed when exiting replay
+    setActiveTabIndex(0);
   }, []);
   
   const handleEnterReplayMode = useCallback(() => {
@@ -719,6 +743,77 @@ const App = () => {
     return currentGameState.tick !== undefined ? currentGameState.tick : currentGameState.Tick || 0;
   }, [currentGameState]);
 
+  // Memoize per-tick scoreboard for replay mode
+  const perTickScoreboard = useMemo(() => {
+    if (!isReplaying || !currentGameState) {
+      return null;
+    }
+
+    const animals = currentGameState.animals || currentGameState.Animals || [];
+    const leaderBoard = currentGameState.LeaderBoard || currentGameState.leaderBoard || {};
+    
+    let scoresData = [];
+
+    // Try to get scores from leaderBoard first
+    if (leaderBoard && Object.keys(leaderBoard).length > 0) {
+      // Create a mapping of animal IDs to nicknames for quick lookup
+      const animalIdToNickname = animals.reduce((acc, animal) => {
+        const id = animal.id || animal.Id;
+        const nickname = animal.nickname || animal.Nickname || `Bot-${id}`;
+        if (id) {
+          acc[id] = nickname;
+        }
+        return acc;
+      }, {});
+
+      scoresData = Object.entries(leaderBoard)
+        .map(([id, score]) => ({
+          id,
+          nickname: animalIdToNickname[id] || `Bot-${id.substring(0, 6)}...`,
+          score
+        }))
+        .sort((a, b) => b.score - a.score);
+    } else if (animals && animals.length > 0) {
+      // Try to get scores directly from animals array
+      scoresData = animals
+        .map((animal) => {
+          const id = animal.id || animal.Id;
+          const nickname = animal.nickname || animal.Nickname || `Bot-${id}`;
+          const score = animal.score || animal.Score || 0;
+          return {
+            id,
+            nickname,
+            score
+          };
+        })
+        .filter(entry => entry.score !== undefined && entry.score !== null)
+        .sort((a, b) => b.score - a.score);
+    }
+
+    if (scoresData.length === 0) {
+      return (
+        <div className="replay-scoreboard">
+          <h4>Current Scores</h4>
+          <p>No scores available</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="replay-scoreboard">
+        <h4>Current Scores</h4>
+        <ul>
+          {scoresData.map((entry, index) => (
+            <li key={entry.id || index}>
+              <span>{index + 1}. {entry.nickname}:</span>
+              <span>{entry.score}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }, [isReplaying, currentGameState]);
+
   // Memoize tab content based on active tab
   const tabContent = useMemo(() => {
     switch (activeTabIndex) {
@@ -734,7 +829,7 @@ const App = () => {
       case 1:
         return (
           <GameSelector 
-            onGameSelected={handleGameSelected}
+            onGameSelected={handleReplayGame}
             apiBaseUrl={API_BASE_URL}
           />
         );
@@ -749,7 +844,7 @@ const App = () => {
       default:
         return null;
     }
-  }, [activeTabIndex, leaderboardData, leaderboardLoading, leaderboardStatusMessage, fetchAggregateLeaderboardData, handleGameSelected, connection, isConnected]);
+  }, [activeTabIndex, leaderboardData, leaderboardLoading, leaderboardStatusMessage, fetchAggregateLeaderboardData, handleReplayGame, connection, isConnected]);
 
   return (
     <div className="app-container">
@@ -761,6 +856,7 @@ const App = () => {
               cells={gridData.cells}
               animals={gridData.animals}
               zookeepers={gridData.zookeepers}
+              leaderBoard={gridData.leaderBoard}
               colorMap={animalColorMap}
               showDetails={isReplaying}
             />
@@ -797,13 +893,7 @@ const App = () => {
               <span className="tick-label">Tick:</span>
               <span className="tick-value">
                 {showReplayMode ? (
-                  <>
-                    {isFetchingTick ? (
-                      <span className="loading-indicator">Loading...</span>
-                    ) : (
-                      <>{currentReplayTick + 1} / {replayTickCount}</>
-                    )}
-                  </>
+                  <>{currentReplayTick + 1} / {replayTickCount}</>
                 ) : (
                   currentTick
                 )}
@@ -833,6 +923,49 @@ const App = () => {
                 onExitReplay={showReplayMode ? handleExitReplay : null}
                 isFetchingTick={isFetchingTick}
               />
+            </div>
+          )}
+
+          {/* Per-tick Scoreboard - Only show in replay mode */}
+          {perTickScoreboard && (
+            <div className="replay-scoreboard">
+              {perTickScoreboard}
+            </div>
+          )}
+
+          {/* Current File Display - Only show in replay mode */}
+          {showReplayMode && selectedFile && (
+            <div className="current-file-display">
+              <h4>Current Replay File</h4>
+              <div className="file-info">
+                <span className="filename">
+                  {typeof selectedFile === 'string' && selectedFile.includes('/') 
+                    ? selectedFile.split('/').pop() 
+                    : selectedFile}
+                </span>
+                <button 
+                  className="copy-path-button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(selectedFile).then(() => {
+                      // Optional: Show a brief success indicator
+                      const button = document.querySelector('.copy-path-button');
+                      const originalText = button.textContent;
+                      button.textContent = '✓';
+                      setTimeout(() => {
+                        button.textContent = originalText;
+                      }, 1000);
+                    }).catch(err => {
+                      console.error('Failed to copy path:', err);
+                    });
+                  }}
+                  title={`Copy full path: ${selectedFile}`}
+                >
+                  📋
+                </button>
+              </div>
+              <div className="full-path" title={selectedFile}>
+                {selectedFile}
+              </div>
             </div>
           )}
           

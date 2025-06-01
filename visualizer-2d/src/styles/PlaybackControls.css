@@ -36,20 +36,32 @@
   background: var(--surface-tertiary);
   color: var(--text-primary);
   border: 1px solid var(--border-secondary);
-  border-radius: var(--radius-medium);
-  width: 36px;
-  height: 36px;
+  border-radius: 0;
+  width: 48px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
   padding: 0;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   box-shadow: var(--shadow-small);
   position: relative;
   overflow: hidden;
+  border-right: none;
+  margin: 0;
+}
+
+.control-button:first-child {
+  border-radius: var(--radius-medium) 0 0 var(--radius-medium);
+  border-left: 1px solid var(--border-secondary);
+}
+
+.control-button:nth-child(4) {
+  border-radius: 0 var(--radius-medium) var(--radius-medium) 0;
+  border-right: 1px solid var(--border-secondary);
 }
 
 .control-button::before {
@@ -84,10 +96,10 @@
   background: var(--accent-blue);
   border-color: var(--accent-blue);
   color: white;
-  width: 44px;
-  height: 44px;
-  font-size: 16px;
-  margin: 0 var(--spacing-sm);
+  width: 48px;
+  height: 40px;
+  font-size: 18px;
+  margin: 0;
 }
 
 .play-pause-button:hover {
@@ -241,12 +253,12 @@
 
 /* Exit Button */
 .exit-button {
-  background: var(--accent-red);
-  color: white;
-  border: 1px solid var(--accent-red);
-  width: 32px;
-  height: 32px;
+  background: var(--surface-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-secondary);
   border-radius: var(--radius-medium);
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -254,8 +266,7 @@
   transition: all 0.2s ease;
   padding: 0;
   font-size: 14px;
-  font-weight: 600;
-  margin-left: var(--spacing-sm);
+  font-weight: 500;
   box-shadow: var(--shadow-small);
 }
 

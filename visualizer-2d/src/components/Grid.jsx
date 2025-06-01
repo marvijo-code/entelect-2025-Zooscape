@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import './Grid.css'; // Import CSS for the Grid component
 // Import from the new JavaScript models file
 import { CellContent } from '../models.js'; 
 
@@ -17,8 +18,9 @@ const RENDER_OPTIMIZATION = {
  * @param {Array} props.zookeepers - Array of zookeeper objects
  * @param {object} props.colorMap - Map of animal IDs to colors
  * @param {boolean} props.showDetails - Whether to show additional details like positions and scores
+ * @param {object} props.leaderBoard - Per-tick leaderboard data
  */
-const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap = {}, showDetails = false }) => {
+const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap = {}, showDetails = false, leaderBoard = {} }) => {
   // Early return BEFORE any hooks to avoid Rules of Hooks violation
   if (!cells || cells.length === 0) {
     console.log("Grid component: No cells provided, showing loading message");
@@ -36,7 +38,8 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
   const containerRef = useRef(null);
   const [tileSize, setTileSize] = useState(20); // Default tile size, increased from 15
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const [hoveredEntity, setHoveredEntity] = useState(null); // Track which entity is being hovered
+  const [hoverInfo, setHoverInfo] = useState(null); // REPLACED: hoveredEntity with hoverInfo (object)
+  const [tooltipStyle, setTooltipStyle] = useState({ display: 'none' });
 
   // Memoize coordinate getters to avoid recreating functions on every render
   const getCellX = useCallback((cell) => cell.x !== undefined ? cell.x : cell.X, []);
@@ -105,6 +108,8 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
     let resizeTimeout;
     
     const updateSize = () => {
+      if (!containerRef.current) return; // Add null check
+      
       const containerWidth = containerRef.current.clientWidth;
       const containerHeight = containerRef.current.clientHeight;
       
@@ -201,79 +206,44 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
     }
   }, []);
 
-  // Memoize rendered cells to avoid recreating on every render
+  // Memoize rendered cells
   const renderedCells = useMemo(() => {
-    console.log(`Grid: Processing ${cells.length} cells for rendering`);
-    
-    // Process cells in batches to avoid blocking the main thread
-    const batchedCells = [];
-    const cellsLength = cells.length;
-    
-    for (let i = 0; i < cellsLength; i += RENDER_OPTIMIZATION.BATCH_SIZE) {
-      const batch = cells.slice(i, i + RENDER_OPTIMIZATION.BATCH_SIZE);
+    return cells.map((cell, index) => { // Simplified map, index is from the original cells array
+      const x = getCellX(cell);
+      const y = getCellY(cell);
+      const content = getCellContent(cell);
+      const color = getCellColor(content);
+      const cellBorder = '1px solid #333';
+      const zIndex = 1; // Default z-index for cells, above background
       
-      const batchElements = batch.map((cell, batchIndex) => {
-        const index = i + batchIndex;
-        const x = getCellX(cell);
-        const y = getCellY(cell);
-        const content = getCellContent(cell);
-        const color = getCellColor(content);
-        const cellBorder = '1px solid #333';
-        const zIndex = 1; // Default z-index for cells, above background
-        
-        // Debug first few cells with raw cell data
-        if (index < 5) {
-          console.log(`Cell ${index} raw data:`, cell);
-          console.log(`Cell ${index}: x=${x}, y=${y}, content=${content}, color=${color}`);
-        }
-        
-        if (x === undefined || y === undefined) {
-          console.warn(`Cell ${index} has undefined coordinates:`, cell);
-          return null;
-        }
-        
-        const positionStyle = RENDER_OPTIMIZATION.USE_TRANSFORM ? {
-          transform: `translate(${x * tileSize}px, ${y * tileSize}px)`
-        } : {
-          left: x * tileSize,
-          top: y * tileSize
-        };
-        
-        // Debug positioning for first few cells
-        if (index < 10) {
-          console.log(`Cell ${index} positioning: x=${x}, y=${y}, tileSize=${tileSize}, transform=translate(${x * tileSize}px, ${y * tileSize}px)`);
-        }
-        
-        return (
-          <div
-            key={`cell-${x}-${y}-${index}`}
-            id={`grid-cell-${x}-${y}`}
-            className={`dynamic-grid-cell cell-content-${content}`}
-            style={{
-              position: 'absolute',
-              ...positionStyle,
-              width: tileSize,
-              height: tileSize,
-              backgroundColor: color,
-              border: cellBorder,
-              boxSizing: 'border-box',
-              zIndex: zIndex, 
-              opacity: 1, // Ensure cells are opaque
-            }}
-          />
-        );
-      }).filter(Boolean); // Remove null elements
-      
-      batchedCells.push(...batchElements);
-    }
-    
-    console.log(`Grid: Created ${batchedCells.length} cell elements for rendering`);
-    if (batchedCells.length > 0) {
-      console.log(`First cell element:`, batchedCells[0]);
-    }
-    
-    return batchedCells;
-  }, [cells, tileSize, getCellX, getCellY, getCellContent, getCellColor]);
+      if (x === undefined || y === undefined) return null;
+
+      const positionStyle = RENDER_OPTIMIZATION.USE_TRANSFORM ? 
+        { transform: `translate(${x * tileSize}px, ${y * tileSize}px)` } : 
+        { left: x * tileSize, top: y * tileSize };
+
+      return (
+        <div
+          key={`cell-${x}-${y}-${index}`}
+          id={`grid-cell-${x}-${y}`}
+          className={`dynamic-grid-cell cell-content-${content}`}
+          onMouseEnter={() => setHoverInfo({ type: 'cell', x, y })} // MODIFIED
+          onMouseLeave={() => setHoverInfo(null)}                   // MODIFIED
+          style={{
+            position: 'absolute',
+            ...positionStyle,
+            width: tileSize,
+            height: tileSize,
+            backgroundColor: color,
+            border: cellBorder,
+            boxSizing: 'border-box',
+            zIndex: zIndex, 
+            opacity: 1, // Ensure cells are opaque
+          }}
+        />
+      );
+    }).filter(Boolean);
+  }, [cells, tileSize, getCellX, getCellY, getCellContent, getCellColor /*, setHoverInfo (added if required by linter) */]);
 
   // Memoize rendered animals
   const renderedAnimals = useMemo(() => {
@@ -288,7 +258,7 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       }
       
       const animalNickname = getEntityNickname(animal);
-      const fontSize = Math.max(Math.floor(tileSize / 3), 8);
+      const fontSize = Math.max(Math.floor(tileSize / 2.5), 10);
       
       // Get additional stats when showDetails is true
       const animalScore = showDetails ? getEntityScore(animal) : null;
@@ -296,7 +266,7 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       const animalDistance = showDetails ? getEntityDistance(animal) : null;
       
       // Check if this animal is being hovered
-      const isHovered = hoveredEntity === `animal-${animalId || animalIndex}`;
+      const isHovered = hoverInfo && hoverInfo.type === 'animal' && (hoverInfo.id === animalId || hoverInfo.index === animalIndex);
       
       // Prepare the detail text
       let detailText = animalNickname;
@@ -326,7 +296,8 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
           <div // Animal circle
             id={`animal-circle-${animalId || animalIndex}`}
             className="entity-marker animal-marker"
-            title={tooltipText}
+            onMouseEnter={() => setHoverInfo({ type: 'animal', id: animalId, index: animalIndex, x: animalX, y: animalY, entity: animal })} // MODIFIED
+            onMouseLeave={() => setHoverInfo(null)} // MODIFIED
             style={{
               position: 'absolute',
               left: animalX * tileSize + tileSize / 4,
@@ -342,8 +313,6 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
           <div // Animal name label
             id={`animal-label-${animalId || animalIndex}`}
             className="entity-label animal-label"
-            onMouseEnter={() => setHoveredEntity(`animal-${animalId || animalIndex}`)}
-            onMouseLeave={() => setHoveredEntity(null)}
             style={{
               position: 'absolute',
               left: animalX * tileSize + tileSize,
@@ -358,9 +327,9 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
               whiteSpace: 'nowrap',
               border: '1px solid #ccc',
               borderRadius: '3px',
-              maxWidth: showDetails ? '200px' : 'auto',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              maxWidth: showDetails ? '300px' : 'auto',
+              overflow: 'visible',
+              textOverflow: 'clip',
               transition: 'background-color 0.2s ease, opacity 0.2s ease',
               opacity: isHovered ? 1 : 0.9,
               display: 'flex',
@@ -373,7 +342,7 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
         </React.Fragment>
       );
     });
-  }, [animals, tileSize, colorMap, showDetails, hoveredEntity, getEntityId, getEntityX, getEntityY, getEntityNickname, getEntityScore, getEntityCaptured, getEntityDistance, getColorWithOpacity]);
+  }, [animals, tileSize, colorMap, showDetails, hoverInfo, getEntityId, getEntityX, getEntityY, getEntityNickname, getEntityScore, getEntityCaptured, getEntityDistance, getColorWithOpacity /*, setHoverInfo */]);
 
   // Memoize rendered zookeepers
   const renderedZookeepers = useMemo(() => {
@@ -391,7 +360,7 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       const fontSize = Math.max(Math.floor(tileSize / 3), 8);
       
       // Check if this zookeeper is being hovered
-      const isHovered = hoveredEntity === `zookeeper-${zookeeperId || zookeeperIndex}`;
+      const isHovered = hoverInfo && hoverInfo.type === 'zookeeper' && (hoverInfo.id === zookeeperId || hoverInfo.index === zookeeperIndex);
       
       // Enhanced tooltip and detail text for zookeepers in replay mode
       const tooltipText = showDetails 
@@ -407,7 +376,8 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
           <div // Zookeeper square
             id={`zookeeper-square-${zookeeperId || zookeeperIndex}`}
             className="entity-marker zookeeper-marker"
-            title={tooltipText}
+            onMouseEnter={() => setHoverInfo({ type: 'zookeeper', id: zookeeperId, index: zookeeperIndex, x: zooX, y: zooY, entity: zookeeper })} // MODIFIED
+            onMouseLeave={() => setHoverInfo(null)} // MODIFIED
             style={{
               position: 'absolute',
               left: zooX * tileSize + tileSize / 4,
@@ -423,8 +393,6 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
           <div // Zookeeper name label
             id={`zookeeper-label-${zookeeperId || zookeeperIndex}`}
             className="entity-label zookeeper-label"
-            onMouseEnter={() => setHoveredEntity(`zookeeper-${zookeeperId || zookeeperIndex}`)}
-            onMouseLeave={() => setHoveredEntity(null)}
             style={{
               position: 'absolute',
               left: zooX * tileSize + tileSize,
@@ -451,7 +419,85 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
         </React.Fragment>
       );
     });
-  }, [zookeepers, tileSize, showDetails, hoveredEntity, getEntityId, getEntityX, getEntityY, getEntityNickname]);
+  }, [zookeepers, tileSize, showDetails, hoverInfo, getEntityId, getEntityX, getEntityY, getEntityNickname /*, setHoverInfo */]);
+
+  // Memoize rendered per-tick scoreboard
+  const renderedPerTickScoreboard = useMemo(() => {
+    // Scoreboard moved to App.jsx right panel - no longer needed here
+    return null;
+  }, []);
+
+  // Effect to calculate tooltip style and content
+  useEffect(() => {
+    if (!hoverInfo) {
+      setTooltipStyle({ display: 'none' });
+      return;
+    }
+
+    const gridActualWidth = (maxX + 1) * tileSize; // Use actual grid dimensions
+    let newTop = 0;
+    let newLeft = 0;
+    let content = '';
+    let nearEdge = false;
+    const tooltipEstimatedWidth = 180; // Estimate for edge detection
+    const offset = 5; // Small gap from the element
+
+    if (hoverInfo.type === 'cell') {
+      newTop = hoverInfo.y * tileSize;
+      newLeft = (hoverInfo.x + 1) * tileSize + offset;
+      content = `(${hoverInfo.x}, ${hoverInfo.y})`;
+      if (newLeft + tooltipEstimatedWidth > gridActualWidth) {
+        nearEdge = true;
+        newLeft = hoverInfo.x * tileSize - tooltipEstimatedWidth - offset; // Position to the left
+      }
+    } else if (hoverInfo.type === 'animal' || hoverInfo.type === 'zookeeper') {
+      const entity = hoverInfo.entity;
+      const entityX = hoverInfo.x;
+      const entityY = hoverInfo.y;
+      const nickname = getEntityNickname(entity);
+      
+      newTop = entityY * tileSize; // Position relative to the entity marker
+      newLeft = (entityX + 1) * tileSize + offset; // Default to the right
+      
+      content = `${nickname} (${hoverInfo.type})`;
+      content += ` - Pos: (${entityX},${entityY})`;
+
+      if (hoverInfo.type === 'animal' && showDetails) {
+        content += ` - Scr: ${getEntityScore(entity)} - Cap: ${getEntityCaptured(entity)} - Dis: ${getEntityDistance(entity)}`;
+      }
+      
+      if (newLeft + tooltipEstimatedWidth > gridActualWidth) {
+        nearEdge = true;
+        newLeft = entityX * tileSize - tooltipEstimatedWidth - offset;
+      }
+    }
+
+    setTooltipStyle({
+      display: 'block',
+      top: `${newTop}px`,
+      left: nearEdge && newLeft < 0 ? `${offset}px` : `${newLeft}px`, // Ensure not off-screen left
+      right: nearEdge && newLeft >= 0 ? 'auto' : (nearEdge ? `${offset}px` : 'auto'), // Handle right positioning if nearEdge and newLeft is positive
+      transform: 'translateY(0)', // Simpler transform, or adjust as needed
+      // zIndex should be handled by CSS class .entity-tooltip
+    });
+    // Store content in a separate state or directly use it if tooltip component can take content as prop
+    // For simplicity, let's assume `tooltipContent` state will be set here or used by the tooltip
+  }, [hoverInfo, tileSize, maxX, animals, zookeepers, showDetails, getEntityNickname, getEntityScore, getEntityCaptured, getEntityDistance]);
+
+  // Prepare tooltipContent for rendering
+  let currentTooltipContent = '';
+  if (hoverInfo) {
+    if (hoverInfo.type === 'cell') {
+      currentTooltipContent = `(${hoverInfo.x}, ${hoverInfo.y})`;
+    } else if (hoverInfo.type === 'animal' || hoverInfo.type === 'zookeeper') {
+      const entity = hoverInfo.entity;
+      const nickname = getEntityNickname(entity);
+      currentTooltipContent = `${nickname} (${hoverInfo.type}) - Pos: (${hoverInfo.x},${hoverInfo.y})`;
+      if (hoverInfo.type === 'animal' && showDetails) {
+        currentTooltipContent += ` - Scr: ${getEntityScore(entity)} - Cap: ${getEntityCaptured(entity)} - Dis: ${getEntityDistance(entity)}`;
+      }
+    }
+  }
 
   return (
     <div className="grid-container" ref={containerRef}>
@@ -469,11 +515,15 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
         {renderedCells}
         {renderedAnimals}
         {renderedZookeepers}
+        {renderedPerTickScoreboard}
         
-        {/* Hover tooltip */}
-        {hoveredEntity && (
-          <div className="entity-tooltip">
-            {hoveredEntity}
+        {/* Hover tooltip - controlled by hoverInfo and tooltipStyle */}
+        {hoverInfo && currentTooltipContent && (
+          <div 
+            className={`entity-tooltip`} // Base class, 'right-edge' logic is now in style
+            style={tooltipStyle}
+          >
+            {currentTooltipContent}
           </div>
         )}
       </div>

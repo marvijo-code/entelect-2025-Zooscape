@@ -70,11 +70,7 @@ const PlaybackControls = ({
         </div>
         
         <span className="frame-counter">
-          {isFetchingTick ? (
-            <span className="loading-indicator">Loading...</span>
-          ) : (
-            `${currentFrame + 1}/${totalFrames}`
-          )}
+          {`${currentFrame + 1}/${totalFrames}`}
         </span>
         
         <div className="speed-controls">
