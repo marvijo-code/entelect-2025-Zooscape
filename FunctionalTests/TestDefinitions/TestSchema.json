@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Zooscape Functional Test Definition",
+  "type": "object",
+  "properties": {
+    "testName": {
+      "type": "string",
+      "description": "Descriptive name for the test case"
+    },
+    "gameStateFile": {
+      "type": "string",
+      "description": "Filename of the game state JSON (relative to GameStates directory)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description of what the test validates"
+    },
+    "botNickname": {
+      "type": "string",
+      "description": "Bot nickname to test against (optional)"
+    },
+    "expectedAction": {
+      "type": "string",
+      "enum": ["Up", "Down", "Left", "Right"],
+      "description": "Expected action from the bot (optional)"
+    },
+    "acceptableActions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["Up", "Down", "Left", "Right"]
+      },
+      "description": "List of acceptable actions (optional)"
+    },
+    "testType": {
+      "type": "string",
+      "enum": ["SingleBot", "MultiBotArray", "GameStateLoad", "TickOverride"],
+      "description": "Type of test to perform"
+    },
+    "tickOverride": {
+      "type": "boolean",
+      "description": "Whether to test tick override functionality"
+    },
+    "bots": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["ClingyHeuroBot2", "ClingyHeuroBot", "ReferenceBot"]
+      },
+      "description": "List of bot types to test with (for MultiBotArray tests)"
+    }
+  },
+  "required": ["testName", "gameStateFile", "testType"]
+} 

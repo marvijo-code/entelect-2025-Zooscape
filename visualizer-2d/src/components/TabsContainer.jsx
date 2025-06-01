@@ -11,16 +11,24 @@ const TabsContainer = React.memo(({ activeTabIndex, onTabChange, showReplayMode 
       </button>
       
       {showReplayMode ? (
-        <button 
-          className={`tab-button ${activeTabIndex === 1 ? 'active' : ''}`}
-          onClick={() => onTabChange(1)}
-        >
-          Game Selector
-        </button>
+        <>
+          <button 
+            className={`tab-button ${activeTabIndex === 1 ? 'active' : ''}`}
+            onClick={() => onTabChange(1)}
+          >
+            Game Selector
+          </button>
+          <button 
+            className={`tab-button ${activeTabIndex === 2 ? 'active' : ''}`}
+            onClick={() => onTabChange(2)}
+          >
+            Test Runner
+          </button>
+        </>
       ) : (
         <button 
-          className={`tab-button ${activeTabIndex === 2 ? 'active' : ''}`}
-          onClick={() => onTabChange(2)}
+          className={`tab-button ${activeTabIndex === 3 ? 'active' : ''}`}
+          onClick={() => onTabChange(3)}
         >
           Connection
         </button>

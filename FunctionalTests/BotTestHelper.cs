@@ -18,7 +18,7 @@ public static class BotTestHelper
     /// <param name="fileName">The JSON file name (relative to GameStates directory)</param>
     /// <param name="logger">Logger for debugging</param>
     /// <returns>Loaded GameState object</returns>
-    public static GameState LoadGameState(string fileName, ILogger logger)
+    public static GameState LoadGameState(string fileName, Serilog.ILogger logger)
     {
         try
         {

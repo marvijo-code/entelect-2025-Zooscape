@@ -19,7 +19,7 @@ public abstract class BotTestsBase
 {
     protected readonly IGameStateLoader _gameStateLoader;
     protected readonly ITestValidator _testValidator;
-    protected readonly ILogger _logger;
+    protected readonly Serilog.ILogger _logger;
 
     protected BotTestsBase()
     {
@@ -222,9 +222,9 @@ public interface ITestValidator
 /// </summary>
 public class JsonGameStateLoader : IGameStateLoader
 {
-    private readonly ILogger _logger;
+    private readonly Serilog.ILogger _logger;
 
-    public JsonGameStateLoader(ILogger logger)
+    public JsonGameStateLoader(Serilog.ILogger logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -240,9 +240,9 @@ public class JsonGameStateLoader : IGameStateLoader
 /// </summary>
 public class DefaultTestValidator : ITestValidator
 {
-    private readonly ILogger _logger;
+    private readonly Serilog.ILogger _logger;
 
-    public DefaultTestValidator(ILogger logger)
+    public DefaultTestValidator(Serilog.ILogger logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }

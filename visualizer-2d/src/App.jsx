@@ -6,6 +6,7 @@ import GameSelector from './components/GameSelector.jsx';
 import PlaybackControls from './components/PlaybackControls.jsx';
 import TabsContainer from './components/TabsContainer.jsx';
 import ConnectionDebugger from './components/ConnectionDebugger.jsx';
+import TestRunner from './components/TestRunner.jsx';
 import './App.css';
 import './styles/ConnectionDebugger.css';
 
@@ -737,6 +738,37 @@ const App = () => {
     setReplayingGameName(null);
   }, [connection]); // Added missing dependency: connection
 
+  const handleTestGameStateSelected = useCallback((gameState, displayName) => {
+    console.log("Test game state selected:", displayName);
+    
+    // Enter replay mode if not already
+    if (!showReplayMode) {
+      setShowReplayMode(true);
+      setIsReplaying(true);
+    }
+    
+    // Set the game state
+    setAllGameStates([gameState]);
+    setCurrentDisplayIndex(0);
+    setGameInitialized(true);
+    setIsPlaying(false);
+    setReplayingGameName(displayName);
+    
+    // Update animal colors
+    if (gameState.animals) {
+      const newColors = {};
+      gameState.animals.forEach((animal, index) => {
+        const animalKey = animal.id || animal.Id;
+        if (animalKey) {
+          newColors[animalKey] = animalColors[index % animalColors.length];
+        }
+      });
+      setAnimalColorMap(newColors);
+    }
+    
+    setError(null);
+  }, [showReplayMode, animalColors]);
+
   // Effect for keyboard navigation in replay mode
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -903,6 +935,13 @@ const App = () => {
         );
       case 2:
         return (
+          <TestRunner 
+            onGameStateSelected={handleTestGameStateSelected}
+            apiBaseUrl="http://localhost:5009/api"
+          />
+        );
+      case 3:
+        return (
           <ConnectionDebugger 
             connection={connection}
             isConnected={isConnected}
@@ -912,7 +951,7 @@ const App = () => {
       default:
         return null;
     }
-  }, [activeTabIndex, leaderboardData, leaderboardLoading, leaderboardStatusMessage, fetchAggregateLeaderboardData, handleReplayGame, connection, isConnected]);
+  }, [activeTabIndex, leaderboardData, leaderboardLoading, leaderboardStatusMessage, fetchAggregateLeaderboardData, handleReplayGame, handleTestGameStateSelected, connection, isConnected]);
 
   return (
     <div className="app-container">

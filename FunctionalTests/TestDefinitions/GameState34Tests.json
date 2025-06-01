@@ -1,0 +1,40 @@
+[
+  {
+    "testName": "GameState34LoadTest",
+    "gameStateFile": "34.json",
+    "testType": "GameStateLoad",
+    "description": "Validate game state 34 loads correctly"
+  },
+  {
+    "testName": "GameState34ActionTest",
+    "gameStateFile": "34.json",
+    "testType": "SingleBot",
+    "acceptableActions": ["Up", "Down", "Left", "Right"],
+    "description": "Test ClingyHeuroBot2 action on game state 34"
+  },
+  {
+    "testName": "GameState34TickOverrideTest",
+    "gameStateFile": "34.json",
+    "testType": "TickOverride",
+    "tickOverride": true,
+    "description": "Test tick override functionality"
+  },
+  {
+    "testName": "ChaseImmediatePellet_LeftOrDown_EvenWhenChased",
+    "gameStateFile": "34.json",
+    "testType": "MultiBotArray",
+    "botNickname": "MarvijoClingyExpBot",
+    "acceptableActions": ["Down", "Left"],
+    "bots": ["ClingyHeuroBot2", "ClingyHeuroBot"],
+    "description": "Chase immediate pellet - should choose Left or Down even when chased"
+  },
+  {
+    "testName": "ChaseMorePelletGroups",
+    "gameStateFile": "162.json",
+    "testType": "MultiBotArray",
+    "botNickname": "ClingyHeuroBot2",
+    "expectedAction": "Up",
+    "bots": ["ClingyHeuroBot2", "ClingyHeuroBot"],
+    "description": "Bot should choose Up action to chase more pellet groups"
+  }
+] 

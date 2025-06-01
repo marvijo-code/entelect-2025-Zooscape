@@ -1,0 +1,17 @@
+[
+  {
+    "testName": "ExampleNewTest_LoadGameState34",
+    "gameStateFile": "34.json",
+    "testType": "GameStateLoad",
+    "description": "Example test showing how to add new tests via JSON - validates game state loading"
+  },
+  {
+    "testName": "ExampleNewTest_BotMustMoveLeft",
+    "gameStateFile": "34.json",
+    "testType": "MultiBotArray",
+    "botNickname": "MarvijoClingyExpBot",
+    "expectedAction": "Left",
+    "bots": ["ClingyHeuroBot2", "ClingyHeuroBot"],
+    "description": "Example test demonstrating strict action validation - bot must choose Left"
+  }
+] 
