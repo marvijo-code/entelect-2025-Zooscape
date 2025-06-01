@@ -14,7 +14,7 @@ public record TestParams
     /// <summary>
     /// Descriptive name for the test case
     /// </summary>
-    public string TestName { get; init; }
+    public string? TestName { get; init; }
 
     /// <summary>
     /// JSON game state file name (relative to GameStates directory)
@@ -44,7 +44,7 @@ public record TestParams
     /// <summary>
     /// List of acceptable actions for the test scenario
     /// </summary>
-    public required List<BotAction> AcceptableActions { get; init; }
+    public List<BotAction> AcceptableActions { get; init; } = [];
 
     /// <summary>
     /// Optional: preferred action if there is one most expected result

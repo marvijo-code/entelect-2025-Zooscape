@@ -89,11 +89,14 @@ public class StandardBotTests : BotTestsBase
         bot.BotId = testBotId;
         var action = bot.GetAction(gameState);
 
-        _testValidator.ValidateBotAction(
-            action,
-            testParams.AcceptableActions,
-            testParams.ExpectedAction
-        );
+        // If AcceptableActions is empty but ExpectedAction is set, add ExpectedAction to AcceptableActions
+        var acceptableActions = testParams.AcceptableActions;
+        if (!acceptableActions.Any() && testParams.ExpectedAction.HasValue)
+        {
+            acceptableActions = [testParams.ExpectedAction.Value];
+        }
+
+        _testValidator.ValidateBotAction(action, acceptableActions, testParams.ExpectedAction);
         _logger.Information(
             "Bot {BotType} with ID {BotId} returned action: {Action}",
             bot.GetType().Name,
@@ -195,6 +198,20 @@ public class StandardBotTests : BotTestsBase
             ExpectedAction = null, // Allow either Left or Down action
             TestDescription =
                 "Chase immediate pellet - should choose Left or Down even when chased",
+            BotsArray = new object[] { _clingyHeuroBot2, _clingyHeuroBot },
+        };
+
+        TestBotsArray(testParams);
+    }
+
+    [Fact]
+    public void ChaseMorePelletGroups()
+    {
+        var testParams = new TestParams
+        {
+            TestGameStateJsonPath = "162.json",
+            BotNicknameToTest = "ClingyHeuroBot2",
+            ExpectedAction = BotAction.Up, // Allow either Left or Down action
             BotsArray = new object[] { _clingyHeuroBot2, _clingyHeuroBot },
         };
 
