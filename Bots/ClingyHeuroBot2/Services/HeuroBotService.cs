@@ -23,6 +23,15 @@ public class HeuroBotService : IBot<HeuroBotService>
 
     public BotAction GetAction(GameState gameState)
     {
+        var actionResult = GetActionWithScores(gameState);
+        return actionResult.ChosenAction;
+    }
+
+    public (
+        BotAction ChosenAction,
+        Dictionary<BotAction, decimal> ActionScores
+    ) GetActionWithScores(GameState gameState)
+    {
         // Identify this bot's animal
         var me = gameState.Animals.First(a => a.Id == BotId);
 
@@ -70,6 +79,7 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         BotAction bestAction = BotAction.Up;
         decimal bestScore = decimal.MinValue;
+        var actionScores = new Dictionary<BotAction, decimal>();
 
         foreach (var action in legalActions)
         {
@@ -102,6 +112,8 @@ public class HeuroBotService : IBot<HeuroBotService>
             int quad = GetQuadrant(nx, ny, gameState);
             if (!_visitedQuadrants.Contains(quad))
                 score += WEIGHTS.UnexploredQuadrantBonus;
+
+            actionScores[action] = score;
             Console.WriteLine($"Action {action}: Score = {score}");
             if (score > bestScore)
             {
@@ -138,7 +150,7 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (!_visitedQuadrants.Contains(bestQuad))
             _visitedQuadrants.Add(bestQuad);
 
-        return bestAction;
+        return (bestAction, actionScores);
     }
 
     public BotCommand ProcessState(GameState state)

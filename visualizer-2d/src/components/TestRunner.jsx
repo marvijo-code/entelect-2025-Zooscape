@@ -288,16 +288,106 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/a
 
                       {result.botResults?.length > 0 && (
                         <div className="bot-results">
-                          <strong>Bot Results:</strong>
+                          <strong>Bot Results & Actions:</strong>
                           {result.botResults.map((botResult, index) => (
                             <div key={index} className={`bot-result ${botResult.success ? 'success' : 'error'}`}>
-                              <span className="bot-type">{botResult.botType}:</span>
-                              <span className="bot-action">{botResult.action || 'N/A'}</span>
+                              <div className="bot-info">
+                                <span className="bot-type">{botResult.botType}</span>
+                                {botResult.botId && (
+                                  <span className="bot-id">ID: {botResult.botId.substring(0, 8)}...</span>
+                                )}
+                                {(botResult.initialScore !== undefined || botResult.finalScore !== undefined) && (
+                                  <div className="bot-scores">
+                                    <span className="score-info">
+                                      Score: {botResult.initialScore || 0} → {botResult.finalScore || 0}
+                                      {botResult.scoreDelta !== undefined && (
+                                        <span className={`score-delta ${botResult.scoreDelta >= 0 ? 'positive' : 'negative'}`}>
+                                          ({botResult.scoreDelta >= 0 ? '+' : ''}{botResult.scoreDelta})
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="bot-action-display">
+                                <span className={`bot-action ${botResult.success ? 'success' : 'error'}`}>
+                                  {botResult.action || 'N/A'}
+                                </span>
+                                {botResult.scoreDelta !== undefined && (
+                                  <span className={`action-score ${botResult.scoreDelta >= 0 ? 'positive' : 'negative'}`}>
+                                    {botResult.scoreDelta >= 0 ? '+' : ''}{botResult.scoreDelta}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="bot-status-indicator">
+                                {botResult.success ? '✅' : '❌'}
+                              </div>
                               {botResult.errorMessage && (
-                                <span className="bot-error">({botResult.errorMessage})</span>
+                                <div className="bot-error">
+                                  Error: {botResult.errorMessage}
+                                </div>
+                              )}
+                              {botResult.performanceMetrics?.allActionScores && Object.keys(botResult.performanceMetrics.allActionScores).length > 0 && (
+                                <div className="action-scores-breakdown">
+                                  <div className="action-scores-title">Bot's Action Scores:</div>
+                                  <div className="action-scores-grid">
+                                    {Object.entries(botResult.performanceMetrics.allActionScores).map(([action, score]) => (
+                                      <div 
+                                        key={action} 
+                                        className={`action-score-item ${action === botResult.action ? 'chosen' : ''}`}
+                                      >
+                                        <span className="action-name">{action}</span>
+                                        <span className="action-score-value">
+                                          {typeof score === 'number' ? score.toFixed(2) : score}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {botResult.performanceMetrics.chosenActionScore !== undefined && (
+                                    <div className="chosen-action-summary">
+                                      <strong>Chosen:</strong> {botResult.action} (Score: {typeof botResult.performanceMetrics.chosenActionScore === 'number' ? botResult.performanceMetrics.chosenActionScore.toFixed(2) : botResult.performanceMetrics.chosenActionScore})
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
                           ))}
+                          {result.botResults.length > 1 && (
+                            <div className="action-summary">
+                              <div className="action-summary-title">Action Summary:</div>
+                              <div className="action-counts">
+                                <div className="action-count">
+                                  <span className="action-count-label">Total Bots:</span>
+                                  <span className="action-count-value">{result.botResults.length}</span>
+                                </div>
+                                <div className="action-count">
+                                  <span className="action-count-label">Successful:</span>
+                                  <span className="action-count-value" style={{color: 'var(--accent-green)'}}>
+                                    {result.botResults.filter(br => br.success).length}
+                                  </span>
+                                </div>
+                                <div className="action-count">
+                                  <span className="action-count-label">Failed:</span>
+                                  <span className="action-count-value" style={{color: 'var(--accent-red)'}}>
+                                    {result.botResults.filter(br => !br.success).length}
+                                  </span>
+                                </div>
+                                {(() => {
+                                  const actionCounts = result.botResults.reduce((acc, br) => {
+                                    const action = br.action || 'N/A';
+                                    acc[action] = (acc[action] || 0) + 1;
+                                    return acc;
+                                  }, {});
+                                  return Object.entries(actionCounts).map(([action, count]) => (
+                                    <div key={action} className="action-count">
+                                      <span className="action-count-label">{action}:</span>
+                                      <span className="action-count-value">{count}</span>
+                                    </div>
+                                  ));
+                                })()}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

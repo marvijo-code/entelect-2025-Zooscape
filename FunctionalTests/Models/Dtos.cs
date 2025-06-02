@@ -40,4 +40,8 @@ public class BotResultDto
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
     public string? BotId { get; set; }
+    public int? InitialScore { get; set; }
+    public int? FinalScore { get; set; }
+    public int? ScoreDelta { get; set; }
+    public Dictionary<string, object> PerformanceMetrics { get; set; } = new();
 }

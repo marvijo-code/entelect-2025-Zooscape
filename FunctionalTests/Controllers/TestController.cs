@@ -231,6 +231,7 @@ public class TestController : ControllerBase
         {
             // Set up bot ID
             var testBotId = Guid.NewGuid();
+            var initialScore = 0;
 
             // Find animal by nickname if specified
             if (!string.IsNullOrEmpty(testParams.BotNicknameToTest))
@@ -244,14 +245,45 @@ public class TestController : ControllerBase
                 if (animal != null)
                 {
                     testBotId = animal.Id;
+                    initialScore = animal.Score;
+                }
+            }
+            else
+            {
+                // Use first animal if no specific nickname
+                var firstAnimal = gameState.Animals.FirstOrDefault();
+                if (firstAnimal != null)
+                {
+                    testBotId = firstAnimal.Id;
+                    initialScore = firstAnimal.Score;
                 }
             }
 
-            // Set bot ID and get action
-            var action = GetBotAction(bot, botType, testBotId, gameState);
+            // Set bot ID and get action with scores
+            var (action, actionScores) = GetBotActionWithScores(bot, botType, testBotId, gameState);
 
             // Validate action
             var isValid = ValidateAction(action, testParams);
+
+            // Get current animal state for score tracking
+            var currentAnimal = gameState.Animals.FirstOrDefault(a => a.Id == testBotId);
+            var chosenActionScore = actionScores.ContainsKey(action) ? actionScores[action] : 0;
+
+            var performanceMetrics = new Dictionary<string, object>
+            {
+                ["actionType"] = action.ToString(),
+                ["gameStateTick"] = gameState.Tick,
+                ["totalAnimals"] = gameState.Animals.Count,
+                ["totalCells"] = gameState.Cells.Count,
+                ["animalPosition"] =
+                    currentAnimal != null ? $"({currentAnimal.X}, {currentAnimal.Y})" : "unknown",
+                ["cellsWithPellets"] = gameState.Cells.Count(c => (int)c.Content == 2),
+                ["chosenActionScore"] = chosenActionScore,
+                ["allActionScores"] = actionScores.ToDictionary(
+                    kvp => kvp.Key.ToString(),
+                    kvp => kvp.Value
+                ),
+            };
 
             return new BotResultDto
             {
@@ -260,6 +292,10 @@ public class TestController : ControllerBase
                 Success = isValid,
                 ErrorMessage = isValid ? null : $"Action {action} not acceptable",
                 BotId = testBotId.ToString(),
+                InitialScore = initialScore,
+                FinalScore = (int)chosenActionScore, // Use the bot's calculated score for this action
+                ScoreDelta = (int)chosenActionScore - initialScore,
+                PerformanceMetrics = performanceMetrics,
             };
         }
         catch (Exception ex)
@@ -271,6 +307,10 @@ public class TestController : ControllerBase
                 Success = false,
                 ErrorMessage = ex.Message,
                 BotId = Guid.NewGuid().ToString(),
+                InitialScore = 0,
+                FinalScore = 0,
+                ScoreDelta = 0,
+                PerformanceMetrics = new(),
             };
         }
     }
@@ -296,6 +336,94 @@ public class TestController : ControllerBase
             if (result is Marvijo.Zooscape.Bots.Common.Enums.BotAction action)
             {
                 return action;
+            }
+        }
+
+        throw new InvalidOperationException($"Could not get action from bot {botType}");
+    }
+
+    private (
+        Marvijo.Zooscape.Bots.Common.Enums.BotAction action,
+        Dictionary<Marvijo.Zooscape.Bots.Common.Enums.BotAction, decimal> actionScores
+    ) GetBotActionWithScores(
+        object bot,
+        string botType,
+        Guid botId,
+        Marvijo.Zooscape.Bots.Common.Models.GameState gameState
+    )
+    {
+        // Use reflection to set BotId
+        var botIdProperty = bot.GetType().GetProperty("BotId");
+        if (botIdProperty != null)
+        {
+            botIdProperty.SetValue(bot, botId);
+        }
+
+        // Try to get action with scores first (for ClingyHeuroBot2)
+        var getActionWithScoresMethod = bot.GetType().GetMethod("GetActionWithScores");
+        if (getActionWithScoresMethod != null)
+        {
+            var result = getActionWithScoresMethod.Invoke(bot, new object[] { gameState });
+            if (result != null)
+            {
+                // Extract the tuple components using reflection
+                var resultType = result.GetType();
+
+                // Try to get ChosenAction (either field or property)
+                object chosenAction = null;
+                var chosenActionField = resultType.GetField("ChosenAction");
+                if (chosenActionField != null)
+                {
+                    chosenAction = chosenActionField.GetValue(result);
+                }
+                else
+                {
+                    var chosenActionProperty = resultType.GetProperty("ChosenAction");
+                    if (chosenActionProperty != null)
+                    {
+                        chosenAction = chosenActionProperty.GetValue(result);
+                    }
+                }
+
+                // Try to get ActionScores (either field or property)
+                object actionScores = null;
+                var actionScoresField = resultType.GetField("ActionScores");
+                if (actionScoresField != null)
+                {
+                    actionScores = actionScoresField.GetValue(result);
+                }
+                else
+                {
+                    var actionScoresProperty = resultType.GetProperty("ActionScores");
+                    if (actionScoresProperty != null)
+                    {
+                        actionScores = actionScoresProperty.GetValue(result);
+                    }
+                }
+
+                if (
+                    chosenAction is Marvijo.Zooscape.Bots.Common.Enums.BotAction action
+                    && actionScores
+                        is Dictionary<Marvijo.Zooscape.Bots.Common.Enums.BotAction, decimal> scores
+                )
+                {
+                    return (action, scores);
+                }
+            }
+        }
+
+        // Fallback to regular GetAction method
+        var getActionMethod = bot.GetType().GetMethod("GetAction");
+        if (getActionMethod != null)
+        {
+            var result = getActionMethod.Invoke(bot, new object[] { gameState });
+            if (result is Marvijo.Zooscape.Bots.Common.Enums.BotAction action)
+            {
+                // Return empty scores dictionary if bot doesn't support action scoring
+                return (
+                    action,
+                    new Dictionary<Marvijo.Zooscape.Bots.Common.Enums.BotAction, decimal>()
+                );
             }
         }
 
