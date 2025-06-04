@@ -54,6 +54,7 @@ const App = () => {
   const processingTimeoutRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [finalScoresMap, setFinalScoresMap] = useState({});
+  const [shouldShowCreateModal, setShouldShowCreateModal] = useState(false);
 
   const fetchAndDisplayReplayTick = useCallback(async (gameId, tickNumber) => {
     if (isFetchingTick) return;
@@ -938,6 +939,14 @@ const App = () => {
           <TestRunner 
             onGameStateSelected={handleTestGameStateSelected}
             apiBaseUrl="http://localhost:5009/api"
+            currentGameState={currentGameState}
+            currentGameStateName={selectedFile ? 
+              (typeof selectedFile === 'string' && (selectedFile.includes('/') || selectedFile.includes('\\'))
+                ? selectedFile.split(/[/\\]/).pop() 
+                : selectedFile) : 
+              (replayingGameName || 'current-state.json')}
+            shouldShowCreateModal={shouldShowCreateModal}
+            onCreateModalChange={setShouldShowCreateModal}
           />
         );
       case 3:
@@ -1046,8 +1055,8 @@ const App = () => {
               <h4>Current Replay File</h4>
               <div className="file-info">
                 <span className="filename">
-                  {typeof selectedFile === 'string' && selectedFile.includes('/') 
-                    ? selectedFile.split('/').pop() 
+                  {typeof selectedFile === 'string' && (selectedFile.includes('/') || selectedFile.includes('\\'))
+                    ? selectedFile.split(/[/\\]/).pop() 
                     : selectedFile}
                 </span>
                 <button 
@@ -1072,6 +1081,19 @@ const App = () => {
               </div>
               <div className="full-path" title={selectedFile}>
                 {selectedFile}
+              </div>
+              <div className="file-actions">
+                <button 
+                  className="create-test-button"
+                  onClick={() => {
+                    setActiveTabIndex(2);
+                    setShouldShowCreateModal(true);
+                  }}
+                  disabled={!currentGameState}
+                  title={!currentGameState ? "No game state available" : "Create a test with current game state"}
+                >
+                  ➕ Create Test from Current State
+                </button>
               </div>
             </div>
           )}

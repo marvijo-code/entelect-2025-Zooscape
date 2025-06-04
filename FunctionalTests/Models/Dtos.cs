@@ -45,3 +45,20 @@ public class BotResultDto
     public int? ScoreDelta { get; set; }
     public Dictionary<string, object> PerformanceMetrics { get; set; } = new();
 }
+
+/// <summary>
+/// DTO for creating new test definitions
+/// </summary>
+public class CreateTestRequest
+{
+    public required string TestName { get; set; }
+    public required string GameStateFile { get; set; }
+    public string? Description { get; set; }
+    public string? BotNickname { get; set; }
+    public Marvijo.Zooscape.Bots.Common.Enums.BotAction? ExpectedAction { get; set; }
+    public List<Marvijo.Zooscape.Bots.Common.Enums.BotAction>? AcceptableActions { get; set; }
+    public required string TestType { get; set; }
+    public bool TickOverride { get; set; }
+    public List<string>? Bots { get; set; }
+    public object? CurrentGameState { get; set; } // The actual game state JSON data from visualizer
+}

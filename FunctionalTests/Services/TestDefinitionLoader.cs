@@ -130,6 +130,83 @@ public class TestDefinitionLoader
             TickOverride = definition.TickOverride,
         };
     }
+
+    /// <summary>
+    /// Save a new test definition to the DynamicTests.json file
+    /// </summary>
+    public void SaveTestDefinition(TestDefinition testDefinition)
+    {
+        // Save to source directory instead of bin directory so it can be checked into version control
+        var currentDirectory = Directory.GetCurrentDirectory();
+        var testDefinitionsPath = Path.Combine(currentDirectory, "TestDefinitions");
+        var dynamicTestsFile = Path.Combine(testDefinitionsPath, "DynamicTests.json");
+
+        // Ensure TestDefinitions directory exists
+        if (!Directory.Exists(testDefinitionsPath))
+        {
+            Directory.CreateDirectory(testDefinitionsPath);
+            _logger.Information(
+                "Created TestDefinitions directory at: {Path}",
+                testDefinitionsPath
+            );
+        }
+
+        // Load existing dynamic tests or create new list
+        var existingTests = new List<TestDefinition>();
+        if (File.Exists(dynamicTestsFile))
+        {
+            try
+            {
+                var existingContent = File.ReadAllText(dynamicTestsFile);
+                if (!string.IsNullOrWhiteSpace(existingContent))
+                {
+                    var existing = JsonSerializer.Deserialize<List<TestDefinition>>(
+                        existingContent,
+                        _jsonOptions
+                    );
+                    existingTests = existing ?? new List<TestDefinition>();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning(ex, "Failed to load existing dynamic tests, starting fresh");
+                existingTests = new List<TestDefinition>();
+            }
+        }
+
+        // Check if test with same name already exists
+        var existingIndex = existingTests.FindIndex(t =>
+            t.TestName.Equals(testDefinition.TestName, StringComparison.OrdinalIgnoreCase)
+        );
+        if (existingIndex >= 0)
+        {
+            // Update existing test
+            existingTests[existingIndex] = testDefinition;
+            _logger.Information(
+                "Updated existing test definition: {TestName}",
+                testDefinition.TestName
+            );
+        }
+        else
+        {
+            // Add new test
+            existingTests.Add(testDefinition);
+            _logger.Information("Added new test definition: {TestName}", testDefinition.TestName);
+        }
+
+        // Save back to file
+        var jsonContent = JsonSerializer.Serialize(
+            existingTests,
+            new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Converters = { new BotActionConverter(), new TestTypeConverter() },
+            }
+        );
+
+        File.WriteAllText(dynamicTestsFile, jsonContent);
+        _logger.Information("Saved test definitions to: {FilePath}", dynamicTestsFile);
+    }
 }
 
 /// <summary>

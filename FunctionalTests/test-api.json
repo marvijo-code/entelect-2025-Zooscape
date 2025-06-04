@@ -1,0 +1,7 @@
+{
+  "testName": "TestApi",
+  "gameStateFile": "test.json",
+  "testType": "SingleBot",
+  "acceptableActions": [1, 2],
+  "description": "Test API call"
+} 

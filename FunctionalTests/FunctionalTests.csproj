@@ -43,20 +43,4 @@
     <ProjectReference Include="..\Marvijo.Zooscape.Bots.Common\Marvijo.Zooscape.Bots.Common.csproj" />
   </ItemGroup>
 
-  <!-- Add ProjectReference to your bot projects and common logic projects here -->
-  <!-- Example: -->
-  <!-- 
-  <ItemGroup>
-    <ProjectReference Include="..\MarvijoBot.Sproutopia.Common\MarvijoBot.Sproutopia.Common.csproj" />
-    <ProjectReference Include="..\MarvijoBot.Models\MarvijoBot.Models.csproj" />
-    <ProjectReference Include="..\MarvijoBot.Sproutopia.Domain\MarvijoBot.Sproutopia.Domain.csproj" />
-    <ProjectReference Include="..\Application\Application.csproj" />
-    <ProjectReference Include="..\Bots\RulesBot\RulesBot.csproj" /> 
-    <ProjectReference Include="..\Bots\GatherNearBot\GatherNearBot.csproj" />
-    -->
-    <!-- Add references for ALL bot projects in the Bots/ folder -->
-  <!--
-  </ItemGroup>
-  -->
-
 </Project> 

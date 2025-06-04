@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using FunctionalTests.Models;
 using FunctionalTests.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -55,6 +56,24 @@ public class TestController : ControllerBase
     }
 
     /// <summary>
+    /// Get all available bot types
+    /// </summary>
+    [HttpGet("bots")]
+    public ActionResult<List<string>> GetAvailableBots()
+    {
+        try
+        {
+            var availableBots = _botFactory.GetAvailableBotTypes();
+            return Ok(availableBots);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to get available bots");
+            return StatusCode(500, $"Failed to get available bots: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Get a specific game state for visualization
     /// </summary>
     [HttpGet("gamestate/{fileName}")]
@@ -104,6 +123,155 @@ public class TestController : ControllerBase
                     BotResults = [],
                 }
             );
+        }
+    }
+
+    /// <summary>
+    /// Create a new test definition dynamically
+    /// </summary>
+    [HttpPost("create")]
+    public ActionResult<TestDefinitionDto> CreateTest([FromBody] CreateTestRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.TestName))
+            {
+                return BadRequest("Test name is required");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.GameStateFile))
+            {
+                return BadRequest("Game state file is required");
+            }
+
+            // Parse TestType from string
+            if (!Enum.TryParse<TestType>(request.TestType, true, out var testType))
+            {
+                return BadRequest($"Invalid test type: {request.TestType}");
+            }
+
+            string gameStateFileName = request.GameStateFile;
+
+            // If current game state is provided, save it to GameStates directory
+            if (request.CurrentGameState != null)
+            {
+                try
+                {
+                    // Create a unique filename with tick number if available
+                    var gameStateJson = System.Text.Json.JsonSerializer.Serialize(
+                        request.CurrentGameState,
+                        new JsonSerializerOptions { WriteIndented = true }
+                    );
+
+                    // Try to extract tick number from the game state
+                    var gameStateDict = request.CurrentGameState as System.Text.Json.JsonElement?;
+                    var tickNumber = 0;
+
+                    if (gameStateDict.HasValue)
+                    {
+                        if (gameStateDict.Value.TryGetProperty("tick", out var tickProp))
+                        {
+                            tickNumber = tickProp.GetInt32();
+                        }
+                        else if (
+                            gameStateDict.Value.TryGetProperty("Tick", out var tickPropCapital)
+                        )
+                        {
+                            tickNumber = tickPropCapital.GetInt32();
+                        }
+                    }
+
+                    // Create filename with tick number
+                    var gameStateBaseName = Path.GetFileNameWithoutExtension(request.GameStateFile);
+                    gameStateFileName = $"{gameStateBaseName}_{tickNumber}.json";
+
+                    // Save to GameStates directory
+                    var gameStatesPath = Path.Combine(
+                        Directory.GetCurrentDirectory(),
+                        "GameStates"
+                    );
+                    if (!Directory.Exists(gameStatesPath))
+                    {
+                        Directory.CreateDirectory(gameStatesPath);
+                    }
+
+                    var gameStateFilePath = Path.Combine(gameStatesPath, gameStateFileName);
+
+                    // Check for duplicate game state file and create unique name if needed
+                    var originalFileName = gameStateFileName;
+                    var counter = 1;
+                    while (System.IO.File.Exists(gameStateFilePath))
+                    {
+                        gameStateFileName = $"{gameStateBaseName}_{tickNumber}_{counter}.json";
+                        gameStateFilePath = Path.Combine(gameStatesPath, gameStateFileName);
+                        counter++;
+                    }
+
+                    if (originalFileName != gameStateFileName)
+                    {
+                        _logger.Information(
+                            "Game state file {OriginalName} already exists, using {NewName}",
+                            originalFileName,
+                            gameStateFileName
+                        );
+                    }
+
+                    System.IO.File.WriteAllText(gameStateFilePath, gameStateJson);
+
+                    _logger.Information("Saved game state to: {FilePath}", gameStateFilePath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning(
+                        ex,
+                        "Failed to save current game state, using original filename"
+                    );
+                    gameStateFileName = request.GameStateFile;
+                }
+            }
+
+            // Create new test definition
+            var testDefinition = new TestDefinition
+            {
+                TestName = request.TestName,
+                GameStateFile = gameStateFileName, // Use the potentially modified filename
+                Description =
+                    request.Description ?? $"Dynamically created test for {gameStateFileName}",
+                BotNickname = request.BotNickname,
+                ExpectedAction = request.ExpectedAction,
+                AcceptableActions =
+                    request.AcceptableActions
+                    ?? new List<Marvijo.Zooscape.Bots.Common.Enums.BotAction>(),
+                TestType = testType,
+                TickOverride = request.TickOverride,
+                Bots = request.Bots ?? new List<string>(),
+            };
+
+            // Save the test definition
+            _testDefinitionLoader.SaveTestDefinition(testDefinition);
+
+            // Convert to DTO for response
+            var dto = new TestDefinitionDto
+            {
+                TestName = testDefinition.TestName,
+                GameStateFile = testDefinition.GameStateFile,
+                Description = testDefinition.Description,
+                BotNickname = testDefinition.BotNickname,
+                ExpectedAction = testDefinition.ExpectedAction?.ToString(),
+                AcceptableActions = testDefinition
+                    .AcceptableActions.Select(a => a.ToString())
+                    .ToList(),
+                TestType = testDefinition.TestType.ToString(),
+                TickOverride = testDefinition.TickOverride,
+                Bots = testDefinition.Bots,
+            };
+
+            return Ok(dto);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to create test {TestName}", request.TestName);
+            return StatusCode(500, $"Failed to create test: {ex.Message}");
         }
     }
 

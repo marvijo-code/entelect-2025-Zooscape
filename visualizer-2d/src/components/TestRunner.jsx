@@ -1,18 +1,33 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './TestRunner.css';
 
-const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/api' }) => {
+const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/api', currentGameState = null, currentGameStateName = null, shouldShowCreateModal = false, onCreateModalChange = null }) => {
   const [tests, setTests] = useState([]);
   const [testResults, setTestResults] = useState({});
   const [loading, setLoading] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
   const [runningTests, setRunningTests] = useState(new Set());
   const [error, setError] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [availableBots, setAvailableBots] = useState([]);
 
-  // Load available tests on component mount
+  // Load available tests and bots on component mount
   useEffect(() => {
     loadTests();
+    loadAvailableBots();
   }, []);
+
+  // Handle external request to show create modal
+  useEffect(() => {
+    if (shouldShowCreateModal && !showCreateModal) {
+      setShowCreateModal(true);
+      // Reset the external signal
+      if (onCreateModalChange) {
+        onCreateModalChange(false);
+      }
+    }
+  }, [shouldShowCreateModal, showCreateModal, onCreateModalChange]);
 
   const loadTests = useCallback(async () => {
     setLoading(true);
@@ -29,6 +44,20 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/a
       setError(`Failed to load tests: ${error.message}`);
     } finally {
       setLoading(false);
+    }
+  }, [apiBaseUrl]);
+
+  const loadAvailableBots = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/test/bots`);
+      if (!response.ok) {
+        throw new Error(`Failed to load bots: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      setAvailableBots(data);
+    } catch (error) {
+      console.error('Error loading available bots:', error);
+      // Don't set error state for bots loading failure, just log it
     }
   }, [apiBaseUrl]);
 
@@ -116,6 +145,40 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/a
     }
   }, [apiBaseUrl, onGameStateSelected]);
 
+  const createTest = useCallback(async (testData) => {
+    setCreating(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`${apiBaseUrl}/test/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(testData)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to create test: ${response.status} ${errorText}`);
+      }
+      
+      const newTest = await response.json();
+      
+      // Refresh test list
+      await loadTests();
+      
+      setShowCreateModal(false);
+      return newTest;
+    } catch (error) {
+      console.error('Error creating test:', error);
+      setError(`Failed to create test: ${error.message}`);
+      throw error;
+    } finally {
+      setCreating(false);
+    }
+  }, [apiBaseUrl, loadTests]);
+
   const getTestStatus = (testName) => {
     if (runningTests.has(testName)) return 'running';
     const result = testResults[testName];
@@ -170,6 +233,14 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/a
             className="btn btn-secondary"
           >
             🔄 Refresh Tests
+          </button>
+          <button 
+            onClick={() => setShowCreateModal(true)} 
+            disabled={!currentGameState}
+            className="btn btn-info"
+            title={!currentGameState ? "View a game state first to create a test" : "Create a test with current game state"}
+          >
+            ➕ Create Test
           </button>
           <button 
             onClick={runAllTests} 
@@ -407,6 +478,241 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/a
           </button>
         </div>
       )}
+
+      {/* Create Test Modal */}
+      {showCreateModal && (
+        <CreateTestModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onCreateTest={createTest}
+          currentGameState={currentGameState}
+          currentGameStateName={currentGameStateName}
+          isCreating={creating}
+          availableBots={availableBots}
+        />
+      )}
+    </div>
+  );
+};
+
+// Create Test Modal Component
+const CreateTestModal = ({ isOpen, onClose, onCreateTest, currentGameState, currentGameStateName, isCreating, availableBots = [] }) => {
+  const [testName, setTestName] = useState('');
+  const [description, setDescription] = useState('');
+  const [testType, setTestType] = useState('SingleBot');
+  const [acceptableActions, setAcceptableActions] = useState({
+    Up: false,
+    Down: false,
+    Left: false,
+    Right: false
+  });
+  const [selectedBots, setSelectedBots] = useState({});
+  const [botNickname, setBotNickname] = useState('');
+
+  // Initialize selectedBots when availableBots changes
+  useEffect(() => {
+    if (availableBots.length > 0) {
+      const initialBotSelection = {};
+      availableBots.forEach(bot => {
+        initialBotSelection[bot] = false;
+      });
+      setSelectedBots(initialBotSelection);
+    }
+  }, [availableBots]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!testName.trim()) {
+      alert('Please enter a test name');
+      return;
+    }
+
+    // Get selected acceptable actions - convert to enum values (1-4)
+    const actionMapping = { Up: 1, Down: 2, Left: 3, Right: 4 };
+    const selectedActions = Object.entries(acceptableActions)
+      .filter(([action, selected]) => selected)
+      .map(([action]) => actionMapping[action]);
+
+    // Get selected bots
+    const selectedBotsList = Object.entries(selectedBots)
+      .filter(([bot, selected]) => selected)
+      .map(([bot]) => bot);
+
+    // Determine bots based on test type and selection
+    let botsToUse = [];
+    if (testType === 'MultiBotArray') {
+      botsToUse = selectedBotsList.length > 0 ? selectedBotsList : ['ClingyHeuroBot2'];
+    } else if (testType === 'SingleBot' && selectedBotsList.length > 0) {
+      botsToUse = [selectedBotsList[0]]; // Use first selected bot for SingleBot tests
+    }
+
+    const testData = {
+      testName: testName.trim(),
+      gameStateFile: currentGameStateName || 'current-state.json',
+      description: description.trim() || `Test created from ${currentGameStateName || 'current game state'}`,
+      testType,
+      acceptableActions: selectedActions,
+      botNickname: botNickname.trim() || null,
+      tickOverride: false,
+      bots: botsToUse,
+      currentGameState: currentGameState  // Send the actual game state JSON data
+    };
+
+    try {
+      await onCreateTest(testData);
+      // Reset form
+      setTestName('');
+      setDescription('');
+      setTestType('SingleBot');
+      setAcceptableActions({ Up: false, Down: false, Left: false, Right: false });
+      const resetBotSelection = {};
+      availableBots.forEach(bot => {
+        resetBotSelection[bot] = false;
+      });
+      setSelectedBots(resetBotSelection);
+      setBotNickname('');
+      // Close modal after successful creation
+      onClose();
+    } catch (error) {
+      // Error handled in parent
+    }
+  };
+
+  const handleActionChange = (action, checked) => {
+    setAcceptableActions(prev => ({
+      ...prev,
+      [action]: checked
+    }));
+  };
+
+  const handleBotChange = (bot, checked) => {
+    setSelectedBots(prev => ({
+      ...prev,
+      [bot]: checked
+    }));
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>Create New Test</h3>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="modal-form">
+          <div className="form-group">
+            <label htmlFor="testName">Test Name *</label>
+            <input
+              id="testName"
+              type="text"
+              value={testName}
+              onChange={(e) => setTestName(e.target.value)}
+              placeholder="Enter test name..."
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="description">Description</label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional test description..."
+              rows="3"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="testType">Test Type</label>
+            <select
+              id="testType"
+              value={testType}
+              onChange={(e) => setTestType(e.target.value)}
+            >
+              <option value="SingleBot">Single Bot</option>
+              <option value="MultiBotArray">Multi-Bot Array</option>
+              <option value="GameStateLoad">Game State Load</option>
+              <option value="TickOverride">Tick Override</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="botNickname">Bot Nickname (Optional)</label>
+            <input
+              id="botNickname"
+              type="text"
+              value={botNickname}
+              onChange={(e) => setBotNickname(e.target.value)}
+              placeholder="Leave empty to use first animal..."
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Acceptable Actions</label>
+            <div className="checkbox-group">
+              {Object.entries(acceptableActions).map(([action, checked]) => (
+                <label key={action} className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => handleActionChange(action, e.target.checked)}
+                  />
+                  <span>{action}</span>
+                </label>
+              ))}
+            </div>
+            <small>Leave all unchecked to accept any action</small>
+          </div>
+
+          {availableBots.length > 0 && (
+            <div className="form-group">
+              <label>Select Bots {testType === 'MultiBotArray' ? '(Multiple bots will be tested)' : '(Only first selected bot will be used)'}</label>
+              <div className="checkbox-group">
+                {availableBots.map((bot) => (
+                  <label key={bot} className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={selectedBots[bot] || false}
+                      onChange={(e) => handleBotChange(bot, e.target.checked)}
+                    />
+                    <span>{bot}</span>
+                  </label>
+                ))}
+              </div>
+              <small>
+                {testType === 'MultiBotArray' 
+                  ? 'Select multiple bots to test (defaults to ClingyHeuroBot2 if none selected)' 
+                  : 'Select which bot to use for testing (defaults to ClingyHeuroBot2 if none selected)'}
+              </small>
+            </div>
+          )}
+
+          <div className="form-group">
+            <label>Game State File</label>
+            <input
+              type="text"
+              value={currentGameStateName || 'current-state.json'}
+              disabled
+              className="disabled-input"
+            />
+            <small>Using current game state from visualizer</small>
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" onClick={onClose} className="btn btn-secondary" disabled={isCreating}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={isCreating}>
+              {isCreating ? 'Creating...' : 'Create Test'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
