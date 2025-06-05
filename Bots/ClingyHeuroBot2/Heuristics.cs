@@ -3,9 +3,11 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics; //  >>> NEW (time-budget guard)
 using System.Linq; //  >>> NEW (move up for grouping)
+using ClingyHeuroBot2; // Added for HeuristicLogHelper
 using DeepMCTS.Enums;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Serilog; // Added for ILogger
 
 namespace HeuroBot.Services;
 
@@ -48,98 +50,708 @@ public static class Heuristics
         }
     }
 
-    public static decimal ScoreMove(GameState state, Animal me, BotAction move)
+    public static decimal ScoreMove(
+        GameState state,
+        Animal me,
+        BotAction move,
+        ILogger? logger,
+        bool logHeuristicScores
+    )
     {
         var sw = Stopwatch.StartNew();
         decimal score = 0m;
 
         // 1️⃣  FAST / CORE heuristics  (always evaluated)
-        score += HeuristicsImpl.DistanceToGoal(state, me, move) * WEIGHTS.DistanceToGoal;
-        score += HeuristicsImpl.OpponentProximity(state, me, move) * WEIGHTS.OpponentProximity;
-        score += HeuristicsImpl.ResourceClustering(state, me, move) * WEIGHTS.ResourceClustering;
-        score += HeuristicsImpl.AreaControl(state, me, move) * WEIGHTS.AreaControl;
-        score += HeuristicsImpl.Mobility(state, me, move) * WEIGHTS.Mobility;
-        score += HeuristicsImpl.PathSafety(state, me, move) * WEIGHTS.PathSafety;
+        decimal distanceToGoalRaw = HeuristicsImpl.DistanceToGoal(state, me, move);
+        decimal distanceToGoalComponent = distanceToGoalRaw * WEIGHTS.DistanceToGoal;
+        score += distanceToGoalComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "DistanceToGoal",
+            distanceToGoalRaw,
+            WEIGHTS.DistanceToGoal,
+            distanceToGoalComponent,
+            score
+        );
+        decimal opponentProximityRaw = HeuristicsImpl.OpponentProximity(state, me, move);
+        decimal opponentProximityComponent = opponentProximityRaw * WEIGHTS.OpponentProximity;
+        score += opponentProximityComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "OpponentProximity",
+            opponentProximityRaw,
+            WEIGHTS.OpponentProximity,
+            opponentProximityComponent,
+            score
+        );
+        decimal resourceClusteringRaw = HeuristicsImpl.ResourceClustering(state, me, move);
+        decimal resourceClusteringComponent = resourceClusteringRaw * WEIGHTS.ResourceClustering;
+        score += resourceClusteringComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "ResourceClustering",
+            resourceClusteringRaw,
+            WEIGHTS.ResourceClustering,
+            resourceClusteringComponent,
+            score
+        );
+        decimal areaControlRaw = HeuristicsImpl.AreaControl(state, me, move);
+        decimal areaControlComponent = areaControlRaw * WEIGHTS.AreaControl;
+        score += areaControlComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "AreaControl",
+            areaControlRaw,
+            WEIGHTS.AreaControl,
+            areaControlComponent,
+            score
+        );
+        decimal mobilityRaw = HeuristicsImpl.Mobility(state, me, move);
+        decimal mobilityComponent = mobilityRaw * WEIGHTS.Mobility;
+        score += mobilityComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "Mobility",
+            mobilityRaw,
+            WEIGHTS.Mobility,
+            mobilityComponent,
+            score
+        );
+        decimal pathSafetyRaw = HeuristicsImpl.PathSafety(state, me, move);
+        decimal pathSafetyComponent = pathSafetyRaw * WEIGHTS.PathSafety;
+        score += pathSafetyComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "PathSafety",
+            pathSafetyRaw,
+            WEIGHTS.PathSafety,
+            pathSafetyComponent,
+            score
+        );
 
-        score += HeuristicsImpl.ZookeeperPrediction(state, me, move) * WEIGHTS.ZookeeperPrediction;
-        score += HeuristicsImpl.CaptureAvoidance(state, me, move) * WEIGHTS.CaptureAvoidance;
-        score += HeuristicsImpl.SpawnProximity(state, me, move) * WEIGHTS.SpawnProximity;
-        score += HeuristicsImpl.TimeToCapture(state, me, move) * WEIGHTS.TimeToCapture;
-        score += HeuristicsImpl.EdgeSafety(state, me, move) * WEIGHTS.EdgeSafety;
-        score += HeuristicsImpl.QuadrantAwareness(state, me, move) * WEIGHTS.QuadrantAwareness;
-        score += HeuristicsImpl.TargetEvaluation(state, me, move) * WEIGHTS.TargetEvaluation;
-        score +=
-            HeuristicsImpl.TiebreakersAwareness(state, me, move) * WEIGHTS.TiebreakersAwareness;
-        score += HeuristicsImpl.ZookeeperCooldown(state, me, move) * WEIGHTS.ZookeeperCooldown;
-        score += HeuristicsImpl.PelletEfficiency(state, me, move) * WEIGHTS.PelletEfficiency;
-        score += HeuristicsImpl.EscapeRoutes(state, me, move) * WEIGHTS.EscapeRoutes;
-        score += HeuristicsImpl.AnimalCongestion(state, me, move) * WEIGHTS.AnimalCongestion;
-        score +=
-            HeuristicsImpl.CaptureRecoveryStrategy(state, me, move)
-            * WEIGHTS.CaptureRecoveryStrategy;
+        decimal zookeeperPredictionRaw = HeuristicsImpl.ZookeeperPrediction(state, me, move);
+        decimal zookeeperPredictionComponent = zookeeperPredictionRaw * WEIGHTS.ZookeeperPrediction;
+        score += zookeeperPredictionComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "ZookeeperPrediction",
+            zookeeperPredictionRaw,
+            WEIGHTS.ZookeeperPrediction,
+            zookeeperPredictionComponent,
+            score
+        );
+        decimal captureAvoidanceRaw = HeuristicsImpl.CaptureAvoidance(state, me, move);
+        decimal captureAvoidanceComponent = captureAvoidanceRaw * WEIGHTS.CaptureAvoidance;
+        score += captureAvoidanceComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "CaptureAvoidance",
+            captureAvoidanceRaw,
+            WEIGHTS.CaptureAvoidance,
+            captureAvoidanceComponent,
+            score
+        );
+        decimal spawnProximityRaw = HeuristicsImpl.SpawnProximity(state, me, move);
+        decimal spawnProximityComponent = spawnProximityRaw * WEIGHTS.SpawnProximity;
+        score += spawnProximityComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "SpawnProximity",
+            spawnProximityRaw,
+            WEIGHTS.SpawnProximity,
+            spawnProximityComponent,
+            score
+        );
+        decimal timeToCaptureRaw = HeuristicsImpl.TimeToCapture(state, me, move);
+        decimal timeToCaptureComponent = timeToCaptureRaw * WEIGHTS.TimeToCapture;
+        score += timeToCaptureComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "TimeToCapture",
+            timeToCaptureRaw,
+            WEIGHTS.TimeToCapture,
+            timeToCaptureComponent,
+            score
+        );
+        decimal edgeSafetyRaw = HeuristicsImpl.EdgeSafety(state, me, move);
+        decimal edgeSafetyComponent = edgeSafetyRaw * WEIGHTS.EdgeSafety;
+        score += edgeSafetyComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "EdgeSafety",
+            edgeSafetyRaw,
+            WEIGHTS.EdgeSafety,
+            edgeSafetyComponent,
+            score
+        );
+        decimal quadrantAwarenessRaw = HeuristicsImpl.QuadrantAwareness(state, me, move);
+        decimal quadrantAwarenessComponent = quadrantAwarenessRaw * WEIGHTS.QuadrantAwareness;
+        score += quadrantAwarenessComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "QuadrantAwareness",
+            quadrantAwarenessRaw,
+            WEIGHTS.QuadrantAwareness,
+            quadrantAwarenessComponent,
+            score
+        );
+        decimal targetEvaluationRaw = HeuristicsImpl.TargetEvaluation(state, me, move);
+        decimal targetEvaluationComponent = targetEvaluationRaw * WEIGHTS.TargetEvaluation;
+        score += targetEvaluationComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "TargetEvaluation",
+            targetEvaluationRaw,
+            WEIGHTS.TargetEvaluation,
+            targetEvaluationComponent,
+            score
+        );
+        decimal tiebreakersAwarenessRaw = HeuristicsImpl.TiebreakersAwareness(state, me, move);
+        decimal tiebreakersAwarenessComponent =
+            tiebreakersAwarenessRaw * WEIGHTS.TiebreakersAwareness;
+        score += tiebreakersAwarenessComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "TiebreakersAwareness",
+            tiebreakersAwarenessRaw,
+            WEIGHTS.TiebreakersAwareness,
+            tiebreakersAwarenessComponent,
+            score
+        );
+        decimal zookeeperCooldownRaw = HeuristicsImpl.ZookeeperCooldown(state, me, move);
+        decimal zookeeperCooldownComponent = zookeeperCooldownRaw * WEIGHTS.ZookeeperCooldown;
+        score += zookeeperCooldownComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "ZookeeperCooldown",
+            zookeeperCooldownRaw,
+            WEIGHTS.ZookeeperCooldown,
+            zookeeperCooldownComponent,
+            score
+        );
+        decimal pelletEfficiencyRaw = HeuristicsImpl.PelletEfficiency(state, me, move);
+        decimal pelletEfficiencyComponent = pelletEfficiencyRaw * WEIGHTS.PelletEfficiency;
+        score += pelletEfficiencyComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "PelletEfficiency",
+            pelletEfficiencyRaw,
+            WEIGHTS.PelletEfficiency,
+            pelletEfficiencyComponent,
+            score
+        );
+        decimal escapeRoutesRaw = HeuristicsImpl.EscapeRoutes(state, me, move);
+        decimal escapeRoutesComponent = escapeRoutesRaw * WEIGHTS.EscapeRoutes;
+        score += escapeRoutesComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "EscapeRoutes",
+            escapeRoutesRaw,
+            WEIGHTS.EscapeRoutes,
+            escapeRoutesComponent,
+            score
+        );
+        decimal animalCongestionRaw = HeuristicsImpl.AnimalCongestion(state, me, move);
+        decimal animalCongestionComponent = animalCongestionRaw * WEIGHTS.AnimalCongestion;
+        score += animalCongestionComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "AnimalCongestion",
+            animalCongestionRaw,
+            WEIGHTS.AnimalCongestion,
+            animalCongestionComponent,
+            score
+        );
+        decimal captureRecoveryStrategyRaw = HeuristicsImpl.CaptureRecoveryStrategy(
+            state,
+            me,
+            move
+        );
+        decimal captureRecoveryStrategyComponent =
+            captureRecoveryStrategyRaw * WEIGHTS.CaptureRecoveryStrategy;
+        score += captureRecoveryStrategyComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "CaptureRecoveryStrategy",
+            captureRecoveryStrategyRaw,
+            WEIGHTS.CaptureRecoveryStrategy,
+            captureRecoveryStrategyComponent,
+            score
+        );
 
         // New winning heuristics
-        score +=
-            HeuristicsImpl.FirstCommandAdvantage(state, me, move) * WEIGHTS.FirstCommandAdvantage;
-        score +=
-            HeuristicsImpl.TravelDistanceMaximizer(state, me, move)
-            * WEIGHTS.TravelDistanceMaximizer;
-        score += HeuristicsImpl.SpawnTimeMinimizer(state, me, move) * WEIGHTS.SpawnTimeMinimizer;
-        score += HeuristicsImpl.TimerAwareness(state, me, move) * WEIGHTS.TimerAwareness;
-        score +=
-            HeuristicsImpl.PelletRatioAwareness(state, me, move) * WEIGHTS.PelletRatioAwareness;
-        score +=
-            HeuristicsImpl.CommandQueueOptimization(state, me, move)
-            * WEIGHTS.CommandQueueOptimization;
-        score +=
-            HeuristicsImpl.AnticipateCompetition(state, me, move) * WEIGHTS.AnticipateCompetition;
-        score += HeuristicsImpl.EndgameStrategy(state, me, move) * WEIGHTS.EndgameStrategy;
-        score += HeuristicsImpl.PositionalDominance(state, me, move) * WEIGHTS.PositionalDominance;
-        score += HeuristicsImpl.ScoreLossMinimizer(state, me, move) * WEIGHTS.ScoreLossMinimizer;
+        decimal firstCommandAdvantageRaw = HeuristicsImpl.FirstCommandAdvantage(state, me, move);
+        decimal firstCommandAdvantageComponent =
+            firstCommandAdvantageRaw * WEIGHTS.FirstCommandAdvantage;
+        score += firstCommandAdvantageComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "FirstCommandAdvantage",
+            firstCommandAdvantageRaw,
+            WEIGHTS.FirstCommandAdvantage,
+            firstCommandAdvantageComponent,
+            score
+        );
+        decimal travelDistanceMaximizerRaw = HeuristicsImpl.TravelDistanceMaximizer(
+            state,
+            me,
+            move
+        );
+        decimal travelDistanceMaximizerComponent =
+            travelDistanceMaximizerRaw * WEIGHTS.TravelDistanceMaximizer;
+        score += travelDistanceMaximizerComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "TravelDistanceMaximizer",
+            travelDistanceMaximizerRaw,
+            WEIGHTS.TravelDistanceMaximizer,
+            travelDistanceMaximizerComponent,
+            score
+        );
+        decimal spawnTimeMinimizerRaw = HeuristicsImpl.SpawnTimeMinimizer(state, me, move);
+        decimal spawnTimeMinimizerComponent = spawnTimeMinimizerRaw * WEIGHTS.SpawnTimeMinimizer;
+        score += spawnTimeMinimizerComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "SpawnTimeMinimizer",
+            spawnTimeMinimizerRaw,
+            WEIGHTS.SpawnTimeMinimizer,
+            spawnTimeMinimizerComponent,
+            score
+        );
+        decimal timerAwarenessRaw = HeuristicsImpl.TimerAwareness(state, me, move);
+        decimal timerAwarenessComponent = timerAwarenessRaw * WEIGHTS.TimerAwareness;
+        score += timerAwarenessComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "TimerAwareness",
+            timerAwarenessRaw,
+            WEIGHTS.TimerAwareness,
+            timerAwarenessComponent,
+            score
+        );
 
-        score += HeuristicsImpl.TimerAwareness(state, me, move) * WEIGHTS.TimerAwareness;
-        score += HeuristicsImpl.PelletEfficiency(state, me, move) * WEIGHTS.PelletEfficiency;
-        score += HeuristicsImpl.PositionalDominance(state, me, move) * WEIGHTS.PositionalDominance;
-        score += HeuristicsImpl.ScoreLossMinimizer(state, me, move) * WEIGHTS.ScoreLossMinimizer;
-        score +=
-            HeuristicsImpl.AnticipateCompetition(state, me, move) * WEIGHTS.AnticipateCompetition;
+        decimal pelletRatioAwarenessRaw = HeuristicsImpl.PelletRatioAwareness(state, me, move);
+        decimal pelletRatioAwarenessComponent =
+            pelletRatioAwarenessRaw * WEIGHTS.PelletRatioAwareness;
+        score += pelletRatioAwarenessComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "PelletRatioAwareness",
+            pelletRatioAwarenessRaw,
+            WEIGHTS.PelletRatioAwareness,
+            pelletRatioAwarenessComponent,
+            score
+        );
 
-        score += HeuristicsImpl.WallCollisionRisk(state, me, move) * WEIGHTS.WallCollisionRisk; //  >>> NEW
-        score += HeuristicsImpl.LineOfSightPellets(state, me, move) * WEIGHTS.LineOfSightPellets; //  >>> NEW
-        score += HeuristicsImpl.PelletRace(state, me, move) * WEIGHTS.PelletRace; //  >>> NEW
-        score += HeuristicsImpl.RecalcWindowSafety(state, me, move) * WEIGHTS.RecalcWindowSafety; //  >>> NEW
-        score += HeuristicsImpl.CenterControl(state, me, move) * WEIGHTS.CenterControl; //  >>> NEW
+        decimal commandQueueOptimizationRaw = HeuristicsImpl.CommandQueueOptimization(
+            state,
+            me,
+            move
+        );
+        decimal commandQueueOptimizationComponent =
+            commandQueueOptimizationRaw * WEIGHTS.CommandQueueOptimization;
+        score += commandQueueOptimizationComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "CommandQueueOptimization",
+            commandQueueOptimizationRaw,
+            WEIGHTS.CommandQueueOptimization,
+            commandQueueOptimizationComponent,
+            score
+        );
+
+        decimal anticipateCompetitionRaw = HeuristicsImpl.AnticipateCompetition(state, me, move);
+        decimal anticipateCompetitionComponent =
+            anticipateCompetitionRaw * WEIGHTS.AnticipateCompetition;
+        score += anticipateCompetitionComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "AnticipateCompetition",
+            anticipateCompetitionRaw,
+            WEIGHTS.AnticipateCompetition,
+            anticipateCompetitionComponent,
+            score
+        );
+
+        decimal endgameStrategyRaw = HeuristicsImpl.EndgameStrategy(state, me, move);
+        decimal endgameStrategyComponent = endgameStrategyRaw * WEIGHTS.EndgameStrategy;
+        score += endgameStrategyComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "EndgameStrategy",
+            endgameStrategyRaw,
+            WEIGHTS.EndgameStrategy,
+            endgameStrategyComponent,
+            score
+        );
+
+        decimal positionalDominanceRaw = HeuristicsImpl.PositionalDominance(state, me, move);
+        decimal positionalDominanceComponent = positionalDominanceRaw * WEIGHTS.PositionalDominance;
+        score += positionalDominanceComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "PositionalDominance",
+            positionalDominanceRaw,
+            WEIGHTS.PositionalDominance,
+            positionalDominanceComponent,
+            score
+        );
+
+        decimal scoreLossMinimizerRaw = HeuristicsImpl.ScoreLossMinimizer(state, me, move);
+        decimal scoreLossMinimizerComponent = scoreLossMinimizerRaw * WEIGHTS.ScoreLossMinimizer;
+        score += scoreLossMinimizerComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "ScoreLossMinimizer",
+            scoreLossMinimizerRaw,
+            WEIGHTS.ScoreLossMinimizer,
+            scoreLossMinimizerComponent,
+            score
+        );
+
+        decimal wallCollisionRiskRaw = HeuristicsImpl.WallCollisionRisk(state, me, move);
+        decimal wallCollisionRiskComponent = wallCollisionRiskRaw * WEIGHTS.WallCollisionRisk;
+        score += wallCollisionRiskComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "WallCollisionRisk",
+            wallCollisionRiskRaw,
+            WEIGHTS.WallCollisionRisk,
+            wallCollisionRiskComponent,
+            score
+        );
+
+        decimal lineOfSightPelletsRaw = HeuristicsImpl.LineOfSightPellets(state, me, move);
+        decimal lineOfSightPelletsComponent = lineOfSightPelletsRaw * WEIGHTS.LineOfSightPellets;
+        score += lineOfSightPelletsComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "LineOfSightPellets",
+            lineOfSightPelletsRaw,
+            WEIGHTS.LineOfSightPellets,
+            lineOfSightPelletsComponent,
+            score
+        );
+
+        decimal pelletRaceRaw = HeuristicsImpl.PelletRace(state, me, move);
+        decimal pelletRaceComponent = pelletRaceRaw * WEIGHTS.PelletRace;
+        score += pelletRaceComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "PelletRace",
+            pelletRaceRaw,
+            WEIGHTS.PelletRace,
+            pelletRaceComponent,
+            score
+        );
+
+        decimal recalcWindowSafetyRaw = HeuristicsImpl.RecalcWindowSafety(state, me, move);
+        decimal recalcWindowSafetyComponent = recalcWindowSafetyRaw * WEIGHTS.RecalcWindowSafety;
+        score += recalcWindowSafetyComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "RecalcWindowSafety",
+            recalcWindowSafetyRaw,
+            WEIGHTS.RecalcWindowSafety,
+            recalcWindowSafetyComponent,
+            score
+        );
+
+        decimal centerControlRaw = HeuristicsImpl.CenterControl(state, me, move);
+        decimal centerControlComponent = centerControlRaw * WEIGHTS.CenterControl;
+        score += centerControlComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "CenterControl",
+            centerControlRaw,
+            WEIGHTS.CenterControl,
+            centerControlComponent,
+            score
+        );
 
         // Update path memory
         UpdatePathMemory(state, me);
 
         // Add anti-cycling measures
-        score += HeuristicsImpl.CycleDetection(state, me, move) * WEIGHTS.CycleDetection;
-        score += HeuristicsImpl.DirectionalVariety(state, me, move) * WEIGHTS.DirectionalVariety;
-        score += HeuristicsImpl.EmptyCellAvoidance(state, me, move) * WEIGHTS.EmptyCellAvoidance;
+        decimal cycleDetectionRaw = HeuristicsImpl.CycleDetection(state, me, move);
+        decimal cycleDetectionComponent = cycleDetectionRaw * WEIGHTS.CycleDetection;
+        score += cycleDetectionComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "CycleDetection",
+            cycleDetectionRaw,
+            WEIGHTS.CycleDetection,
+            cycleDetectionComponent,
+            score
+        );
 
-        // >>> NEW: Heuristics inspired by GatherNear bot for maze navigation
-        score += HeuristicsImpl.MoveIfIdle(state, me, move) * WEIGHTS.MoveIfIdle;
-        score +=
-            HeuristicsImpl.ChangeDirectionWhenStuck(state, me, move)
-            * WEIGHTS.ChangeDirectionWhenStuck;
-        score += HeuristicsImpl.ShortestPathToGoal(state, me, move) * WEIGHTS.ShortestPathToGoal;
-        score += HeuristicsImpl.EdgeAwareness(state, me, move) * WEIGHTS.EdgeAwareness;
-        score += HeuristicsImpl.UnoccupiedCellBonus(state, me, move) * WEIGHTS.UnoccupiedCellBonus;
-        score +=
-            HeuristicsImpl.OpponentTrailChasing(state, me, move) * WEIGHTS.OpponentTrailChasing;
-        score += HeuristicsImpl.CenterDistanceBonus(state, me, move) * WEIGHTS.CenterDistanceBonus;
-        score += HeuristicsImpl.MovementConsistency(state, me, move) * WEIGHTS.MovementConsistency;
-        score += HeuristicsImpl.TunnelNavigation(state, me, move) * WEIGHTS.TunnelNavigation;
-        score +=
-            HeuristicsImpl.EarlyGameZookeeperAvoidance(state, me, move)
-            * WEIGHTS.EarlyGameZookeeperAvoidance;
+        decimal directionalVarietyRaw = HeuristicsImpl.DirectionalVariety(state, me, move);
+        decimal directionalVarietyComponent = directionalVarietyRaw * WEIGHTS.DirectionalVariety;
+        score += directionalVarietyComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "DirectionalVariety",
+            directionalVarietyRaw,
+            WEIGHTS.DirectionalVariety,
+            directionalVarietyComponent,
+            score
+        );
 
-        // >>> NEW: Territory control inspired heuristics for pellet area domination
-        score += HeuristicsImpl.PelletAreaControl(state, me, move) * WEIGHTS.PelletAreaControl;
-        score += HeuristicsImpl.DensityMapping(state, me, move) * WEIGHTS.DensityMapping;
-        score += HeuristicsImpl.CornerControl(state, me, move) * WEIGHTS.CornerControl;
-        score += HeuristicsImpl.AdaptivePathfinding(state, me, move) * WEIGHTS.AdaptivePathfinding;
+        decimal emptyCellAvoidanceRaw = HeuristicsImpl.EmptyCellAvoidance(state, me, move);
+        decimal emptyCellAvoidanceComponent = emptyCellAvoidanceRaw * WEIGHTS.EmptyCellAvoidance;
+        score += emptyCellAvoidanceComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "EmptyCellAvoidance",
+            emptyCellAvoidanceRaw,
+            WEIGHTS.EmptyCellAvoidance,
+            emptyCellAvoidanceComponent,
+            score
+        );
+
+        // Heuristics inspired by GatherNear bot for maze navigation
+        decimal moveIfIdleRaw = HeuristicsImpl.MoveIfIdle(state, me, move);
+        decimal moveIfIdleComponent = moveIfIdleRaw * WEIGHTS.MoveIfIdle;
+        score += moveIfIdleComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "MoveIfIdle",
+            moveIfIdleRaw,
+            WEIGHTS.MoveIfIdle,
+            moveIfIdleComponent,
+            score
+        );
+
+        decimal changeDirectionWhenStuckRaw = HeuristicsImpl.ChangeDirectionWhenStuck(
+            state,
+            me,
+            move
+        );
+        decimal changeDirectionWhenStuckComponent =
+            changeDirectionWhenStuckRaw * WEIGHTS.ChangeDirectionWhenStuck;
+        score += changeDirectionWhenStuckComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "ChangeDirectionWhenStuck",
+            changeDirectionWhenStuckRaw,
+            WEIGHTS.ChangeDirectionWhenStuck,
+            changeDirectionWhenStuckComponent,
+            score
+        );
+
+        decimal shortestPathToGoalRaw = HeuristicsImpl.ShortestPathToGoal(state, me, move);
+        decimal shortestPathToGoalComponent = shortestPathToGoalRaw * WEIGHTS.ShortestPathToGoal;
+        score += shortestPathToGoalComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "ShortestPathToGoal",
+            shortestPathToGoalRaw,
+            WEIGHTS.ShortestPathToGoal,
+            shortestPathToGoalComponent,
+            score
+        );
+
+        decimal edgeAwarenessRaw = HeuristicsImpl.EdgeAwareness(state, me, move);
+        decimal edgeAwarenessComponent = edgeAwarenessRaw * WEIGHTS.EdgeAwareness;
+        score += edgeAwarenessComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "EdgeAwareness",
+            edgeAwarenessRaw,
+            WEIGHTS.EdgeAwareness,
+            edgeAwarenessComponent,
+            score
+        );
+
+        decimal unoccupiedCellBonusRaw = HeuristicsImpl.UnoccupiedCellBonus(state, me, move);
+        decimal unoccupiedCellBonusComponent = unoccupiedCellBonusRaw * WEIGHTS.UnoccupiedCellBonus;
+        score += unoccupiedCellBonusComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "UnoccupiedCellBonus",
+            unoccupiedCellBonusRaw,
+            WEIGHTS.UnoccupiedCellBonus,
+            unoccupiedCellBonusComponent,
+            score
+        );
+
+        decimal opponentTrailChasingRaw = HeuristicsImpl.OpponentTrailChasing(state, me, move);
+        decimal opponentTrailChasingComponent =
+            opponentTrailChasingRaw * WEIGHTS.OpponentTrailChasing;
+        score += opponentTrailChasingComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "OpponentTrailChasing",
+            opponentTrailChasingRaw,
+            WEIGHTS.OpponentTrailChasing,
+            opponentTrailChasingComponent,
+            score
+        );
+
+        decimal centerDistanceBonusRaw = HeuristicsImpl.CenterDistanceBonus(state, me, move);
+        decimal centerDistanceBonusComponent = centerDistanceBonusRaw * WEIGHTS.CenterDistanceBonus;
+        score += centerDistanceBonusComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "CenterDistanceBonus",
+            centerDistanceBonusRaw,
+            WEIGHTS.CenterDistanceBonus,
+            centerDistanceBonusComponent,
+            score
+        );
+
+        decimal movementConsistencyRaw = HeuristicsImpl.MovementConsistency(state, me, move);
+        decimal movementConsistencyComponent = movementConsistencyRaw * WEIGHTS.MovementConsistency;
+        score += movementConsistencyComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "MovementConsistency",
+            movementConsistencyRaw,
+            WEIGHTS.MovementConsistency,
+            movementConsistencyComponent,
+            score
+        );
+
+        decimal tunnelNavigationRaw = HeuristicsImpl.TunnelNavigation(state, me, move);
+        decimal tunnelNavigationComponent = tunnelNavigationRaw * WEIGHTS.TunnelNavigation;
+        score += tunnelNavigationComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "TunnelNavigation",
+            tunnelNavigationRaw,
+            WEIGHTS.TunnelNavigation,
+            tunnelNavigationComponent,
+            score
+        );
+
+        decimal earlyGameZookeeperAvoidanceRaw = HeuristicsImpl.EarlyGameZookeeperAvoidance(
+            state,
+            me,
+            move
+        );
+        decimal earlyGameZookeeperAvoidanceComponent =
+            earlyGameZookeeperAvoidanceRaw * WEIGHTS.EarlyGameZookeeperAvoidance;
+        score += earlyGameZookeeperAvoidanceComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "EarlyGameZookeeperAvoidance",
+            earlyGameZookeeperAvoidanceRaw,
+            WEIGHTS.EarlyGameZookeeperAvoidance,
+            earlyGameZookeeperAvoidanceComponent,
+            score
+        );
+
+        // Territory control inspired heuristics for pellet area domination
+        decimal pelletAreaControlRaw = HeuristicsImpl.PelletAreaControl(state, me, move);
+        decimal pelletAreaControlComponent = pelletAreaControlRaw * WEIGHTS.PelletAreaControl;
+        score += pelletAreaControlComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "PelletAreaControl",
+            pelletAreaControlRaw,
+            WEIGHTS.PelletAreaControl,
+            pelletAreaControlComponent,
+            score
+        );
+
+        decimal densityMappingRaw = HeuristicsImpl.DensityMapping(state, me, move);
+        decimal densityMappingComponent = densityMappingRaw * WEIGHTS.DensityMapping;
+        score += densityMappingComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "DensityMapping",
+            densityMappingRaw,
+            WEIGHTS.DensityMapping,
+            densityMappingComponent,
+            score
+        );
+
+        decimal cornerControlRaw = HeuristicsImpl.CornerControl(state, me, move);
+        decimal cornerControlComponent = cornerControlRaw * WEIGHTS.CornerControl;
+        score += cornerControlComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "CornerControl",
+            cornerControlRaw,
+            WEIGHTS.CornerControl,
+            cornerControlComponent,
+            score
+        );
+
+        decimal adaptivePathfindingRaw = HeuristicsImpl.AdaptivePathfinding(state, me, move);
+        decimal adaptivePathfindingComponent = adaptivePathfindingRaw * WEIGHTS.AdaptivePathfinding;
+        score += adaptivePathfindingComponent;
+        HeuristicLogHelper.LogScoreComponent(
+            logger,
+            logHeuristicScores,
+            "AdaptivePathfinding",
+            adaptivePathfindingRaw,
+            WEIGHTS.AdaptivePathfinding,
+            adaptivePathfindingComponent,
+            score
+        );
+
+        sw.Stop();
+        if (logger != null && logHeuristicScores)
+        {
+            logger.Information(
+                "ScoreMove for {Move} completed. Final Score: {FinalScore}, Time: {ElapsedMs}ms",
+                move,
+                score,
+                sw.ElapsedMilliseconds
+            );
+        }
 
         return score;
     }
@@ -251,7 +863,7 @@ public static class Heuristics
             var result = new List<(int x, int y)>();
             foreach (var zookeeper in state.Zookeepers)
             {
-                Animal targetAnimal = null;
+                Animal? targetAnimal = null;
                 int minDistance = int.MaxValue;
 
                 foreach (var animal in state.Animals.Where(a => a.IsViable))

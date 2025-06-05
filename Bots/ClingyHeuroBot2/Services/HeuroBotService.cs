@@ -5,11 +5,21 @@ using HeuroBot; // for WEIGHTS
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Serilog;
+using Serilog.Core; // For Logger.None
 
 namespace HeuroBot.Services;
 
 public class HeuroBotService : IBot<HeuroBotService>
 {
+    private readonly ILogger _logger;
+    public bool LogHeuristicScores { get; set; } = false;
+
+    public HeuroBotService(ILogger? logger = null)
+    {
+        _logger = logger ?? Logger.None;
+    }
+
     public Guid BotId { get; set; }
     private BotAction? _previousAction = null;
 
@@ -32,6 +42,11 @@ public class HeuroBotService : IBot<HeuroBotService>
         Dictionary<BotAction, decimal> ActionScores
     ) GetActionWithScores(GameState gameState)
     {
+        if (_logger != null && LogHeuristicScores)
+        {
+            _logger.Information("Bot {BotId}: Calculating scores for next move...", BotId);
+        }
+
         // Identify this bot's animal
         var me = gameState.Animals.First(a => a.Id == BotId);
 
@@ -83,10 +98,27 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         foreach (var action in legalActions)
         {
-            var score = Heuristics.ScoreMove(gameState, me, action);
+            var score = Heuristics.ScoreMove(gameState, me, action, _logger, LogHeuristicScores);
+            if (_logger != null && LogHeuristicScores)
+            {
+                _logger.Information("Action {Action} - Initial score: {Score}", action, score);
+            }
             // Penalty for reversing the previous move
             if (_previousAction.HasValue && IsOpposite(_previousAction.Value, action))
+            {
+                if (_logger != null && LogHeuristicScores)
+                {
+                    _logger.Information(
+                        "  Applying ReverseMovePenalty: {Penalty}",
+                        WEIGHTS.ReverseMovePenalty
+                    );
+                }
                 score += WEIGHTS.ReverseMovePenalty;
+                if (_logger != null && LogHeuristicScores)
+                {
+                    _logger.Information("  New accumulated score: {Score}", score);
+                }
+            }
             // Visit penalty and exploration bonuses
             int nx = me.X,
                 ny = me.Y;
@@ -106,15 +138,62 @@ public class HeuroBotService : IBot<HeuroBotService>
                     break;
             }
             int visits = _visitCounts.TryGetValue((nx, ny), out var vc) ? vc : 0;
-            score += WEIGHTS.VisitPenalty * visits;
+            var visitPenaltyAmount = WEIGHTS.VisitPenalty * visits;
+            if (_logger != null && LogHeuristicScores)
+            {
+                _logger.Information(
+                    "  Applying VisitPenalty (Factor: {VisitPenalty}, Visits: {Visits}): {TotalPenalty}",
+                    WEIGHTS.VisitPenalty,
+                    visits,
+                    visitPenaltyAmount
+                );
+            }
+            score += visitPenaltyAmount;
+            if (_logger != null && LogHeuristicScores)
+            {
+                _logger.Information("  New accumulated score: {Score}", score);
+            }
             if (visits == 0)
+            {
+                if (_logger != null && LogHeuristicScores)
+                {
+                    _logger.Information(
+                        "  Applying UnexploredBonus: {Bonus}",
+                        WEIGHTS.UnexploredBonus
+                    );
+                }
                 score += WEIGHTS.UnexploredBonus;
+                if (_logger != null && LogHeuristicScores)
+                {
+                    _logger.Information("  New accumulated score: {Score}", score);
+                }
+            }
             int quad = GetQuadrant(nx, ny, gameState);
             if (!_visitedQuadrants.Contains(quad))
+            {
+                if (_logger != null && LogHeuristicScores)
+                {
+                    _logger.Information(
+                        "  Applying UnexploredQuadrantBonus: {Bonus}",
+                        WEIGHTS.UnexploredQuadrantBonus
+                    );
+                }
                 score += WEIGHTS.UnexploredQuadrantBonus;
-
+                if (_logger != null && LogHeuristicScores)
+                {
+                    _logger.Information("  New accumulated score: {Score}", score);
+                }
+            }
             actionScores[action] = score;
-            Console.WriteLine($"Action {action}: Score = {score}");
+            if (_logger != null && LogHeuristicScores)
+            {
+                _logger.Information(
+                    "Action {Action} - Final Calculated Score: {Score}",
+                    action,
+                    score
+                );
+            }
+            // Console.WriteLine($"Action {action}: Score = {score}"); // Replaced by detailed Serilog logging
             if (score > bestScore)
             {
                 bestScore = score;

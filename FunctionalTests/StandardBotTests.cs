@@ -5,6 +5,7 @@ using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Xunit;
+using Xunit.Abstractions;
 using ClingyHeuroBot2Service = HeuroBot.Services.HeuroBotService;
 using ClingyHeuroBotService = HeuroBotV2.Services.HeuroBotService;
 
@@ -18,9 +19,12 @@ public class StandardBotTests : BotTestsBase
     private readonly ClingyHeuroBot2Service _clingyHeuroBot2;
     private readonly ClingyHeuroBotService _clingyHeuroBot;
 
-    public StandardBotTests()
+    public StandardBotTests(ITestOutputHelper outputHelper)
+        : base(outputHelper)
     {
-        _clingyHeuroBot2 = new ClingyHeuroBot2Service();
+        _clingyHeuroBot2 = new ClingyHeuroBot2Service(_logger);
+        _clingyHeuroBot2.LogHeuristicScores = true;
+
         _clingyHeuroBot = new ClingyHeuroBotService();
     }
 

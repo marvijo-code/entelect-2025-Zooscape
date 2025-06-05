@@ -2,6 +2,7 @@ using FunctionalTests.Models;
 using FunctionalTests.Services;
 using Serilog;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace FunctionalTests;
 
@@ -13,7 +14,8 @@ public class JsonDrivenTests : BotTestsBase
     private readonly TestDefinitionLoader _testDefinitionLoader;
     private readonly BotFactory _botFactory;
 
-    public JsonDrivenTests()
+    public JsonDrivenTests(ITestOutputHelper outputHelper)
+        : base(outputHelper)
     {
         _testDefinitionLoader = new TestDefinitionLoader(_logger);
         _botFactory = new BotFactory();

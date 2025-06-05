@@ -9,6 +9,7 @@ using Marvijo.Zooscape.Bots.Common.Models;
 using NSubstitute;
 using Serilog;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace FunctionalTests;
 
@@ -20,10 +21,19 @@ public abstract class BotTestsBase
     protected readonly IGameStateLoader _gameStateLoader;
     protected readonly ITestValidator _testValidator;
     protected readonly Serilog.ILogger _logger;
+    protected readonly ITestOutputHelper _outputHelper;
 
-    protected BotTestsBase()
+    protected BotTestsBase(ITestOutputHelper outputHelper)
     {
-        _logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
+        _outputHelper = outputHelper;
+        _logger = new LoggerConfiguration()
+            .WriteTo.Console()
+            .WriteTo.TestOutput(
+                outputHelper,
+                Serilog.Events.LogEventLevel.Information,
+                "{Message:lj}{NewLine}{Exception}"
+            )
+            .CreateLogger();
 
         _gameStateLoader = new JsonGameStateLoader(_logger);
         _testValidator = new DefaultTestValidator(_logger);
