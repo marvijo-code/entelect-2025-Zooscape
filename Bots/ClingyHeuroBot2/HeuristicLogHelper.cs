@@ -3,9 +3,9 @@ using Serilog;
 
 namespace ClingyHeuroBot2;
 
-public static class HeuristicLogHelper
+public class HeuristicLogHelper
 {
-    public static void LogScoreComponent(
+    public void LogScoreComponent(
         ILogger? logger,
         bool logHeuristicScores,
         string heuristicName,

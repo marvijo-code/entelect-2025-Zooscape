@@ -5,21 +5,134 @@ using System.Diagnostics; //  >>> NEW (time-budget guard)
 using System.Linq; //  >>> NEW (move up for grouping)
 using ClingyHeuroBot2; // Added for HeuristicLogHelper
 using DeepMCTS.Enums;
+using HeuroBot.Bots.ClingyHeuroBot2.Heuristics; // Added for explicit resolution of heuristics in this namespace
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog; // Added for ILogger
+#pragma warning disable SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+namespace HeuroBot.Bots.ClingyHeuroBot2.Heuristics;
 
-namespace HeuroBot.Services;
-
-public static class Heuristics
+public class Heuristics
 {
     // Keep track of recently visited positions to avoid cycles
-    private static readonly ConcurrentDictionary<string, Queue<(int, int)>> _recentPositions =
+    public static readonly ConcurrentDictionary<string, Queue<(int, int)>> _recentPositions =
         new ConcurrentDictionary<string, Queue<(int, int)>>();
 
     // Track the last direction for each animal to detect reversals and turns
     private static readonly ConcurrentDictionary<string, BotAction> _lastDirections =
         new ConcurrentDictionary<string, BotAction>();
+
+    private readonly ILogger _logger;
+    private readonly HeuristicLogHelper _logHelper; // Assuming HeuristicLogHelper will be defined or provided
+    private readonly List<IHeuristic> _heuristics;
+    private readonly Dictionary<string, decimal> _weights;
+
+    public Heuristics(
+        ILogger logger,
+        HeuristicLogHelper logHelper,
+        Dictionary<string, decimal> weights
+    )
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logHelper = logHelper ?? throw new ArgumentNullException(nameof(logHelper)); // Assuming HeuristicLogHelper is a class/interface
+        _weights = weights ?? throw new ArgumentNullException(nameof(weights));
+
+        _heuristics = new List<IHeuristic>
+        {
+            new LineOfSightPelletsHeuristic(),
+            new EscapeRoutesHeuristic(),
+            new ScoreLossMinimizerHeuristic(),
+            new MovementConsistencyHeuristic(),
+            new DistanceToGoalHeuristic(), // Added new heuristic
+            new OpponentProximityHeuristic(), // Added new heuristic
+            new ResourceClusteringHeuristic(), // Added new heuristic
+            new AreaControlHeuristic(), // Added new heuristic
+            new MobilityHeuristic(), // Added new heuristic
+            new PathSafetyHeuristic(), // Added new heuristic
+            new ZookeeperPredictionHeuristic(), // Added new heuristic
+            new CaptureAvoidanceHeuristic(), // Added new heuristic
+            new SpawnProximityHeuristic(), // Added new heuristic
+            new TimeToCaptureHeuristic(), // Added new heuristic
+            // Future heuristic implementations will be added here
+        };
+
+        _logger.Information(
+            "Heuristics instance created with {HeuristicCount} heuristics and {WeightCount} weights.",
+            _heuristics.Count,
+            _weights.Count
+        );
+    }
+
+    public decimal ScoreMove(GameState state, Animal me, BotAction move, bool logHeuristicScores)
+    {
+        decimal totalScore = 0m;
+
+        if (logHeuristicScores)
+        {
+            _logger.Information(
+                "Scoring move {MoveDirection} for animal {AnimalId} at ({X},{Y}):",
+                move,
+                me.Id,
+                me.X,
+                me.Y
+            );
+        }
+
+        foreach (var heuristic in _heuristics)
+        {
+            if (!_weights.TryGetValue(heuristic.Name, out decimal weight))
+            {
+                // If weight is not found, default to 0, effectively disabling this heuristic
+                weight = 0m;
+                if (logHeuristicScores) // Log only if detailed logging is enabled
+                {
+                    _logger.Warning(
+                        "    Weight not found for heuristic '{HeuristicName}'. Defaulting to 0.",
+                        heuristic.Name
+                    );
+                }
+            }
+
+            // Skip calculation if weight is zero
+            if (weight == 0m && logHeuristicScores)
+            {
+                _logger.Information(
+                    "    Skipping heuristic '{HeuristicName}' due to zero weight.",
+                    heuristic.Name
+                );
+                continue;
+            }
+            if (weight == 0m)
+            {
+                continue;
+            }
+
+            decimal rawScore = heuristic.CalculateRawScore(state, me, move);
+            decimal componentContribution = rawScore * weight;
+            totalScore += componentContribution;
+
+            _logHelper.LogScoreComponent(
+                _logger,
+                logHeuristicScores,
+                heuristic.Name,
+                rawScore,
+                weight,
+                componentContribution,
+                totalScore
+            );
+        }
+
+        if (logHeuristicScores)
+        {
+            _logger.Information(
+                "  Final score for move {MoveDirection}: {FinalScore}",
+                move,
+                Math.Round(totalScore, 4)
+            );
+        }
+
+        return totalScore;
+    }
 
     // Reset counters if needed based on game state
     private static void UpdatePathMemory(GameState state, Animal me)
@@ -50,1044 +163,257 @@ public static class Heuristics
         }
     }
 
-    public static decimal ScoreMove(
-        GameState state,
-        Animal me,
-        BotAction move,
-        ILogger? logger,
-        bool logHeuristicScores
-    )
-    {
-        var sw = Stopwatch.StartNew();
-        decimal score = 0m;
-
-        // 1️⃣  FAST / CORE heuristics  (always evaluated)
-        decimal distanceToGoalRaw = HeuristicsImpl.DistanceToGoal(state, me, move);
-        decimal distanceToGoalComponent = distanceToGoalRaw * WEIGHTS.DistanceToGoal;
-        score += distanceToGoalComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "DistanceToGoal",
-            distanceToGoalRaw,
-            WEIGHTS.DistanceToGoal,
-            distanceToGoalComponent,
-            score
-        );
-        decimal opponentProximityRaw = HeuristicsImpl.OpponentProximity(state, me, move);
-        decimal opponentProximityComponent = opponentProximityRaw * WEIGHTS.OpponentProximity;
-        score += opponentProximityComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "OpponentProximity",
-            opponentProximityRaw,
-            WEIGHTS.OpponentProximity,
-            opponentProximityComponent,
-            score
-        );
-        decimal resourceClusteringRaw = HeuristicsImpl.ResourceClustering(state, me, move);
-        decimal resourceClusteringComponent = resourceClusteringRaw * WEIGHTS.ResourceClustering;
-        score += resourceClusteringComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "ResourceClustering",
-            resourceClusteringRaw,
-            WEIGHTS.ResourceClustering,
-            resourceClusteringComponent,
-            score
-        );
-        decimal areaControlRaw = HeuristicsImpl.AreaControl(state, me, move);
-        decimal areaControlComponent = areaControlRaw * WEIGHTS.AreaControl;
-        score += areaControlComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "AreaControl",
-            areaControlRaw,
-            WEIGHTS.AreaControl,
-            areaControlComponent,
-            score
-        );
-        decimal mobilityRaw = HeuristicsImpl.Mobility(state, me, move);
-        decimal mobilityComponent = mobilityRaw * WEIGHTS.Mobility;
-        score += mobilityComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "Mobility",
-            mobilityRaw,
-            WEIGHTS.Mobility,
-            mobilityComponent,
-            score
-        );
-        decimal pathSafetyRaw = HeuristicsImpl.PathSafety(state, me, move);
-        decimal pathSafetyComponent = pathSafetyRaw * WEIGHTS.PathSafety;
-        score += pathSafetyComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "PathSafety",
-            pathSafetyRaw,
-            WEIGHTS.PathSafety,
-            pathSafetyComponent,
-            score
-        );
-
-        decimal zookeeperPredictionRaw = HeuristicsImpl.ZookeeperPrediction(state, me, move);
-        decimal zookeeperPredictionComponent = zookeeperPredictionRaw * WEIGHTS.ZookeeperPrediction;
-        score += zookeeperPredictionComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "ZookeeperPrediction",
-            zookeeperPredictionRaw,
-            WEIGHTS.ZookeeperPrediction,
-            zookeeperPredictionComponent,
-            score
-        );
-        decimal captureAvoidanceRaw = HeuristicsImpl.CaptureAvoidance(state, me, move);
-        decimal captureAvoidanceComponent = captureAvoidanceRaw * WEIGHTS.CaptureAvoidance;
-        score += captureAvoidanceComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "CaptureAvoidance",
-            captureAvoidanceRaw,
-            WEIGHTS.CaptureAvoidance,
-            captureAvoidanceComponent,
-            score
-        );
-        decimal spawnProximityRaw = HeuristicsImpl.SpawnProximity(state, me, move);
-        decimal spawnProximityComponent = spawnProximityRaw * WEIGHTS.SpawnProximity;
-        score += spawnProximityComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "SpawnProximity",
-            spawnProximityRaw,
-            WEIGHTS.SpawnProximity,
-            spawnProximityComponent,
-            score
-        );
-        decimal timeToCaptureRaw = HeuristicsImpl.TimeToCapture(state, me, move);
-        decimal timeToCaptureComponent = timeToCaptureRaw * WEIGHTS.TimeToCapture;
-        score += timeToCaptureComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "TimeToCapture",
-            timeToCaptureRaw,
-            WEIGHTS.TimeToCapture,
-            timeToCaptureComponent,
-            score
-        );
-        decimal edgeSafetyRaw = HeuristicsImpl.EdgeSafety(state, me, move);
-        decimal edgeSafetyComponent = edgeSafetyRaw * WEIGHTS.EdgeSafety;
-        score += edgeSafetyComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "EdgeSafety",
-            edgeSafetyRaw,
-            WEIGHTS.EdgeSafety,
-            edgeSafetyComponent,
-            score
-        );
-        decimal quadrantAwarenessRaw = HeuristicsImpl.QuadrantAwareness(state, me, move);
-        decimal quadrantAwarenessComponent = quadrantAwarenessRaw * WEIGHTS.QuadrantAwareness;
-        score += quadrantAwarenessComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "QuadrantAwareness",
-            quadrantAwarenessRaw,
-            WEIGHTS.QuadrantAwareness,
-            quadrantAwarenessComponent,
-            score
-        );
-        decimal targetEvaluationRaw = HeuristicsImpl.TargetEvaluation(state, me, move);
-        decimal targetEvaluationComponent = targetEvaluationRaw * WEIGHTS.TargetEvaluation;
-        score += targetEvaluationComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "TargetEvaluation",
-            targetEvaluationRaw,
-            WEIGHTS.TargetEvaluation,
-            targetEvaluationComponent,
-            score
-        );
-        decimal tiebreakersAwarenessRaw = HeuristicsImpl.TiebreakersAwareness(state, me, move);
-        decimal tiebreakersAwarenessComponent =
-            tiebreakersAwarenessRaw * WEIGHTS.TiebreakersAwareness;
-        score += tiebreakersAwarenessComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "TiebreakersAwareness",
-            tiebreakersAwarenessRaw,
-            WEIGHTS.TiebreakersAwareness,
-            tiebreakersAwarenessComponent,
-            score
-        );
-        decimal zookeeperCooldownRaw = HeuristicsImpl.ZookeeperCooldown(state, me, move);
-        decimal zookeeperCooldownComponent = zookeeperCooldownRaw * WEIGHTS.ZookeeperCooldown;
-        score += zookeeperCooldownComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "ZookeeperCooldown",
-            zookeeperCooldownRaw,
-            WEIGHTS.ZookeeperCooldown,
-            zookeeperCooldownComponent,
-            score
-        );
-        decimal pelletEfficiencyRaw = HeuristicsImpl.PelletEfficiency(state, me, move);
-        decimal pelletEfficiencyComponent = pelletEfficiencyRaw * WEIGHTS.PelletEfficiency;
-        score += pelletEfficiencyComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "PelletEfficiency",
-            pelletEfficiencyRaw,
-            WEIGHTS.PelletEfficiency,
-            pelletEfficiencyComponent,
-            score
-        );
-        decimal escapeRoutesRaw = HeuristicsImpl.EscapeRoutes(state, me, move);
-        decimal escapeRoutesComponent = escapeRoutesRaw * WEIGHTS.EscapeRoutes;
-        score += escapeRoutesComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "EscapeRoutes",
-            escapeRoutesRaw,
-            WEIGHTS.EscapeRoutes,
-            escapeRoutesComponent,
-            score
-        );
-        decimal animalCongestionRaw = HeuristicsImpl.AnimalCongestion(state, me, move);
-        decimal animalCongestionComponent = animalCongestionRaw * WEIGHTS.AnimalCongestion;
-        score += animalCongestionComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "AnimalCongestion",
-            animalCongestionRaw,
-            WEIGHTS.AnimalCongestion,
-            animalCongestionComponent,
-            score
-        );
-        decimal captureRecoveryStrategyRaw = HeuristicsImpl.CaptureRecoveryStrategy(
-            state,
-            me,
-            move
-        );
-        decimal captureRecoveryStrategyComponent =
-            captureRecoveryStrategyRaw * WEIGHTS.CaptureRecoveryStrategy;
-        score += captureRecoveryStrategyComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "CaptureRecoveryStrategy",
-            captureRecoveryStrategyRaw,
-            WEIGHTS.CaptureRecoveryStrategy,
-            captureRecoveryStrategyComponent,
-            score
-        );
-
-        // New winning heuristics
-        decimal firstCommandAdvantageRaw = HeuristicsImpl.FirstCommandAdvantage(state, me, move);
-        decimal firstCommandAdvantageComponent =
-            firstCommandAdvantageRaw * WEIGHTS.FirstCommandAdvantage;
-        score += firstCommandAdvantageComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "FirstCommandAdvantage",
-            firstCommandAdvantageRaw,
-            WEIGHTS.FirstCommandAdvantage,
-            firstCommandAdvantageComponent,
-            score
-        );
-        decimal travelDistanceMaximizerRaw = HeuristicsImpl.TravelDistanceMaximizer(
-            state,
-            me,
-            move
-        );
-        decimal travelDistanceMaximizerComponent =
-            travelDistanceMaximizerRaw * WEIGHTS.TravelDistanceMaximizer;
-        score += travelDistanceMaximizerComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "TravelDistanceMaximizer",
-            travelDistanceMaximizerRaw,
-            WEIGHTS.TravelDistanceMaximizer,
-            travelDistanceMaximizerComponent,
-            score
-        );
-        decimal spawnTimeMinimizerRaw = HeuristicsImpl.SpawnTimeMinimizer(state, me, move);
-        decimal spawnTimeMinimizerComponent = spawnTimeMinimizerRaw * WEIGHTS.SpawnTimeMinimizer;
-        score += spawnTimeMinimizerComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "SpawnTimeMinimizer",
-            spawnTimeMinimizerRaw,
-            WEIGHTS.SpawnTimeMinimizer,
-            spawnTimeMinimizerComponent,
-            score
-        );
-        decimal timerAwarenessRaw = HeuristicsImpl.TimerAwareness(state, me, move);
-        decimal timerAwarenessComponent = timerAwarenessRaw * WEIGHTS.TimerAwareness;
-        score += timerAwarenessComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "TimerAwareness",
-            timerAwarenessRaw,
-            WEIGHTS.TimerAwareness,
-            timerAwarenessComponent,
-            score
-        );
-
-        decimal pelletRatioAwarenessRaw = HeuristicsImpl.PelletRatioAwareness(state, me, move);
-        decimal pelletRatioAwarenessComponent =
-            pelletRatioAwarenessRaw * WEIGHTS.PelletRatioAwareness;
-        score += pelletRatioAwarenessComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "PelletRatioAwareness",
-            pelletRatioAwarenessRaw,
-            WEIGHTS.PelletRatioAwareness,
-            pelletRatioAwarenessComponent,
-            score
-        );
-
-        decimal commandQueueOptimizationRaw = HeuristicsImpl.CommandQueueOptimization(
-            state,
-            me,
-            move
-        );
-        decimal commandQueueOptimizationComponent =
-            commandQueueOptimizationRaw * WEIGHTS.CommandQueueOptimization;
-        score += commandQueueOptimizationComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "CommandQueueOptimization",
-            commandQueueOptimizationRaw,
-            WEIGHTS.CommandQueueOptimization,
-            commandQueueOptimizationComponent,
-            score
-        );
-
-        decimal anticipateCompetitionRaw = HeuristicsImpl.AnticipateCompetition(state, me, move);
-        decimal anticipateCompetitionComponent =
-            anticipateCompetitionRaw * WEIGHTS.AnticipateCompetition;
-        score += anticipateCompetitionComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "AnticipateCompetition",
-            anticipateCompetitionRaw,
-            WEIGHTS.AnticipateCompetition,
-            anticipateCompetitionComponent,
-            score
-        );
-
-        decimal endgameStrategyRaw = HeuristicsImpl.EndgameStrategy(state, me, move);
-        decimal endgameStrategyComponent = endgameStrategyRaw * WEIGHTS.EndgameStrategy;
-        score += endgameStrategyComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "EndgameStrategy",
-            endgameStrategyRaw,
-            WEIGHTS.EndgameStrategy,
-            endgameStrategyComponent,
-            score
-        );
-
-        decimal positionalDominanceRaw = HeuristicsImpl.PositionalDominance(state, me, move);
-        decimal positionalDominanceComponent = positionalDominanceRaw * WEIGHTS.PositionalDominance;
-        score += positionalDominanceComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "PositionalDominance",
-            positionalDominanceRaw,
-            WEIGHTS.PositionalDominance,
-            positionalDominanceComponent,
-            score
-        );
-
-        decimal scoreLossMinimizerRaw = HeuristicsImpl.ScoreLossMinimizer(state, me, move);
-        decimal scoreLossMinimizerComponent = scoreLossMinimizerRaw * WEIGHTS.ScoreLossMinimizer;
-        score += scoreLossMinimizerComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "ScoreLossMinimizer",
-            scoreLossMinimizerRaw,
-            WEIGHTS.ScoreLossMinimizer,
-            scoreLossMinimizerComponent,
-            score
-        );
-
-        decimal wallCollisionRiskRaw = HeuristicsImpl.WallCollisionRisk(state, me, move);
-        decimal wallCollisionRiskComponent = wallCollisionRiskRaw * WEIGHTS.WallCollisionRisk;
-        score += wallCollisionRiskComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "WallCollisionRisk",
-            wallCollisionRiskRaw,
-            WEIGHTS.WallCollisionRisk,
-            wallCollisionRiskComponent,
-            score
-        );
-
-        decimal lineOfSightPelletsRaw = HeuristicsImpl.LineOfSightPellets(state, me, move);
-        decimal lineOfSightPelletsComponent = lineOfSightPelletsRaw * WEIGHTS.LineOfSightPellets;
-        score += lineOfSightPelletsComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "LineOfSightPellets",
-            lineOfSightPelletsRaw,
-            WEIGHTS.LineOfSightPellets,
-            lineOfSightPelletsComponent,
-            score
-        );
-
-        decimal pelletRaceRaw = HeuristicsImpl.PelletRace(state, me, move);
-        decimal pelletRaceComponent = pelletRaceRaw * WEIGHTS.PelletRace;
-        score += pelletRaceComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "PelletRace",
-            pelletRaceRaw,
-            WEIGHTS.PelletRace,
-            pelletRaceComponent,
-            score
-        );
-
-        decimal recalcWindowSafetyRaw = HeuristicsImpl.RecalcWindowSafety(state, me, move);
-        decimal recalcWindowSafetyComponent = recalcWindowSafetyRaw * WEIGHTS.RecalcWindowSafety;
-        score += recalcWindowSafetyComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "RecalcWindowSafety",
-            recalcWindowSafetyRaw,
-            WEIGHTS.RecalcWindowSafety,
-            recalcWindowSafetyComponent,
-            score
-        );
-
-        decimal centerControlRaw = HeuristicsImpl.CenterControl(state, me, move);
-        decimal centerControlComponent = centerControlRaw * WEIGHTS.CenterControl;
-        score += centerControlComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "CenterControl",
-            centerControlRaw,
-            WEIGHTS.CenterControl,
-            centerControlComponent,
-            score
-        );
-
-        // Update path memory
-        UpdatePathMemory(state, me);
-
-        // Add anti-cycling measures
-        decimal cycleDetectionRaw = HeuristicsImpl.CycleDetection(state, me, move);
-        decimal cycleDetectionComponent = cycleDetectionRaw * WEIGHTS.CycleDetection;
-        score += cycleDetectionComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "CycleDetection",
-            cycleDetectionRaw,
-            WEIGHTS.CycleDetection,
-            cycleDetectionComponent,
-            score
-        );
-
-        decimal directionalVarietyRaw = HeuristicsImpl.DirectionalVariety(state, me, move);
-        decimal directionalVarietyComponent = directionalVarietyRaw * WEIGHTS.DirectionalVariety;
-        score += directionalVarietyComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "DirectionalVariety",
-            directionalVarietyRaw,
-            WEIGHTS.DirectionalVariety,
-            directionalVarietyComponent,
-            score
-        );
-
-        decimal emptyCellAvoidanceRaw = HeuristicsImpl.EmptyCellAvoidance(state, me, move);
-        decimal emptyCellAvoidanceComponent = emptyCellAvoidanceRaw * WEIGHTS.EmptyCellAvoidance;
-        score += emptyCellAvoidanceComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "EmptyCellAvoidance",
-            emptyCellAvoidanceRaw,
-            WEIGHTS.EmptyCellAvoidance,
-            emptyCellAvoidanceComponent,
-            score
-        );
-
-        // Heuristics inspired by GatherNear bot for maze navigation
-        decimal moveIfIdleRaw = HeuristicsImpl.MoveIfIdle(state, me, move);
-        decimal moveIfIdleComponent = moveIfIdleRaw * WEIGHTS.MoveIfIdle;
-        score += moveIfIdleComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "MoveIfIdle",
-            moveIfIdleRaw,
-            WEIGHTS.MoveIfIdle,
-            moveIfIdleComponent,
-            score
-        );
-
-        decimal changeDirectionWhenStuckRaw = HeuristicsImpl.ChangeDirectionWhenStuck(
-            state,
-            me,
-            move
-        );
-        decimal changeDirectionWhenStuckComponent =
-            changeDirectionWhenStuckRaw * WEIGHTS.ChangeDirectionWhenStuck;
-        score += changeDirectionWhenStuckComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "ChangeDirectionWhenStuck",
-            changeDirectionWhenStuckRaw,
-            WEIGHTS.ChangeDirectionWhenStuck,
-            changeDirectionWhenStuckComponent,
-            score
-        );
-
-        decimal shortestPathToGoalRaw = HeuristicsImpl.ShortestPathToGoal(state, me, move);
-        decimal shortestPathToGoalComponent = shortestPathToGoalRaw * WEIGHTS.ShortestPathToGoal;
-        score += shortestPathToGoalComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "ShortestPathToGoal",
-            shortestPathToGoalRaw,
-            WEIGHTS.ShortestPathToGoal,
-            shortestPathToGoalComponent,
-            score
-        );
-
-        decimal edgeAwarenessRaw = HeuristicsImpl.EdgeAwareness(state, me, move);
-        decimal edgeAwarenessComponent = edgeAwarenessRaw * WEIGHTS.EdgeAwareness;
-        score += edgeAwarenessComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "EdgeAwareness",
-            edgeAwarenessRaw,
-            WEIGHTS.EdgeAwareness,
-            edgeAwarenessComponent,
-            score
-        );
-
-        decimal unoccupiedCellBonusRaw = HeuristicsImpl.UnoccupiedCellBonus(state, me, move);
-        decimal unoccupiedCellBonusComponent = unoccupiedCellBonusRaw * WEIGHTS.UnoccupiedCellBonus;
-        score += unoccupiedCellBonusComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "UnoccupiedCellBonus",
-            unoccupiedCellBonusRaw,
-            WEIGHTS.UnoccupiedCellBonus,
-            unoccupiedCellBonusComponent,
-            score
-        );
-
-        decimal opponentTrailChasingRaw = HeuristicsImpl.OpponentTrailChasing(state, me, move);
-        decimal opponentTrailChasingComponent =
-            opponentTrailChasingRaw * WEIGHTS.OpponentTrailChasing;
-        score += opponentTrailChasingComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "OpponentTrailChasing",
-            opponentTrailChasingRaw,
-            WEIGHTS.OpponentTrailChasing,
-            opponentTrailChasingComponent,
-            score
-        );
-
-        decimal centerDistanceBonusRaw = HeuristicsImpl.CenterDistanceBonus(state, me, move);
-        decimal centerDistanceBonusComponent = centerDistanceBonusRaw * WEIGHTS.CenterDistanceBonus;
-        score += centerDistanceBonusComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "CenterDistanceBonus",
-            centerDistanceBonusRaw,
-            WEIGHTS.CenterDistanceBonus,
-            centerDistanceBonusComponent,
-            score
-        );
-
-        decimal movementConsistencyRaw = HeuristicsImpl.MovementConsistency(state, me, move);
-        decimal movementConsistencyComponent = movementConsistencyRaw * WEIGHTS.MovementConsistency;
-        score += movementConsistencyComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "MovementConsistency",
-            movementConsistencyRaw,
-            WEIGHTS.MovementConsistency,
-            movementConsistencyComponent,
-            score
-        );
-
-        decimal tunnelNavigationRaw = HeuristicsImpl.TunnelNavigation(state, me, move);
-        decimal tunnelNavigationComponent = tunnelNavigationRaw * WEIGHTS.TunnelNavigation;
-        score += tunnelNavigationComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "TunnelNavigation",
-            tunnelNavigationRaw,
-            WEIGHTS.TunnelNavigation,
-            tunnelNavigationComponent,
-            score
-        );
-
-        decimal earlyGameZookeeperAvoidanceRaw = HeuristicsImpl.EarlyGameZookeeperAvoidance(
-            state,
-            me,
-            move
-        );
-        decimal earlyGameZookeeperAvoidanceComponent =
-            earlyGameZookeeperAvoidanceRaw * WEIGHTS.EarlyGameZookeeperAvoidance;
-        score += earlyGameZookeeperAvoidanceComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "EarlyGameZookeeperAvoidance",
-            earlyGameZookeeperAvoidanceRaw,
-            WEIGHTS.EarlyGameZookeeperAvoidance,
-            earlyGameZookeeperAvoidanceComponent,
-            score
-        );
-
-        // Territory control inspired heuristics for pellet area domination
-        decimal pelletAreaControlRaw = HeuristicsImpl.PelletAreaControl(state, me, move);
-        decimal pelletAreaControlComponent = pelletAreaControlRaw * WEIGHTS.PelletAreaControl;
-        score += pelletAreaControlComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "PelletAreaControl",
-            pelletAreaControlRaw,
-            WEIGHTS.PelletAreaControl,
-            pelletAreaControlComponent,
-            score
-        );
-
-        decimal densityMappingRaw = HeuristicsImpl.DensityMapping(state, me, move);
-        decimal densityMappingComponent = densityMappingRaw * WEIGHTS.DensityMapping;
-        score += densityMappingComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "DensityMapping",
-            densityMappingRaw,
-            WEIGHTS.DensityMapping,
-            densityMappingComponent,
-            score
-        );
-
-        decimal cornerControlRaw = HeuristicsImpl.CornerControl(state, me, move);
-        decimal cornerControlComponent = cornerControlRaw * WEIGHTS.CornerControl;
-        score += cornerControlComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "CornerControl",
-            cornerControlRaw,
-            WEIGHTS.CornerControl,
-            cornerControlComponent,
-            score
-        );
-
-        decimal adaptivePathfindingRaw = HeuristicsImpl.AdaptivePathfinding(state, me, move);
-        decimal adaptivePathfindingComponent = adaptivePathfindingRaw * WEIGHTS.AdaptivePathfinding;
-        score += adaptivePathfindingComponent;
-        HeuristicLogHelper.LogScoreComponent(
-            logger,
-            logHeuristicScores,
-            "AdaptivePathfinding",
-            adaptivePathfindingRaw,
-            WEIGHTS.AdaptivePathfinding,
-            adaptivePathfindingComponent,
-            score
-        );
-
-        sw.Stop();
-        if (logger != null && logHeuristicScores)
+    // Helper methods previously in HeuristicsImpl, now static members of Heuristics class
+    public static (int x, int y) ApplyMove(int x, int y, BotAction m) =>
+        m switch
         {
-            logger.Information(
-                "ScoreMove for {Move} completed. Final Score: {FinalScore}, Time: {ElapsedMs}ms",
-                move,
-                score,
-                sw.ElapsedMilliseconds
-            );
-        }
+            BotAction.Up => (x, y - 1),
+            BotAction.Down => (x, y + 1),
+            BotAction.Left => (x - 1, y),
+            BotAction.Right => (x + 1, y),
+            _ => (x, y),
+        };
 
-        return score;
+    public static bool IsTraversable(GameState state, int x, int y)
+    {
+        var cell = state.Cells.FirstOrDefault(c => c.X == x && c.Y == y);
+        return cell != null && cell.Content != CellContent.Wall;
     }
 
-    static class HeuristicsImpl
+    public static int ManhattanDistance(int x1, int y1, int x2, int y2) =>
+        Math.Abs(x1 - x2) + Math.Abs(y1 - y2);
+
+    public static List<(int x, int y)> GetPotentialZookeeperNextPositions(GameState state)
+    {
+        var potentialPositions = new List<(int x, int y)>();
+        foreach (var zookeeper in state.Zookeepers)
+        {
+            var positionsForThisZookeeper = new List<(int x, int y)>();
+            Animal? targetAnimal = null; // Initialize to null, addressing potential null issue
+            int minDistance = int.MaxValue;
+
+            // Find the closest viable animal for the current zookeeper
+            foreach (var animal in state.Animals.Where(a => a.IsViable))
+            {
+                // Calls to ManhattanDistance and IsTraversable will resolve to static methods of this Heuristics class
+                int distance = ManhattanDistance(zookeeper.X, zookeeper.Y, animal.X, animal.Y);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    targetAnimal = animal;
+                }
+            }
+
+            // If a target animal is found, calculate potential moves towards it
+            if (targetAnimal != null) // Null check before accessing targetAnimal properties
+            {
+                if (
+                    zookeeper.X < targetAnimal.X
+                    && IsTraversable(state, zookeeper.X + 1, zookeeper.Y)
+                )
+                    positionsForThisZookeeper.Add((zookeeper.X + 1, zookeeper.Y));
+                if (
+                    zookeeper.X > targetAnimal.X
+                    && IsTraversable(state, zookeeper.X - 1, zookeeper.Y)
+                )
+                    positionsForThisZookeeper.Add((zookeeper.X - 1, zookeeper.Y));
+                if (
+                    zookeeper.Y < targetAnimal.Y
+                    && IsTraversable(state, zookeeper.X, zookeeper.Y + 1)
+                )
+                    positionsForThisZookeeper.Add((zookeeper.X, zookeeper.Y + 1));
+                if (
+                    zookeeper.Y > targetAnimal.Y
+                    && IsTraversable(state, zookeeper.X, zookeeper.Y - 1)
+                )
+                    positionsForThisZookeeper.Add((zookeeper.X, zookeeper.Y - 1));
+            }
+
+            // Always include the zookeeper's current position as a possibility (staying still).
+            positionsForThisZookeeper.Add((zookeeper.X, zookeeper.Y));
+
+            potentialPositions.AddRange(positionsForThisZookeeper);
+        }
+        // Return all unique potential positions for all zookeepers combined.
+        return potentialPositions.Distinct().ToList();
+    }
+
+    public static class HeuristicsImpl
     {
         //  ————————————————————————— **NEW HEURISTICS** —————————————————————————
 
-        /// <summary>Penalise moves that will crash into a wall within ≤2 tiles,
-        /// because that forces us to burn another queued command and lose tempo.</summary>
-        public static decimal WallCollisionRisk(GameState st, Animal me, BotAction m) //  >>> NEW
-        {
-            var (x, y) = ApplyMove(me.X, me.Y, m);
-            int steps = 0;
-            while (steps < 3 && IsTraversable(st, x, y))
-            {
-                (x, y) = ApplyMove(x, y, m);
-                steps++;
-            }
-            if (!IsTraversable(st, x, y))
-                steps--;
-            return steps switch
-            {
-                0 => -2.0m, // would hit wall next tick
-                1 => -0.8m,
-                2 => -0.3m,
-                _ => 0m,
-            };
-        }
+        // Helper methods ApplyMove, IsTraversable, ManhattanDistance, GetPotentialZookeeperNextPositions
+        // have been moved to the outer Heuristics class as public static methods.
 
-        /// <summary>Reward straight-line runs that hoover multiple pellets before next turn.</summary>
-        public static decimal LineOfSightPellets(GameState st, Animal me, BotAction m) //  >>> NEW
-        {
-            var (x, y) = ApplyMove(me.X, me.Y, m);
-            int visPellets = 0;
-            for (int i = 0; i < 6 && IsTraversable(st, x, y); i++)
-            {
-                if (st.Cells.Any(c => c.X == x && c.Y == y && c.Content == CellContent.Pellet))
-                    visPellets++;
-                (x, y) = ApplyMove(x, y, m);
-            }
-            return visPellets * 0.6m;
-        }
+        // DistanceToGoal heuristic moved to its own class: DistanceToGoalHeuristic.cs
 
-        /// <summary>Prefer pellets that we can beat _all_ competitors to.</summary>
-        public static decimal PelletRace(GameState st, Animal me, BotAction m) //  >>> NEW
-        {
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
-            var pellets = st.Cells.Where(c => c.Content == CellContent.Pellet);
-            if (!pellets.Any())
-                return 0m;
-            var best = pellets.OrderBy(c => ManhattanDistance(nx, ny, c.X, c.Y)).First();
-            int myD = ManhattanDistance(nx, ny, best.X, best.Y);
-            int minOther = st
-                .Animals.Where(a => a.Id != me.Id && a.IsViable)
-                .Select(a => ManhattanDistance(a.X, a.Y, best.X, best.Y))
-                .DefaultIfEmpty(int.MaxValue)
-                .Min();
-            return minOther - myD >= 2 ? 1.2m : 0m;
-        }
+        // OpponentProximity heuristic moved to its own class: OpponentProximityHeuristic.cs
+        // public static decimal OpponentProximity(GameState state, Animal me, BotAction m)
+        // {
+        //     var (nx, ny) = ApplyMove(me.X, me.Y, m);
+        //     // var dists = state.Zookeepers.Select(z => ManhattanDistance(z.X, z.Y, nx, ny));
+        //     // if (!dists.Any())
+        //     //     return 0m;
+        //     // var minDist = dists.Min();
+        //     // return 1m / (minDist + 1);
+        // }
 
-        /// <summary>Avoid being within capture range at the exact tick when the zookeeper retargets
-        /// (every 20 ticks per rules §Zookeeper). That is when surprise retargets happen.</summary>
-        public static decimal RecalcWindowSafety(GameState st, Animal me, BotAction m) //  >>> NEW
-        {
-            int ticksToRecalc = (20 - (st.Tick % 20)) % 20;
-            if (ticksToRecalc > 3)
-                return 0m; // evaluate only in last 3 ticks of window
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
-            int dist = st.Zookeepers.Any()
-                ? st.Zookeepers.Min(z => ManhattanDistance(z.X, z.Y, nx, ny))
-                : 999;
-            return dist < 4 ? -1.5m / (dist + 1) : 0.4m; // move away if close, mild bonus if safe
-        }
+        // ResourceClustering heuristic moved to its own class: ResourceClusteringHeuristic.cs
+        // public static decimal ResourceClustering(GameState state, Animal me, BotAction m)
+        // {
+        //     var (nx, ny) = ApplyMove(me.X, me.Y, m);
 
-        /// <summary>Because the map is symmetrical, controlling the centre denies pellets to
-        /// _all_ quadrants while minimising travel.  We give a small, smooth bonus for staying
-        /// within a Manhattan radius ≤ 2 of centre.</summary>
-        public static decimal CenterControl(GameState st, Animal me, BotAction m) //  >>> NEW
-        {
-            int cx = (st.Cells.Min(c => c.X) + st.Cells.Max(c => c.X)) / 2;
-            int cy = (st.Cells.Min(c => c.Y) + st.Cells.Max(c => c.Y)) / 2;
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
-            int distToCenter = ManhattanDistance(nx, ny, cx, cy);
-            return distToCenter <= 2 ? 0.3m : 0m;
-        }
+        //     // Count pellets in a larger radius (3 instead of 2) to be more aware of clusters
+        //     int pelletCount = state.Cells.Count(c =>
+        //         c.Content == CellContent.Pellet && ManhattanDistance(c.X, c.Y, nx, ny) <= 3
+        //     );
 
-        private static (int x, int y) ApplyMove(int x, int y, BotAction m) =>
-            m switch
-            {
-                BotAction.Up => (x, y - 1),
-                BotAction.Down => (x, y + 1),
-                BotAction.Left => (x - 1, y),
-                BotAction.Right => (x + 1, y),
-                _ => (x, y),
-            };
+        //     // Give immediate cells higher weight
+        //     int immediatePellets = state.Cells.Count(c =>
+        //         c.Content == CellContent.Pellet && ManhattanDistance(c.X, c.Y, nx, ny) <= 1
+        //     );
 
-        private static bool IsTraversable(GameState state, int x, int y)
-        {
-            var cell = state.Cells.FirstOrDefault(c => c.X == x && c.Y == y);
-            return cell != null && cell.Content != CellContent.Wall;
-        }
+        //     // Prioritize moves that put us directly on a pellet or next to one
+        //     return pelletCount + (immediatePellets * 2.0m);
+        // }
 
-        private static int ManhattanDistance(int x1, int y1, int x2, int y2) =>
-            Math.Abs(x1 - x2) + Math.Abs(y1 - y2);
+        // AreaControl heuristic moved to its own class: AreaControlHeuristic.cs
+        // public static decimal AreaControl(GameState state, Animal me, BotAction m)
+        // {
+        //     var (nx, ny) = ApplyMove(me.X, me.Y, m);
+        //     decimal value = 0;
+        //     foreach (var cell in state.Cells.Where(c => c.Content == CellContent.Pellet))
+        //     {
+        //         int dist = ManhattanDistance(cell.X, cell.Y, nx, ny);
+        //         if (dist <= 5) // Increased radius to 5
+        //             value += 1.0m / (dist + 1); // Weight by inverse distance
+        //     }
+        //     return value;
+        // }
 
-        private static List<(int x, int y)> GetPotentialZookeeperNextPositions(GameState state)
-        {
-            var result = new List<(int x, int y)>();
-            foreach (var zookeeper in state.Zookeepers)
-            {
-                Animal? targetAnimal = null;
-                int minDistance = int.MaxValue;
+        // Mobility heuristic moved to its own class: MobilityHeuristic.cs
+        // public static decimal Mobility(GameState state, Animal me, BotAction m)
+        // {
+        //     var (nx, ny) = ApplyMove(me.X, me.Y, m);
+        //     return Enum.GetValues<BotAction>()
+        //         .Cast<BotAction>()
+        //         .Count(a =>
+        //         {
+        //             var (x2, y2) = ApplyMove(nx, ny, a);
+        //             return IsTraversable(state, x2, y2);
+        //         });
+        // }
 
-                foreach (var animal in state.Animals.Where(a => a.IsViable))
-                {
-                    int distance = ManhattanDistance(zookeeper.X, zookeeper.Y, animal.X, animal.Y);
-                    if (distance < minDistance)
-                    {
-                        minDistance = distance;
-                        targetAnimal = animal;
-                    }
-                }
+        // PathSafety heuristic moved to its own class: PathSafetyHeuristic.cs
+        // public static decimal PathSafety(GameState state, Animal me, BotAction m) =>
+        //     Mobility(state, me, m) <= 1 ? -1m : 0m; // Original call to static Mobility
 
-                if (targetAnimal != null)
-                {
-                    if (
-                        zookeeper.X < targetAnimal.X
-                        && IsTraversable(state, zookeeper.X + 1, zookeeper.Y)
-                    )
-                        result.Add((zookeeper.X + 1, zookeeper.Y));
-                    if (
-                        zookeeper.X > targetAnimal.X
-                        && IsTraversable(state, zookeeper.X - 1, zookeeper.Y)
-                    )
-                        result.Add((zookeeper.X - 1, zookeeper.Y));
-                    if (
-                        zookeeper.Y < targetAnimal.Y
-                        && IsTraversable(state, zookeeper.X, zookeeper.Y + 1)
-                    )
-                        result.Add((zookeeper.X, zookeeper.Y + 1));
-                    if (
-                        zookeeper.Y > targetAnimal.Y
-                        && IsTraversable(state, zookeeper.X, zookeeper.Y - 1)
-                    )
-                        result.Add((zookeeper.X, zookeeper.Y - 1));
-                }
+        // ZookeeperPrediction heuristic moved to its own class: ZookeeperPredictionHeuristic.cs
+        // public static decimal ZookeeperPrediction(GameState state, Animal me, BotAction m)
+        // {
+        //     var (nx, ny) = ApplyMove(me.X, me.Y, m);
+        //     var zookeeperNextPositions = GetPotentialZookeeperNextPositions(state);
 
-                result.Add((zookeeper.X, zookeeper.Y));
-            }
-            return result;
-        }
+        //     if (zookeeperNextPositions.Any(pos => pos.x == nx && pos.y == ny))
+        //         return -3.0m;
 
-        public static decimal DistanceToGoal(GameState state, Animal me, BotAction m)
-        {
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
-            var pellets = state.Cells.Where(c => c.Content == CellContent.Pellet);
-            if (!pellets.Any())
-                return 0m;
+        //     int minDist = zookeeperNextPositions.Min(pos =>
+        //         ManhattanDistance(pos.x, pos.y, nx, ny)
+        //     );
+        //     if (minDist <= 2)
+        //         return -1.5m / (minDist + 0.5m);
 
-            // Get the closest pellet
-            var closestPellet = pellets
-                .OrderBy(c => ManhattanDistance(c.X, c.Y, nx, ny))
-                .FirstOrDefault();
-            if (closestPellet == null)
-                return 0m;
+        //     return 0m;
+        // }
+        // } // Stray brace from ZookeeperPrediction commented out - NOW FULLY COMMENTED
 
-            int currentDist = ManhattanDistance(me.X, me.Y, closestPellet.X, closestPellet.Y);
-            int newDist = ManhattanDistance(nx, ny, closestPellet.X, closestPellet.Y);
+        // CaptureAvoidance heuristic moved to its own class: CaptureAvoidanceHeuristic.cs
+        // public static decimal CaptureAvoidance(GameState state, Animal me, BotAction m)
+        // {
+        //     var (nx, ny) = ApplyMove(me.X, me.Y, m);
 
-            // Heavily reward moves that get us closer to the nearest pellet
-            if (newDist < currentDist)
-                return 2.0m;
-            else if (newDist > currentDist)
-                return -1.0m;
+        //     bool amITarget = true;
+        //     foreach (var zookeeper in state.Zookeepers)
+        //     {
+        //         int myDistance = ManhattanDistance(zookeeper.X, zookeeper.Y, me.X, me.Y);
 
-            // If we're not making progress toward the closest pellet, consider the overall pellet situation
-            var minDist = pellets.Min(c => ManhattanDistance(c.X, c.Y, nx, ny));
-            return -minDist * 0.5m;
-        }
+        //         foreach (var animal in state.Animals.Where(a => a.IsViable && a.Id != me.Id))
+        //         {
+        //             int theirDistance = ManhattanDistance(
+        //                 zookeeper.X,
+        //                 zookeeper.Y,
+        //                 animal.X,
+        //                 animal.Y
+        //             );
+        //             if (theirDistance < myDistance)
+        //             {
+        //                 amITarget = false;
+        //                 break;
+        //             }
+        //         }
 
-        public static decimal OpponentProximity(GameState state, Animal me, BotAction m)
-        {
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
-            var dists = state.Zookeepers.Select(z => ManhattanDistance(z.X, z.Y, nx, ny));
-            if (!dists.Any())
-                return 0m;
-            var minDist = dists.Min();
-            return 1m / (minDist + 1);
-        }
+        //         if (!amITarget)
+        //             break;
+        //     }
 
-        public static decimal ResourceClustering(GameState state, Animal me, BotAction m)
-        {
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
+        //     if (amITarget)
+        //     {
+        //         var zookeeper = state.Zookeepers.FirstOrDefault();
+        //         if (zookeeper != null)
+        //         {
+        //             var (nx, ny) = ApplyMove(me.X, me.Y, m);
+        //             int currentDist = ManhattanDistance(zookeeper.X, zookeeper.Y, me.X, me.Y);
+        //             int newDist = ManhattanDistance(zookeeper.X, zookeeper.Y, nx, ny);
 
-            // Count pellets in a larger radius (3 instead of 2) to be more aware of clusters
-            int pelletCount = state.Cells.Count(c =>
-                c.Content == CellContent.Pellet && ManhattanDistance(c.X, c.Y, nx, ny) <= 3
-            );
+        //             if (newDist > currentDist)
+        //                 return 2.0m;
+        //             else if (newDist < currentDist)
+        //                 return -2.0m;
+        //         }
+        //     }
 
-            // Give immediate cells higher weight
-            int immediatePellets = state.Cells.Count(c =>
-                c.Content == CellContent.Pellet && ManhattanDistance(c.X, c.Y, nx, ny) <= 1
-            );
+        //     return 0m;
+        // }
 
-            // Prioritize moves that put us directly on a pellet or next to one
-            return pelletCount + (immediatePellets * 2.0m);
-        }
+        // SpawnProximity heuristic moved to its own class: SpawnProximityHeuristic.cs
+        // public static decimal SpawnProximity(GameState state, Animal me, BotAction m)
+        // {
+        //     var (nx, ny) = ApplyMove(me.X, me.Y, m);
 
-        public static decimal AreaControl(GameState state, Animal me, BotAction m)
-        {
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
-            decimal value = 0;
-            foreach (var cell in state.Cells.Where(c => c.Content == CellContent.Pellet))
-            {
-                int dist = ManhattanDistance(cell.X, cell.Y, nx, ny);
-                if (dist <= 5) // Increased radius to 5
-                    value += 1.0m / (dist + 1); // Weight by inverse distance
-            }
-            return value;
-        }
+        //     var spawns = state.Animals.Select(a => (a.SpawnX, a.SpawnY)).Distinct().ToList();
 
-        public static decimal Mobility(GameState state, Animal me, BotAction m)
-        {
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
-            return Enum.GetValues<BotAction>()
-                .Cast<BotAction>()
-                .Count(a =>
-                {
-                    var (x2, y2) = ApplyMove(nx, ny, a);
-                    return IsTraversable(state, x2, y2);
-                });
-        }
+        //     int minSpawnDist = spawns.Min(sp => ManhattanDistance(sp.SpawnX, sp.SpawnY, nx, ny));
 
-        public static decimal PathSafety(GameState state, Animal me, BotAction m) =>
-            Mobility(state, me, m) <= 1 ? -1m : 0m;
+        //     if (me.CapturedCounter > 0 && minSpawnDist <= 3)
+        //         return 0.5m;
 
-        public static decimal ZookeeperPrediction(GameState state, Animal me, BotAction m)
-        {
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
-            var zookeeperNextPositions = GetPotentialZookeeperNextPositions(state);
+        //     return minSpawnDist <= 3 ? -1.0m : 0m;
+        // }
 
-            if (zookeeperNextPositions.Any(pos => pos.x == nx && pos.y == ny))
-                return -3.0m;
+        // TimeToCapture heuristic moved to its own class: TimeToCaptureHeuristic.cs
+        // public static decimal TimeToCapture(GameState state, Animal me, BotAction m)
+        // {
+        //     var (nx, ny) = ApplyMove(me.X, me.Y, m);
 
-            int minDist = zookeeperNextPositions.Min(pos =>
-                ManhattanDistance(pos.x, pos.y, nx, ny)
-            );
-            if (minDist <= 2)
-                return -1.5m / (minDist + 0.5m);
+        //     var zookeeper = state
+        //         .Zookeepers.OrderBy(z => ManhattanDistance(z.X, z.Y, me.X, me.Y))
+        //         .FirstOrDefault();
 
-            return 0m;
-        }
+        //     if (zookeeper == null)
+        //         return 0m;
 
-        public static decimal CaptureAvoidance(GameState state, Animal me, BotAction m)
-        {
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
+        //     int timeEstimate = ManhattanDistance(zookeeper.X, zookeeper.Y, nx, ny);
 
-            bool amITarget = true;
-            foreach (var zookeeper in state.Zookeepers)
-            {
-                int myDistance = ManhattanDistance(zookeeper.X, zookeeper.Y, me.X, me.Y);
+        //     if (timeEstimate <= 2)
+        //         return -2.0m;
+        //     else if (timeEstimate <= 5)
+        //         return -1.0m;
+        //     else if (timeEstimate <= 10)
+        //         return -0.5m;
 
-                foreach (var animal in state.Animals.Where(a => a.IsViable && a.Id != me.Id))
-                {
-                    int theirDistance = ManhattanDistance(
-                        zookeeper.X,
-                        zookeeper.Y,
-                        animal.X,
-                        animal.Y
-                    );
-                    if (theirDistance < myDistance)
-                    {
-                        amITarget = false;
-                        break;
-                    }
-                }
-
-                if (!amITarget)
-                    break;
-            }
-
-            if (amITarget)
-            {
-                var zookeeper = state.Zookeepers.FirstOrDefault();
-                if (zookeeper != null)
-                {
-                    int currentDist = ManhattanDistance(zookeeper.X, zookeeper.Y, me.X, me.Y);
-                    int newDist = ManhattanDistance(zookeeper.X, zookeeper.Y, nx, ny);
-
-                    if (newDist > currentDist)
-                        return 2.0m;
-                    else if (newDist < currentDist)
-                        return -2.0m;
-                }
-            }
-
-            return 0m;
-        }
-
-        public static decimal SpawnProximity(GameState state, Animal me, BotAction m)
-        {
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
-
-            var spawns = state.Animals.Select(a => (a.SpawnX, a.SpawnY)).Distinct().ToList();
-
-            int minSpawnDist = spawns.Min(sp => ManhattanDistance(sp.SpawnX, sp.SpawnY, nx, ny));
-
-            if (me.CapturedCounter > 0 && minSpawnDist <= 3)
-                return 0.5m;
-
-            return minSpawnDist <= 3 ? -1.0m : 0m;
-        }
-
-        public static decimal TimeToCapture(GameState state, Animal me, BotAction m)
-        {
-            var (nx, ny) = ApplyMove(me.X, me.Y, m);
-
-            var zookeeper = state
-                .Zookeepers.OrderBy(z => ManhattanDistance(z.X, z.Y, me.X, me.Y))
-                .FirstOrDefault();
-
-            if (zookeeper == null)
-                return 0m;
-
-            int timeEstimate = ManhattanDistance(zookeeper.X, zookeeper.Y, nx, ny);
-
-            if (timeEstimate <= 2)
-                return -2.0m;
-            else if (timeEstimate <= 5)
-                return -1.0m;
-            else if (timeEstimate <= 10)
-                return -0.5m;
-
-            return 0.5m;
-        }
+        //     return 0.5m;
+        // }
+        // } // Stray brace commented out
 
         public static decimal EdgeSafety(GameState state, Animal me, BotAction m)
         {
@@ -1425,7 +751,7 @@ public static class Heuristics
                 if (state.Animals.OrderByDescending(a => a.Score).First().Id != me.Id)
                 {
                     // If not leading, take more risks
-                    value += HeuristicsImpl.ResourceClustering(state, me, m) * 0.5m;
+                    // value += HeuristicsImpl.ResourceClustering(state, me, m) * 0.5m; // Migrated to instance-based heuristic
                 }
             }
             // Late game: Focus on maintaining lead or catching up
@@ -1445,7 +771,7 @@ public static class Heuristics
                 // If not leading, focus on pellets
                 else
                 {
-                    value += HeuristicsImpl.ResourceClustering(state, me, m) * 0.8m;
+                    // value += HeuristicsImpl.ResourceClustering(state, me, m) * 0.8m; // Migrated to instance-based heuristic
                 }
             }
 
