@@ -1,5 +1,4 @@
 #pragma warning disable SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-using System;
 using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
@@ -8,9 +7,9 @@ using Serilog;
 
 namespace ClingyHeuroBot2.Heuristics
 {
-    public class MobilityHeuristic : IHeuristic
+    public class TiebreakersAwarenessHeuristic : IHeuristic
     {
-        public string Name => "Mobility";
+        public string Name => "TiebreakersAwareness";
 
         public decimal CalculateRawScore(
             GameState state,
@@ -20,14 +19,18 @@ namespace ClingyHeuroBot2.Heuristics
         )
         {
             var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
+            decimal score = 0m;
 
-            return Enum.GetValues<BotAction>()
-                .Cast<BotAction>()
-                .Count(nextAction =>
-                {
-                    var (x2, y2) = Heuristics.ApplyMove(nx, ny, nextAction);
-                    return Heuristics.IsTraversable(state, x2, y2);
-                });
+            // Tiebreaker 1: Score (less is better)
+            score -= me.Score * 0.01m;
+
+            // Tiebreaker 2: Distance Covered (more is better)
+            score += me.DistanceCovered * 0.01m;
+
+            // Tiebreaker 3: Captured Counter (less is better)
+            score -= me.CapturedCounter * 0.01m;
+
+            return score;
         }
     }
 }

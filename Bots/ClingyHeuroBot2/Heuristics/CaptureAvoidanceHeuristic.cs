@@ -1,22 +1,27 @@
-#pragma warning disable SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+#pragma warning disable SKEXP0110
 using System.Linq;
-using ClingyHeuroBot2; // For IHeuristic
+using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Serilog;
 
-namespace HeuroBot.Bots.ClingyHeuroBot2.Heuristics
+namespace ClingyHeuroBot2.Heuristics
 {
     public class CaptureAvoidanceHeuristic : IHeuristic
     {
         public string Name => "CaptureAvoidance";
 
-        public decimal CalculateRawScore(GameState state, Animal me, BotAction move)
+        public decimal CalculateRawScore(
+            GameState state,
+            Animal me,
+            BotAction move,
+            ILogger? logger
+        )
         {
             var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
             bool amITarget = false;
             Zookeeper? targetingZookeeper = null;
 
-            // Determine if 'me' is the current target for any zookeeper
             foreach (var zookeeper in state.Zookeepers)
             {
                 var animalsByDistance = state
@@ -47,9 +52,9 @@ namespace HeuroBot.Bots.ClingyHeuroBot2.Heuristics
                 );
 
                 if (newDist > currentDist)
-                    return 2.0m; // Moving away from targetting zookeeper
+                    return 2.0m;
                 else if (newDist < currentDist)
-                    return -2.0m; // Moving towards targetting zookeeper
+                    return -2.0m;
             }
             return 0m;
         }

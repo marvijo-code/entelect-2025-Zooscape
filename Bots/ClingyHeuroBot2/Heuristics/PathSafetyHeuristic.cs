@@ -4,18 +4,23 @@ using System.Linq;
 using ClingyHeuroBot2;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Serilog;
 
-namespace HeuroBot.Bots.ClingyHeuroBot2.Heuristics
+namespace ClingyHeuroBot2
 {
     public class PathSafetyHeuristic : IHeuristic
     {
         public string Name => "PathSafety";
 
-        public decimal CalculateRawScore(GameState state, Animal me, BotAction move)
+        public decimal CalculateRawScore(
+            GameState state,
+            Animal me,
+            BotAction move,
+            ILogger? logger
+        )
         {
             var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
 
-            // Calculate mobility: count how many subsequent moves are possible
             decimal mobilityScore = Enum.GetValues<BotAction>()
                 .Cast<BotAction>()
                 .Count(nextAction =>
@@ -24,7 +29,6 @@ namespace HeuroBot.Bots.ClingyHeuroBot2.Heuristics
                     return Heuristics.IsTraversable(state, x2, y2);
                 });
 
-            // PathSafety logic: if mobility is 1 or less, penalize.
             return mobilityScore <= 1 ? -1m : 0m;
         }
     }

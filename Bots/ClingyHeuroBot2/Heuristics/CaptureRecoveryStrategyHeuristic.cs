@@ -1,0 +1,25 @@
+#pragma warning disable SKEXP0110
+using System.Linq;
+using Marvijo.Zooscape.Bots.Common;
+using Marvijo.Zooscape.Bots.Common.Enums;
+using Marvijo.Zooscape.Bots.Common.Models;
+using Serilog;
+
+namespace ClingyHeuroBot2.Heuristics
+{
+    public class CaptureRecoveryStrategyHeuristic : IHeuristic
+    {
+        public string Name => "CaptureRecoveryStrategy";
+
+        public decimal CalculateRawScore(
+            GameState state,
+            Animal me,
+            BotAction move,
+            ILogger? logger
+        )
+        {
+            logger?.Verbose("{Heuristic} not implemented", Name);
+            return 0m;
+        }
+    }
+}

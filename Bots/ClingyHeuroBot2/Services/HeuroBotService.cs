@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ClingyHeuroBot2;
 using HeuroBot; // for WEIGHTS
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
@@ -13,11 +14,15 @@ namespace HeuroBot.Services;
 public class HeuroBotService : IBot<HeuroBotService>
 {
     private readonly ILogger _logger;
+    private readonly Heuristics _heuristics;
     public bool LogHeuristicScores { get; set; } = false;
 
     public HeuroBotService(ILogger? logger = null)
     {
         _logger = logger ?? Logger.None;
+        var weights = WEIGHTS.GetWeights();
+        var logHelper = new HeuristicLogHelper();
+        _heuristics = new Heuristics(_logger, logHelper, weights);
     }
 
     public Guid BotId { get; set; }
@@ -98,7 +103,7 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         foreach (var action in legalActions)
         {
-            var score = Heuristics.ScoreMove(gameState, me, action, _logger, LogHeuristicScores);
+            var score = _heuristics.ScoreMove(gameState, me, action, LogHeuristicScores);
             if (_logger != null && LogHeuristicScores)
             {
                 _logger.Information("Action {Action} - Initial score: {Score}", action, score);
