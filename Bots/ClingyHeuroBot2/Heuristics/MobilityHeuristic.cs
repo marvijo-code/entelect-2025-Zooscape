@@ -4,6 +4,7 @@ using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Utils;
 using Serilog;
 
 namespace ClingyHeuroBot2.Heuristics;
@@ -12,7 +13,7 @@ public class MobilityHeuristic : IHeuristic
 {
     public string Name => "Mobility";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
@@ -20,8 +21,8 @@ public class MobilityHeuristic : IHeuristic
             .Cast<BotAction>()
             .Count(nextAction =>
             {
-                var (x2, y2) = Heuristics.ApplyMove(nx, ny, nextAction);
-                return Heuristics.IsTraversable(state, x2, y2);
+                var (x2, y2) = BotUtils.ApplyMove(nx, ny, nextAction);
+                return BotUtils.IsTraversable(heuristicContext.CurrentGameState, x2, y2);
             });
     }
 }

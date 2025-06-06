@@ -12,14 +12,18 @@ public class WallCollisionRiskHeuristic : IHeuristic
 
     public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        var (x, y) = Heuristics.ApplyMove(me.X, me.Y, move);
+        var (x, y) = Heuristics.ApplyMove(
+            heuristicContext.CurrentAnimal.X,
+            heuristicContext.CurrentAnimal.Y,
+            heuristicContext.CurrentMove
+        );
         int steps = 0;
-        while (steps < 3 && Heuristics.IsTraversable(state, x, y))
+        while (steps < 3 && Heuristics.IsTraversable(heuristicContext.CurrentGameState, x, y))
         {
-            (x, y) = Heuristics.ApplyMove(x, y, move);
+            (x, y) = Heuristics.ApplyMove(x, y, heuristicContext.CurrentMove);
             steps++;
         }
-        if (!Heuristics.IsTraversable(state, x, y))
+        if (!Heuristics.IsTraversable(heuristicContext.CurrentGameState, x, y))
             steps--;
 
         return steps switch

@@ -11,15 +11,17 @@ public class LineOfSightPelletsHeuristic : IHeuristic
 {
     public string Name => "LineOfSightPellets";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
         int pelletsInSight = 0;
 
         // Check horizontal line of sight
-        for (int x = nx + 1; x < state.Cells.Max(c => c.X); x++)
+        for (int x = nx + 1; x < heuristicContext.CurrentGameState.Cells.Max(c => c.X); x++)
         {
-            var cell = state.Cells.FirstOrDefault(c => c.X == x && c.Y == ny);
+            var cell = heuristicContext.CurrentGameState.Cells.FirstOrDefault(c =>
+                c.X == x && c.Y == ny
+            );
             if (cell == null || cell.Content == CellContent.Wall)
                 break;
             if (cell.Content == CellContent.Pellet)
@@ -27,7 +29,9 @@ public class LineOfSightPelletsHeuristic : IHeuristic
         }
         for (int x = nx - 1; x >= 0; x--)
         {
-            var cell = state.Cells.FirstOrDefault(c => c.X == x && c.Y == ny);
+            var cell = heuristicContext.CurrentGameState.Cells.FirstOrDefault(c =>
+                c.X == x && c.Y == ny
+            );
             if (cell == null || cell.Content == CellContent.Wall)
                 break;
             if (cell.Content == CellContent.Pellet)
@@ -35,9 +39,11 @@ public class LineOfSightPelletsHeuristic : IHeuristic
         }
 
         // Check vertical line of sight
-        for (int y = ny + 1; y < state.Cells.Max(c => c.Y); y++)
+        for (int y = ny + 1; y < heuristicContext.CurrentGameState.Cells.Max(c => c.Y); y++)
         {
-            var cell = state.Cells.FirstOrDefault(c => c.X == nx && c.Y == y);
+            var cell = heuristicContext.CurrentGameState.Cells.FirstOrDefault(c =>
+                c.X == nx && c.Y == y
+            );
             if (cell == null || cell.Content == CellContent.Wall)
                 break;
             if (cell.Content == CellContent.Pellet)
@@ -45,7 +51,9 @@ public class LineOfSightPelletsHeuristic : IHeuristic
         }
         for (int y = ny - 1; y >= 0; y--)
         {
-            var cell = state.Cells.FirstOrDefault(c => c.X == nx && c.Y == y);
+            var cell = heuristicContext.CurrentGameState.Cells.FirstOrDefault(c =>
+                c.X == nx && c.Y == y
+            );
             if (cell == null || cell.Content == CellContent.Wall)
                 break;
             if (cell.Content == CellContent.Pellet)

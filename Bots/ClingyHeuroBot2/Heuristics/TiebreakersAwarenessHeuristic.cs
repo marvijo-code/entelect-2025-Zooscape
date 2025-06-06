@@ -11,19 +11,28 @@ public class TiebreakersAwarenessHeuristic : IHeuristic
 {
     public string Name => "TiebreakersAwareness";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext context)
     {
-        var (nx, ny) = heuristicContext.MyNewPosition;
+        // var (nx, ny) = context.MyNewPosition; // Not used in current logic but available
         decimal score = 0m;
 
         // Tiebreaker 1: Score (less is better)
-        score -= me.Score * 0.01m;
+        score -= context.CurrentAnimal.Score * 0.01m;
 
         // Tiebreaker 2: Distance Covered (more is better)
-        score += me.DistanceCovered * 0.01m;
+        score += context.CurrentAnimal.DistanceCovered * 0.01m;
 
         // Tiebreaker 3: Captured Counter (less is better)
-        score -= me.CapturedCounter * 0.01m;
+        score -= context.CurrentAnimal.CapturedCounter * 0.01m;
+
+        context.Logger?.Verbose(
+            "{Heuristic}: Calculated tiebreaker score {Score} for move {Move} to ({NewX}, {NewY})",
+            Name,
+            score,
+            context.CurrentMove,
+            context.MyNewPosition.X,
+            context.MyNewPosition.Y
+        );
 
         return score;
     }

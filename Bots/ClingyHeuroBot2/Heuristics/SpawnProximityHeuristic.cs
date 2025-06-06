@@ -14,9 +14,14 @@ public class SpawnProximityHeuristic : IHeuristic
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
-        int spawnDist = Heuristics.ManhattanDistance(me.SpawnX, me.SpawnY, nx, ny);
+        int spawnDist = Heuristics.ManhattanDistance(
+            heuristicContext.CurrentAnimal.SpawnX,
+            heuristicContext.CurrentAnimal.SpawnY,
+            nx,
+            ny
+        );
 
-        if (spawnDist < 3 && state.Tick < 50)
+        if (spawnDist < 3 && heuristicContext.CurrentGameState.Tick < 50)
         {
             return -1.0m * (3 - spawnDist);
         }

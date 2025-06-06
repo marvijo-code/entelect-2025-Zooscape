@@ -1,3 +1,4 @@
+#pragma warning disable SKEXP0110
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
@@ -9,9 +10,9 @@ public class EndgameStrategyHeuristic : IHeuristic
 {
     public string Name => "EndgameStrategy";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        logger?.Verbose("{Heuristic} not implemented", Name);
+        heuristicContext.Logger?.Verbose("{Heuristic} not implemented", Name);
         return 0m;
     }
 }

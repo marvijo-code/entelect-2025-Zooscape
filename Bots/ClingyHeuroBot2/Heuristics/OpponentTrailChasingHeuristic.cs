@@ -11,13 +11,13 @@ public class OpponentTrailChasingHeuristic : IHeuristic
 {
     public string Name => "OpponentTrailChasing";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext context)
     {
-        var (nx, ny) = heuristicContext.MyNewPosition;
+        var (nx, ny) = context.MyNewPosition;
 
         // Find the nearest opponent
-        var nearestOpponent = state
-            .Animals.Where(a => a.Id != me.Id && a.IsViable) // Consider only viable opponents
+        var nearestOpponent = context
+            .CurrentGameState.Animals.Where(a => a.Id != context.CurrentAnimal.Id && a.IsViable) // Consider only viable opponents
             .OrderBy(a => Heuristics.ManhattanDistance(nx, ny, a.X, a.Y))
             .FirstOrDefault();
 
@@ -37,13 +37,20 @@ public class OpponentTrailChasingHeuristic : IHeuristic
         if (distToOpponent > 3 && distToOpponent < 8)
         {
             int currentDist = Heuristics.ManhattanDistance(
-                me.X,
-                me.Y,
+                context.CurrentAnimal.X,
+                context.CurrentAnimal.Y,
                 nearestOpponent.X,
                 nearestOpponent.Y
             );
             if (distToOpponent < currentDist)
             {
+                context.Logger?.Verbose(
+                    "{Heuristic}: Moving towards opponent {OpponentId} at safe distance. Old: {CurrentDist}, New: {NewDist}",
+                    Name,
+                    nearestOpponent.Id,
+                    currentDist,
+                    distToOpponent
+                );
                 return 1.0m; // Small bonus for moving towards opponents at a safe distance
             }
         }

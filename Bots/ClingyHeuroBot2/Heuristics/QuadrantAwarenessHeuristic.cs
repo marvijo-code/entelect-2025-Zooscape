@@ -15,13 +15,13 @@ public class QuadrantAwarenessHeuristic : IHeuristic
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
-        if (!state.Cells.Any())
+        if (!heuristicContext.CurrentGameState.Cells.Any())
             return 0m; // Should not happen
 
-        int minX = state.Cells.Min(c => c.X);
-        int maxX = state.Cells.Max(c => c.X);
-        int minY = state.Cells.Min(c => c.Y);
-        int maxY = state.Cells.Max(c => c.Y);
+        int minX = heuristicContext.CurrentGameState.Cells.Min(c => c.X);
+        int maxX = heuristicContext.CurrentGameState.Cells.Max(c => c.X);
+        int minY = heuristicContext.CurrentGameState.Cells.Min(c => c.Y);
+        int maxY = heuristicContext.CurrentGameState.Cells.Max(c => c.Y);
 
         // Integer division is fine for determining center for quadrant logic
         int centerX = (minX + maxX) / 2;
@@ -36,14 +36,24 @@ public class QuadrantAwarenessHeuristic : IHeuristic
         int targetQuadrant = (nx >= centerX ? 1 : 0) + (ny >= centerY ? 2 : 0);
 
         int[] pelletsByQuadrant = new int[4];
-        foreach (var cell in state.Cells.Where(c => c.Content == CellContent.Pellet))
+        foreach (
+            var cell in heuristicContext.CurrentGameState.Cells.Where(c =>
+            {
+                return c.Content == CellContent.Pellet;
+            })
+        )
         {
             int q = (cell.X >= centerX ? 1 : 0) + (cell.Y >= centerY ? 2 : 0);
             pelletsByQuadrant[q]++;
         }
 
         int[] animalsByQuadrant = new int[4];
-        foreach (var animal in state.Animals.Where(a => a.Id != me.Id && a.IsViable))
+        foreach (
+            var animal in heuristicContext.CurrentGameState.Animals.Where(a =>
+            {
+                return a.Id != heuristicContext.CurrentAnimal.Id && a.IsViable;
+            })
+        )
         {
             int q = (animal.X >= centerX ? 1 : 0) + (animal.Y >= centerY ? 2 : 0);
             animalsByQuadrant[q]++;

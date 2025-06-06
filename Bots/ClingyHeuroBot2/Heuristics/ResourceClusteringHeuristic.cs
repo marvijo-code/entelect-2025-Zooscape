@@ -15,14 +15,14 @@ public class ResourceClusteringHeuristic : IHeuristic
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
-        if (state.Cells == null)
+        if (heuristicContext.CurrentGameState.Cells == null)
             return 0m;
 
-        int pelletCount = state.Cells.Count(c =>
+        int pelletCount = heuristicContext.CurrentGameState.Cells.Count(c =>
             c.Content == CellContent.Pellet && Heuristics.ManhattanDistance(c.X, c.Y, nx, ny) <= 3
         );
 
-        int immediatePellets = state.Cells.Count(c =>
+        int immediatePellets = heuristicContext.CurrentGameState.Cells.Count(c =>
             c.Content == CellContent.Pellet && Heuristics.ManhattanDistance(c.X, c.Y, nx, ny) <= 1
         );
 

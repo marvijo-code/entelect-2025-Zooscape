@@ -11,7 +11,7 @@ public class TravelDistanceMaximizerHeuristic : IHeuristic
 
     public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        logger?.Verbose("{Heuristic} not implemented", Name);
+        heuristicContext.Logger?.Verbose("{Heuristic} not implemented", Name);
         return 0m;
     }
 }

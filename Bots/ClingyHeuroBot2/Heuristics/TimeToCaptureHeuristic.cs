@@ -15,13 +15,15 @@ public class TimeToCaptureHeuristic : IHeuristic
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
-        if (!state.Zookeepers.Any())
+        if (!heuristicContext.CurrentGameState.Zookeepers.Any())
         {
             return 0m;
         }
 
-        var zookeeper = state
-            .Zookeepers.OrderBy(z => Heuristics.ManhattanDistance(z.X, z.Y, nx, ny))
+        var zookeeper = heuristicContext
+            .CurrentGameState.Zookeepers.OrderBy(z =>
+                Heuristics.ManhattanDistance(z.X, z.Y, nx, ny)
+            )
             .First();
         int distToZookeeper = Heuristics.ManhattanDistance(zookeeper.X, zookeeper.Y, nx, ny);
 

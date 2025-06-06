@@ -13,11 +13,7 @@ public class CycleDetectionHeuristic : IHeuristic
 
     public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        var (nx, ny) = Heuristics.ApplyMove(
-            heuristicContext.CurrentAnimal.X,
-            heuristicContext.CurrentAnimal.Y,
-            heuristicContext.CurrentMove
-        );
+        var (nx, ny) = heuristicContext.MyNewPosition;
         string animalKey = heuristicContext.CurrentAnimal.Id.ToString();
 
         if (!HeuristicsManager._recentPositions.ContainsKey(animalKey))

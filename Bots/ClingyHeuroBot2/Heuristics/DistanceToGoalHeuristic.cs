@@ -3,6 +3,7 @@ using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Utils;
 using Serilog;
 
 namespace ClingyHeuroBot2.Heuristics;
@@ -13,11 +14,7 @@ public class DistanceToGoalHeuristic : IHeuristic
 
     public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        var (nx, ny) = Heuristics.ApplyMove(
-            heuristicContext.CurrentAnimal.X,
-            heuristicContext.CurrentAnimal.Y,
-            heuristicContext.CurrentMove
-        );
+        var (nx, ny) = heuristicContext.MyNewPosition;
         var pellets = heuristicContext.CurrentGameState.Cells.Where(c =>
             c.Content == CellContent.Pellet
         );
@@ -28,21 +25,31 @@ public class DistanceToGoalHeuristic : IHeuristic
         }
 
         // Get the closest pellet
-        var closestPellet = pellets.OrderBy(p => Math.Abs(p.X - nx) + Math.Abs(p.Y - ny)).First();
+        var closestPellet = pellets
+            .OrderBy(p => BotUtils.ManhattanDistance(p.X, p.Y, nx, ny))
+            .First();
 
-        var distance = Math.Abs(closestPellet.X - nx) + Math.Abs(closestPellet.Y - ny);
+        var distance = BotUtils.ManhattanDistance(closestPellet.X, closestPellet.Y, nx, ny);
 
         // Heavily reward moves that get us closer to the nearest pellet
         if (
             distance
-            < Math.Abs(closestPellet.X - heuristicContext.CurrentAnimal.X)
-                + Math.Abs(closestPellet.Y - heuristicContext.CurrentAnimal.Y)
+            < BotUtils.ManhattanDistance(
+                closestPellet.X,
+                closestPellet.Y,
+                heuristicContext.CurrentAnimal.X,
+                heuristicContext.CurrentAnimal.Y
+            )
         )
             return 2.0m;
         else if (
             distance
-            > Math.Abs(closestPellet.X - heuristicContext.CurrentAnimal.X)
-                + Math.Abs(closestPellet.Y - heuristicContext.CurrentAnimal.Y)
+            > BotUtils.ManhattanDistance(
+                closestPellet.X,
+                closestPellet.Y,
+                heuristicContext.CurrentAnimal.X,
+                heuristicContext.CurrentAnimal.Y
+            )
         )
             return -1.0m;
 
@@ -50,7 +57,7 @@ public class DistanceToGoalHeuristic : IHeuristic
         // Original logic: return -minDist * 0.5m;
         // The intention is to penalize being far from pellets. A smaller minDist is better.
         // So, a larger negative score (more penalty) if minDist is large.
-        var minDistToAnyPellet = pellets.Min(c => Heuristics.ManhattanDistance(c.X, c.Y, nx, ny));
+        var minDistToAnyPellet = pellets.Min(c => BotUtils.ManhattanDistance(c.X, c.Y, nx, ny));
         return -(decimal)minDistToAnyPellet * 0.5m;
     }
 }

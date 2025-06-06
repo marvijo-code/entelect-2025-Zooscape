@@ -9,9 +9,8 @@ public class PelletAreaControlHeuristic : IHeuristic
 {
     public string Name => "PelletAreaControl";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        logger?.Verbose("{Heuristic} not implemented", Name);
         return 0m;
     }
 }

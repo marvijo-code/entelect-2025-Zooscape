@@ -28,7 +28,7 @@ public class EscapeRoutesHeuristic : IHeuristic
                     var zookeeper = heuristicContext
                         .CurrentGameState.Zookeepers.OrderBy(z =>
                             BotUtils.ManhattanDistance(z.X, z.Y, nx, ny)
-                        ) // Updated
+                        )
                         .First();
 
                     int currentDist = BotUtils.ManhattanDistance( // Updated

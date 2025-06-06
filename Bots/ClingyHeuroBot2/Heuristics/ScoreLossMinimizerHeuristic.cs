@@ -19,15 +19,18 @@ public class ScoreLossMinimizerHeuristic : IHeuristic
         float capturePenaltyPercent = 0.5f;
 
         // Calculate potential score loss if captured
-        decimal potentialLoss = me.Score * (decimal)capturePenaltyPercent;
+        decimal potentialLoss =
+            heuristicContext.CurrentAnimal.Score * (decimal)capturePenaltyPercent;
 
         var (nx, ny) = heuristicContext.MyNewPosition;
 
         // Calculate capture risk based on zookeeper proximity
         decimal captureRisk = 0m;
-        if (state.Zookeepers.Any())
+        if (heuristicContext.CurrentGameState.Zookeepers.Count > 0)
         {
-            int minDist = state.Zookeepers.Min(z => Heuristics.ManhattanDistance(z.X, z.Y, nx, ny));
+            int minDist = heuristicContext.CurrentGameState.Zookeepers.Min(z =>
+                Heuristics.ManhattanDistance(z.X, z.Y, nx, ny)
+            );
 
             // Risk increases as zookeeper gets closer
             if (minDist <= 3)

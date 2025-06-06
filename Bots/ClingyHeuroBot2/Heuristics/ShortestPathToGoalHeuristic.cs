@@ -9,9 +9,13 @@ public class ShortestPathToGoalHeuristic : IHeuristic
 {
     public string Name => "ShortestPathToGoal";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext context)
     {
-        logger?.Verbose("{Heuristic} not implemented", Name);
+        context.Logger?.Verbose("{Heuristic} not implemented", Name);
+        // Access GameState, Animal, BotAction via context if needed for actual logic
+        // var state = context.CurrentGameState;
+        // var me = context.CurrentAnimal;
+        // var move = context.CurrentMove;
         return 0m;
     }
 }

@@ -16,15 +16,15 @@ public class ZookeeperPredictionHeuristic : IHeuristic
         var (nx, ny) = heuristicContext.MyNewPosition;
 
         // Simplified implementation - predict zookeepers will move toward closest animal
-        var zookeepers = state.Zookeepers.ToList();
+        var zookeepers = heuristicContext.CurrentGameState.Zookeepers.ToList();
         if (!zookeepers.Any())
             return 0m;
 
         foreach (var zookeeper in zookeepers)
         {
             // Simple prediction: zookeeper moves toward closest animal
-            var closestAnimal = state
-                .Animals.OrderBy(a =>
+            var closestAnimal = heuristicContext
+                .CurrentGameState.Animals.OrderBy(a =>
                     Heuristics.ManhattanDistance(a.X, a.Y, zookeeper.X, zookeeper.Y)
                 )
                 .FirstOrDefault();

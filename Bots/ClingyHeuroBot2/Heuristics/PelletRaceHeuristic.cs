@@ -14,13 +14,17 @@ public class PelletRaceHeuristic : IHeuristic
     public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
-        var pellets = state.Cells.Where(c => c.Content == CellContent.Pellet);
+        var pellets = heuristicContext.CurrentGameState.Cells.Where(c =>
+            c.Content == CellContent.Pellet
+        );
         if (!pellets.Any())
             return 0m;
         var best = pellets.OrderBy(c => Heuristics.ManhattanDistance(nx, ny, c.X, c.Y)).First();
         int myD = Heuristics.ManhattanDistance(nx, ny, best.X, best.Y);
-        int minOther = state
-            .Animals.Where(a => a.Id != me.Id && a.IsViable)
+        int minOther = heuristicContext
+            .CurrentGameState.Animals.Where(a =>
+                a.Id != heuristicContext.CurrentAnimal.Id && a.IsViable
+            )
             .Select(a => Heuristics.ManhattanDistance(a.X, a.Y, best.X, best.Y))
             .DefaultIfEmpty(int.MaxValue)
             .Min();
