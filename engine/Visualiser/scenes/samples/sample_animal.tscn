@@ -1,10 +1,18 @@
-[gd_scene load_steps=8 format=3 uid="uid://celv7ux54vh5"]
+[gd_scene load_steps=10 format=3 uid="uid://celv7ux54vh5"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_dkscc"]
+font_size = 60
 
 [sub_resource type="LabelSettings" id="LabelSettings_ijf8o"]
 font_size = 60
+font_color = Color(0.826832, 0.56161, 1.15514e-06, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_36kp1"]
+font_size = 60
+font_color = Color(0.664526, 0.398041, 0.989991, 1)
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_mcgvx"]
-viewport_path = NodePath("Node3D/SubViewport")
+viewport_path = NodePath("AnimalLabels/SubViewport")
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_anpb0"]
 
@@ -18,52 +26,68 @@ albedo_color = Color(0.114363, 0.321761, 0.644459, 1)
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yfb77"]
 albedo_color = Color(0, 0.464659, 0.298083, 1)
 
-[node name="RigidBody3D" type="RigidBody3D"]
+[node name="sample_animal" type="RigidBody3D"]
+collision_layer = 0
+collision_mask = 0
 axis_lock_angular_x = true
 axis_lock_angular_y = true
 axis_lock_angular_z = true
 gravity_scale = 0.0
 
-[node name="Node3D" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.41954, 0)
+[node name="AnimalLabels" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.63322, 0)
 
-[node name="SubViewport" type="SubViewport" parent="Node3D"]
+[node name="SubViewport" type="SubViewport" parent="AnimalLabels"]
 transparent_bg = true
-size = Vector2i(1000, 75)
+size = Vector2i(1000, 250)
 
-[node name="CenterContainer" type="CenterContainer" parent="Node3D/SubViewport"]
+[node name="VBoxContainer" type="VBoxContainer" parent="AnimalLabels/SubViewport"]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -39.0
-offset_top = -20.0
-offset_right = 39.0
-offset_bottom = 20.0
+offset_left = -186.0
+offset_top = -41.5
+offset_right = 186.0
+offset_bottom = 41.5
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Label" type="Label" parent="Node3D/SubViewport/CenterContainer"]
+[node name="Name" type="Label" parent="AnimalLabels/SubViewport/VBoxContainer"]
 layout_mode = 2
 text = "Testy Animal"
+label_settings = SubResource("LabelSettings_dkscc")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ActivePowerUp" type="Label" parent="AnimalLabels/SubViewport/VBoxContainer"]
+layout_mode = 2
+text = "Testy Power Up"
 label_settings = SubResource("LabelSettings_ijf8o")
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Sprite3D" type="Sprite3D" parent="Node3D"]
+[node name="HeldPowerUp" type="Label" parent="AnimalLabels/SubViewport/VBoxContainer"]
+layout_mode = 2
+text = "Testy Power Up"
+label_settings = SubResource("LabelSettings_36kp1")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Sprite3D" type="Sprite3D" parent="AnimalLabels"]
 billboard = 1
 texture = SubResource("ViewportTexture_mcgvx")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(0.75, 0, 0, 0, 0.75, 0, 0, 0, 0.75, 0, 0, 0)
+[node name="AnimalBody" type="CollisionShape3D" parent="."]
+transform = Transform3D(0.75, 0, 0, 0, 0.75, 0, 0, 0, 0.75, 0, 0.25, 0)
 shape = SubResource("CapsuleShape3D_anpb0")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="CollisionShape3D"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="AnimalBody"]
 mesh = SubResource("CapsuleMesh_8nrgj")
 surface_material_override/0 = SubResource("StandardMaterial3D_8ifcu")
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="CollisionShape3D"]
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="AnimalBody"]
 transform = Transform3D(0.531453, 0, 0, 0, 0.259417, 0, 0, 0, 0.286187, 0, 0.424215, -0.488962)
 visible = false
 mesh = SubResource("BoxMesh_tjnx3")

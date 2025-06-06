@@ -2,14 +2,20 @@
 using Serilog;
 using Serilog.Sinks.File.GZip;
 
-namespace S3Logger;
+namespace Zooscape.Infrastructure.S3Logger;
 
 public class StreamingFileLogger : IStreamingFileLogger
 {
     private readonly ILogger _logger;
+    private readonly bool _enabled;
 
-    public StreamingFileLogger(string logDir, string logFileName)
+    public StreamingFileLogger(bool enabled, string logDir, string logFileName)
     {
+        _enabled = enabled;
+
+        if (!_enabled)
+            return;
+
         string logFilePath = Path.Combine(logDir, $"{logFileName}.gz");
         Log.Information($"Logging output to: {logFilePath}");
 
@@ -25,11 +31,17 @@ public class StreamingFileLogger : IStreamingFileLogger
 
     public void LogState(object state)
     {
+        if (!_enabled)
+            return;
+
         _logger.Information("{@state}", state);
     }
 
     public void CloseAndFlush()
     {
+        if (!_enabled)
+            return;
+
         ((IDisposable)_logger).Dispose();
     }
 }

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://jhuja0a8evou"]
+
+[node name="file_selector" type="Node3D"]
+
+[node name="FileDialog" type="FileDialog" parent="."]
+title = "Open a File"
+initial_position = 1
+size = Vector2i(500, 350)
+ok_button_text = "Open"
+file_mode = 0
+access = 2
+use_native_dialog = true

@@ -20,7 +20,6 @@ public class Main {
         String environmentIp = System.getenv("RUNNER_IPV4");
         String environmentNickname = System.getenv("BOT_NICKNAME");
         UUID token = UUID.fromString(System.getenv("Token"));
-        token = (token != null) ? token : UUID.fromString(System.getenv("REGISTRATION_TOKEN"));
 
         String ip = (environmentIp != null && !environmentIp.isBlank()) ? environmentIp : "localhost";
         ip = ip.startsWith("http://") ? ip : "http://" + ip;

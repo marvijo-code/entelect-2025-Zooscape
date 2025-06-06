@@ -8,6 +8,18 @@ public enum CellContent
     Pellet = 2,
     ZookeeperSpawn = 3,
     AnimalSpawn = 4,
+    PowerPellet = 5,
+    ChameleonCloak = 6,
+    Scavenger = 7,
+    BigMooseJuice = 8,
+}
+
+public enum PowerUpType
+{
+    PowerPellet = 0,
+    ChameleonCloak = 1,
+    Scavenger = 2,
+    BigMooseJuice = 3,
 }
 
 public class TickState
@@ -52,5 +64,14 @@ public class Animal
     public int Score { get; set; }
     public int CapturedCounter { get; set; }
     public int DistanceCovered { get; set; }
-    public bool IsViable { get; set; } = false;
+    public bool IsViable { get; set; }
+    public PowerUpType? HeldPowerUp { get; set; }
+    public ActivePowerUp? ActivePowerUp { get; set; }
+}
+
+public class ActivePowerUp
+{
+    public double Value { get; set; }
+    public int TicksRemaining { get; set; }
+    public PowerUpType Type { get; set; }
 }

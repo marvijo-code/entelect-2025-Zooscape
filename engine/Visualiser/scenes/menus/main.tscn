@@ -1,0 +1,85 @@
+[gd_scene load_steps=6 format=3 uid="uid://c46730yxsyfvp"]
+
+[ext_resource type="Script" path="res://scripts/menus/Main_LinkToGame.cs" id="1_q1d2k"]
+[ext_resource type="Script" path="res://scripts/menus/Main_LinkToLogs.cs" id="2_6vhgn"]
+[ext_resource type="Script" path="res://scripts/menus/Main_Settings.cs" id="2_dobnm"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_igfao"]
+font_size = 90
+
+[sub_resource type="LabelSettings" id="LabelSettings_hkkwq"]
+font_size = 40
+font_color = Color(0.952015, 0.751531, 7.70092e-07, 1)
+
+[node name="Main" type="Node3D"]
+
+[node name="UI" type="Node" parent="."]
+
+[node name="PageLayout" type="HBoxContainer" parent="UI"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -577.0
+offset_top = -236.0
+offset_right = 577.0
+offset_bottom = 115.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="LeftPadding" type="VBoxContainer" parent="UI/PageLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Center" type="VBoxContainer" parent="UI/PageLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="Heading" type="Label" parent="UI/PageLayout/Center"]
+layout_mode = 2
+text = "Zooscape"
+label_settings = SubResource("LabelSettings_igfao")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Debug Heading" type="Label" parent="UI/PageLayout/Center"]
+layout_mode = 2
+text = "(DEBUG)"
+label_settings = SubResource("LabelSettings_hkkwq")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/PageLayout/Center"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+
+[node name="Buttons" type="VBoxContainer" parent="UI/PageLayout/Center"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="LinkToGame" type="Button" parent="UI/PageLayout/Center/Buttons"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Link To Game Engine"
+script = ExtResource("1_q1d2k")
+
+[node name="LinkToLogs" type="Button" parent="UI/PageLayout/Center/Buttons"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Link To Log File"
+script = ExtResource("2_6vhgn")
+
+[node name="Settings" type="Button" parent="UI/PageLayout/Center/Buttons"]
+visible = false
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Settings"
+script = ExtResource("2_dobnm")
+
+[node name="RightPadding" type="VBoxContainer" parent="UI/PageLayout"]
+layout_mode = 2
+size_flags_horizontal = 3

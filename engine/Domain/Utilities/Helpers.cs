@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
-namespace Domain.Utilities;
+namespace Zooscape.Domain.Utilities;
 
-public class Helpers
+public static class Helpers
 {
     private static readonly Random _random = new Random();
     private static List<string> _usedNames = [];
+    private static Dictionary<string, List<TimeSpan>> _timespans = [];
 
     public static string GenerateRandomName()
     {
@@ -28,5 +30,48 @@ public class Helpers
         } while (_usedNames.Contains(newName));
 
         return newName;
+    }
+
+    public static T TrackExecutionTime<T>(string captureGroup, Func<T> func, out TimeSpan elapsed)
+    {
+        if (!_timespans.ContainsKey(captureGroup))
+            _timespans.Add(captureGroup, []);
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        T result = func();
+        stopwatch.Stop();
+        elapsed = stopwatch.Elapsed;
+        _timespans[captureGroup].Add(stopwatch.Elapsed);
+
+        return result;
+    }
+
+    public static void TrackExecutionTime(string captureGroup, Action action, out TimeSpan elapsed)
+    {
+        if (!_timespans.ContainsKey(captureGroup))
+            _timespans.Add(captureGroup, []);
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        action();
+        stopwatch.Stop();
+        elapsed = stopwatch.Elapsed;
+        _timespans[captureGroup].Add(stopwatch.Elapsed);
+    }
+
+    public static Dictionary<string, (double Max, double Min, double Avg)> TrackedExecutionTimes()
+    {
+        Dictionary<string, (double, double, double)> retval = [];
+
+        foreach (var (key, value) in _timespans)
+            retval.Add(
+                key,
+                (
+                    value.Max(x => x.TotalMilliseconds),
+                    value.Min(x => x.TotalMilliseconds),
+                    value.Average(x => x.TotalMilliseconds)
+                )
+            );
+
+        return retval;
     }
 }

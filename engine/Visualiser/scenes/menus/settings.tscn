@@ -1,0 +1,72 @@
+[gd_scene load_steps=5 format=3 uid="uid://7k325o53s3k"]
+
+[ext_resource type="Script" path="res://scripts/menus/Settings.cs" id="1_mjres"]
+[ext_resource type="Script" path="res://scripts/menus/Settings_Back.cs" id="1_ww2ef"]
+[ext_resource type="Script" path="res://scripts/menus/Settings_Save.cs" id="2_gk4d8"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_uvppn"]
+font_size = 90
+
+[node name="Settings" type="Node3D"]
+script = ExtResource("1_mjres")
+
+[node name="UI" type="Node" parent="."]
+
+[node name="PageLayout" type="HBoxContainer" parent="UI"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -577.0
+offset_top = -236.0
+offset_right = 577.0
+offset_bottom = 115.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="LeftPadding" type="VBoxContainer" parent="UI/PageLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Center" type="VBoxContainer" parent="UI/PageLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="Heading" type="Label" parent="UI/PageLayout/Center"]
+layout_mode = 2
+text = "Settings"
+label_settings = SubResource("LabelSettings_uvppn")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Options" type="VBoxContainer" parent="UI/PageLayout/Center"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="LogsLocation" type="TextEdit" parent="UI/PageLayout/Center/Options"]
+custom_minimum_size = Vector2(404, 35)
+layout_mode = 2
+placeholder_text = "Logs Location"
+
+[node name="Buttons" type="HBoxContainer" parent="UI/PageLayout/Center"]
+layout_mode = 2
+
+[node name="Back" type="Button" parent="UI/PageLayout/Center/Buttons"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Back"
+script = ExtResource("1_ww2ef")
+
+[node name="Save" type="Button" parent="UI/PageLayout/Center/Buttons"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Save"
+script = ExtResource("2_gk4d8")
+
+[node name="RightPadding" type="VBoxContainer" parent="UI/PageLayout"]
+layout_mode = 2
+size_flags_horizontal = 3

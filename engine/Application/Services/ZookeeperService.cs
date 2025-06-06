@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Domain.Utilities;
 using Microsoft.Extensions.Options;
 using Zooscape.Application.Config;
 using Zooscape.Domain.Algorithms.DataStructures;
 using Zooscape.Domain.Algorithms.Pathfinding;
 using Zooscape.Domain.Enums;
 using Zooscape.Domain.Interfaces;
+using Zooscape.Domain.Utilities;
 
 namespace Zooscape.Application.Services;
 

@@ -4,7 +4,7 @@
 font_size = 60
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_1uurr"]
-viewport_path = NodePath("Node3D/SubViewport")
+viewport_path = NodePath("ZookeeperName/SubViewport")
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_a0mk0"]
 
@@ -19,19 +19,21 @@ albedo_color = Color(0.607267, 0.114511, 0.203061, 1)
 albedo_color = Color(0, 0.464659, 0.298083, 1)
 
 [node name="RigidBody3D" type="RigidBody3D"]
+collision_layer = 0
+collision_mask = 0
 axis_lock_angular_x = true
 axis_lock_angular_y = true
 axis_lock_angular_z = true
 gravity_scale = 0.0
 
-[node name="Node3D" type="Node3D" parent="."]
+[node name="ZookeeperName" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.41954, 0)
 
-[node name="SubViewport" type="SubViewport" parent="Node3D"]
+[node name="SubViewport" type="SubViewport" parent="ZookeeperName"]
 transparent_bg = true
 size = Vector2i(1000, 75)
 
-[node name="CenterContainer" type="CenterContainer" parent="Node3D/SubViewport"]
+[node name="CenterContainer" type="CenterContainer" parent="ZookeeperName/SubViewport"]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -44,14 +46,14 @@ offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Label" type="Label" parent="Node3D/SubViewport/CenterContainer"]
+[node name="Label" type="Label" parent="ZookeeperName/SubViewport/CenterContainer"]
 layout_mode = 2
 text = "Testy Zookeeper"
 label_settings = SubResource("LabelSettings_td1cj")
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Sprite3D" type="Sprite3D" parent="Node3D"]
+[node name="Sprite3D" type="Sprite3D" parent="ZookeeperName"]
 billboard = 1
 texture = SubResource("ViewportTexture_1uurr")
 

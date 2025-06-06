@@ -1,9 +1,8 @@
 ﻿using Amazon;
 using Amazon.S3;
 using Amazon.S3.Transfer;
-using Serilog;
 
-namespace S3Logger.Utilities;
+namespace Zooscape.Infrastructure.S3Logger.Utilities;
 
 public static class S3
 {

@@ -53,7 +53,7 @@ The application can be run using docker via the following commands from the root
 
 #### Windows Command Prompt / PowerShell:
 ```powershell
-.\run.cmd
+.\run.bat
 ```
 
 #### Linux / MacOS / Unix:
@@ -108,6 +108,12 @@ The game engine is available to the community for peer review and bug fixes. If 
 
 
 ## Submission Process
+An important note regarding Bot registration, is the use of the **UUID Token** variable which will link your bot to your player account.
+
+Please ensure that your bot is using the **Environment Variable "Token"** as this is used alongside your nickname when registering
+your bot, allowing your points to be tracked during tournaments. Please see Starter and Reference Bots if there is any confusion.
+
+
 We have automated submissions through GitHub!
 For more information, sign up for the player portal [here](https://challenge.entelect.co.za/portal), and follow the steps!
 

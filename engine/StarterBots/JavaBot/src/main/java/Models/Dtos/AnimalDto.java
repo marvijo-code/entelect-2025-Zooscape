@@ -1,17 +1,22 @@
 package Models.Dtos;
 
+import Enums.PowerUpType;
+
 import java.util.UUID;
 
 public class AnimalDto {
     public UUID Id;
-    public int X;
-    public int Y;
+    public int x;
+    public int y;
     public int spawnX;
     public int spawnY;
-    public int Score;
+    public int score;
     public int capturedCounter;
     public int distanceCovered;
-    public boolean IsViable;
+    public boolean isViable;
+    public PowerUpType heldPowerUp;
+
+    public ActivePowerUpDto activePowerUp;
 
     public UUID getId() {
         return Id;
@@ -22,19 +27,19 @@ public class AnimalDto {
     }
 
     public int getX() {
-        return X;
+        return x;
     }
 
     public void setX(int x) {
-        X = x;
+        this.x = x;
     }
 
     public int getY() {
-        return Y;
+        return y;
     }
 
     public void setY(int y) {
-        Y = y;
+        this.y = y;
     }
 
     public int getSpawnX() {
@@ -54,11 +59,11 @@ public class AnimalDto {
     }
 
     public int getScore() {
-        return Score;
+        return score;
     }
 
     public void setScore(int score) {
-        Score = score;
+        this.score = score;
     }
 
     public int getCapturedCounter() {
@@ -78,10 +83,26 @@ public class AnimalDto {
     }
 
     public boolean isViable() {
-        return IsViable;
+        return isViable;
     }
 
     public void setViable(boolean viable) {
-        IsViable = viable;
+        isViable = viable;
+    }
+
+    public ActivePowerUpDto getActivePowerUp() {
+        return activePowerUp;
+    }
+
+    public void setActivePowerUp(ActivePowerUpDto activePowerUp) {
+        this.activePowerUp = activePowerUp;
+    }
+
+    public PowerUpType getHeldPowerUp() {
+        return heldPowerUp;
+    }
+
+    public void setHeldPowerUp(PowerUpType heldPowerUp) {
+        this.heldPowerUp = heldPowerUp;
     }
 }

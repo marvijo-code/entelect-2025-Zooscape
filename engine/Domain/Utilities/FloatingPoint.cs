@@ -1,6 +1,6 @@
 using System;
 
-namespace Domain.Utilities;
+namespace Zooscape.Domain.Utilities;
 
 public class FloatingPoint
 {

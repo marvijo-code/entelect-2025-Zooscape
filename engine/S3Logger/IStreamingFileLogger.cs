@@ -1,4 +1,4 @@
-﻿namespace S3Logger;
+﻿namespace Zooscape.Infrastructure.S3Logger;
 
 public interface IStreamingFileLogger
 {

@@ -7,7 +7,7 @@ const runnerURL = runnerIP.startsWith("http://")
     : `http://${runnerIP}:5000/bothub`;
 
 const botNickname = process.env.BOT_NICKNAME ?? "JSBot";
-const token = process.env.Token ?? process.env.REGISTRATION_TOKEN;
+const token = process.env.Token;
 
 const state = {
     connected: false,

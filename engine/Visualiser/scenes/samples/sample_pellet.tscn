@@ -1,7 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b603ld4trxsrm"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_t50n6"]
-albedo_color = Color(0.800393, 0.701706, 0, 1)
 
 [node name="sample_pellet" type="Node3D"]
 

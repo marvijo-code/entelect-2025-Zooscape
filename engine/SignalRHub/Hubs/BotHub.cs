@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Zooscape.Application.Services;
+using Zooscape.Domain.Enums;
 using Zooscape.Domain.Models;
 using Zooscape.Infrastructure.CloudIntegration.Services;
 using Zooscape.Infrastructure.SignalRHub.Messages;
@@ -119,23 +120,33 @@ public class BotHub : Hub
             return;
         }
 
+        if (!Enum.IsDefined(typeof(BotAction), botCommand.Action))
+        {
+            _logger.LogError(
+                "Invalid command ({action}) received from bot ({botNickname}).",
+                botCommand.Action,
+                bot.Nickname
+            );
+            return;
+        }
+
         var enqueueResult = _gameStateService.EnqueueCommand(bot.BotId, botCommand);
 
         if (!enqueueResult.IsSuccess)
         {
             _logger.LogError(
-                "Command ({action}) not enqueued for bot ({botId}). Error: {error}",
+                "Command ({action}) not enqueued for bot ({botNickname}). Error: {error}",
                 botCommand.Action,
-                bot.BotId,
+                bot.Nickname,
                 enqueueResult.Error?.ToString()
             );
             return;
         }
 
         _logger.LogInformation(
-            "Command ({action}) enqueued for bot ({botId}). Queue length: {queueLength}",
+            "Command ({action}) enqueued for bot ({botNickname}). Queue length: {queueLength}",
             botCommand.Action,
-            bot.BotId,
+            bot.Nickname,
             enqueueResult.Value
         );
     }

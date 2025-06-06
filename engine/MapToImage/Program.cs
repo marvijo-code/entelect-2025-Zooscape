@@ -10,11 +10,11 @@ foreach (string filePath in filePaths)
 {
     string fileContent = File.ReadAllText(filePath);
     int[][] cells = fileContent
-        .Split('\n')
+        .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
         .Select(l => l.Select(char.ToString).Select(int.Parse).ToArray())
         .ToArray();
-    int height = fileContent.Split('\n').Length;
-    int width = fileContent.Split('\n')[0].Length;
+    int height = fileContent.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Length;
+    int width = fileContent.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)[0].Length;
 
     string imagePath = Path.ChangeExtension(filePath, "jpg");
 

@@ -44,7 +44,7 @@
     <ProjectReference Include="..\Application\Zooscape.Application.csproj" />
     <ProjectReference Include="..\CloudIntegration\Zooscape.Infrastructure.CloudIntegration.csproj" />
     <ProjectReference Include="..\SignalRHub\Zooscape.Infrastructure.SignalRHub.csproj" />
-    <ProjectReference Include="..\S3Logger\S3Logger.csproj" />
+    <ProjectReference Include="..\S3Logger\Zooscape.Infrastructure.S3Logger.csproj" />
   </ItemGroup>
 
   <Target Name="Husky" BeforeTargets="Restore;CollectPackageReferences" Condition="'$(HUSKY)' != 0">

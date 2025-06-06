@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Godot;
 using Microsoft.AspNetCore.SignalR.Client;
+using Newtonsoft.Json;
 
 public partial class GameManager : Node3D
 {
@@ -17,6 +19,18 @@ public partial class GameManager : Node3D
     PackedScene PelletScene { get; set; }
 
     [Export]
+    PackedScene PowerPelletScene { get; set; }
+
+    [Export]
+    PackedScene ChameleonPelletScene { get; set; }
+
+    [Export]
+    PackedScene ScavengerPelletScene { get; set; }
+
+    [Export]
+    PackedScene BigMoosePelletScene { get; set; }
+
+    [Export]
     PackedScene WallScene { get; set; }
 
     [Export]
@@ -25,17 +39,13 @@ public partial class GameManager : Node3D
     [Export]
     PackedScene ZookeeperSpawnScene { get; set; }
 
-    [ExportGroup("Configuration")]
-    [Export]
-    private float GameSpeed { get; set; }
-
     private Camera3D Camera { get; set; }
 
     private HubConnection Connection;
 
     private List<AnimalReference> Animals;
     private List<ZookeeperReference> Zookeepers;
-    private List<(Cell, Node3D)> Pellets;
+    private List<(int, Cell, Node3D)> Pellets;
 
     private TickState State;
     private int StateIndex = 0;
@@ -47,14 +57,22 @@ public partial class GameManager : Node3D
         State = new TickState { WorldStates = new List<GameState>() };
         Animals = new List<AnimalReference>();
         Zookeepers = new List<ZookeeperReference>();
-        Pellets = new List<(Cell, Node3D)>();
+        Pellets = new List<(int, Cell, Node3D)>();
 
         Camera = GetNode<Camera3D>("Camera3D");
 
         ManageTimedEvents();
         ManageUiInteractions();
         ManageUiDisplay();
-        ManageHubConnection();
+
+        if (!GameSettings.ReadFromLogs)
+        {
+            ManageHubConnection();
+        }
+        else
+        {
+            ReadStateFromLogs();
+        }
 
         base._Ready();
     }
@@ -62,7 +80,7 @@ public partial class GameManager : Node3D
     private void ManageTimedEvents()
     {
         var timer = GetNode<Timer>("Timer");
-        timer.Start(1 / GameSpeed);
+        timer.Start(1 / GameSettings.GameSpeed);
         timer.Timeout += ManageTickEvents;
     }
 
@@ -137,12 +155,12 @@ public partial class GameManager : Node3D
 
         foreach (var pellet in Pellets)
         {
-            RemoveChild(pellet.Item2);
+            RemoveChild(pellet.Item3);
         }
 
         Animals = new List<AnimalReference>();
         Zookeepers = new List<ZookeeperReference>();
-        Pellets = new List<(Cell, Node3D)>();
+        Pellets = new List<(int, Cell, Node3D)>();
 
         StateIndex = 0;
         PlayForward = true;
@@ -174,6 +192,17 @@ public partial class GameManager : Node3D
         ManageTickEvents();
     }
 
+    private void ReadStateFromLogs()
+    {
+        var content = File.ReadLines(GameSettings.LogsLocation);
+
+        foreach (var line in content)
+        {
+            var world = JsonConvert.DeserializeObject<GameState>(line);
+            State.WorldStates.Add(world);
+        }
+    }
+
     private void ManageHubConnection()
     {
         Connection = new HubConnectionBuilder()
@@ -191,8 +220,6 @@ public partial class GameManager : Node3D
                 "ClientConnected",
                 (connectionId) =>
                 {
-                    GD.Print($"Client Connected - connectionId: {connectionId}");
-
                     if (Connection.ConnectionId == connectionId)
                     {
                         Connection.InvokeAsync("RegisterVisualiser");
@@ -205,9 +232,6 @@ public partial class GameManager : Node3D
                 (world) =>
                 {
                     State.WorldStates.Add(world);
-                    GD.Print(
-                        $"Visualise Game World - world: {State.WorldStates.Last().Cells.Count}"
-                    );
                 }
             );
 
@@ -240,19 +264,30 @@ public partial class GameManager : Node3D
             );
         }
 
-        GD.Print(
-            $"empty cells {State.WorldStates[StateIndex].Cells.Where(c => c.Content == CellContent.Empty).Count()}"
-        );
+        for (int i = 0; i < Zookeepers.Count(); i++)
+        {
+            var zookeeper = Zookeepers[i];
+            var zookeeperToRemove = State
+                .WorldStates[StateIndex]
+                .Zookeepers.SingleOrDefault(b => b.Id == zookeeper.ConnectionId);
+
+            if (zookeeperToRemove == null)
+            {
+                RemoveChild(zookeeper.NodeReference);
+                Zookeepers.Remove(zookeeper);
+            }
+        }
 
         foreach (var zookeeper in State.WorldStates[StateIndex].Zookeepers)
         {
-            Node3D obj = null;
-
             if (StateIndex == 0 && PlayForward && !Initialized)
             {
-                obj = (Node3D)ZookeeperScene.Instantiate();
-                var label = obj.GetNode<Label>("Node3D/SubViewport/CenterContainer/Label");
-                label.Text = zookeeper.NickName;
+                var obj = (Node3D)ZookeeperScene.Instantiate();
+                var nameLabel = obj.GetNode<Label>(
+                    "ZookeeperName/SubViewport/CenterContainer/Label"
+                );
+                nameLabel.Text = zookeeper.NickName;
+                GD.Print($"zookeeper: {zookeeper.NickName}");
 
                 AddChild(obj);
                 obj.GlobalPosition = new Vector3(zookeeper.X, 0f, zookeeper.Y);
@@ -267,8 +302,37 @@ public partial class GameManager : Node3D
                 continue;
             }
 
-            var bot = Zookeepers.SingleOrDefault(b => b.ConnectionId == zookeeper.Id);
-            bot.ZookeeperDetail = zookeeper;
+            var additionalZookeeper = Zookeepers.SingleOrDefault(b =>
+                b.ConnectionId == zookeeper.Id
+            );
+
+            if (additionalZookeeper == null)
+            {
+                GD.Print($"zookeeperId: {zookeeper.Id}");
+                var obj = (Node3D)ZookeeperScene.Instantiate();
+                var nameLabel = obj.GetNode<Label>(
+                    "ZookeeperName/SubViewport/CenterContainer/Label"
+                );
+                nameLabel.Text = zookeeper.NickName;
+                GD.Print($"zookeeper: {zookeeper.NickName}");
+
+                AddChild(obj);
+                obj.GlobalPosition = new Vector3(zookeeper.X, 0f, zookeeper.Y);
+                Zookeepers.Add(
+                    new ZookeeperReference
+                    {
+                        ConnectionId = zookeeper.Id,
+                        NodeReference = obj,
+                        ZookeeperDetail = zookeeper,
+                    }
+                );
+
+                additionalZookeeper = Zookeepers.SingleOrDefault(b =>
+                    b.ConnectionId == zookeeper.Id
+                );
+            }
+
+            additionalZookeeper.ZookeeperDetail = zookeeper;
         }
 
         foreach (var animal in State.WorldStates[StateIndex].Animals)
@@ -278,8 +342,8 @@ public partial class GameManager : Node3D
             if (StateIndex == 0 && PlayForward && !Initialized)
             {
                 obj = (Node3D)AnimalScene.Instantiate();
-                var label = obj.GetNode<Label>("Node3D/SubViewport/CenterContainer/Label");
-                label.Text = animal.NickName;
+                var nameLabel = obj.GetNode<Label>("AnimalLabels/SubViewport/VBoxContainer/Name");
+                nameLabel.Text = animal.NickName;
 
                 AddChild(obj);
                 obj.GlobalPosition = new Vector3(animal.X, 0f, animal.Y);
@@ -296,6 +360,20 @@ public partial class GameManager : Node3D
 
             var bot = Animals.SingleOrDefault(b => b.ConnectionId == animal.Id);
             bot.AnimalDetail = animal;
+
+            var activePowerUp = bot.NodeReference.GetNode<Label>(
+                "AnimalLabels/SubViewport/VBoxContainer/ActivePowerUp"
+            );
+            var heldPowerUp = bot.NodeReference.GetNode<Label>(
+                "AnimalLabels/SubViewport/VBoxContainer/HeldPowerUp"
+            );
+
+            activePowerUp.Text =
+                animal.ActivePowerUp != null
+                    ? $"Active - {animal.ActivePowerUp.Type.ToString()}"
+                    : "";
+            heldPowerUp.Text =
+                animal.HeldPowerUp != null ? $"Held - {animal.HeldPowerUp.ToString()}" : "";
         }
 
         foreach (var cell in State.WorldStates[StateIndex].Cells)
@@ -309,13 +387,6 @@ public partial class GameManager : Node3D
                     case CellContent.Wall:
                         obj = (Node3D)WallScene.Instantiate();
                         break;
-                    case CellContent.Pellet:
-                        if (!Pellets.Any(p => p.Item1.X == cell.X && p.Item1.Y == cell.Y))
-                        {
-                            obj = (Node3D)PelletScene.Instantiate();
-                            Pellets.Add((cell, obj));
-                        }
-                        break;
                     case CellContent.AnimalSpawn:
                         obj = (Node3D)AnimalSpawnScene.Instantiate();
                         break;
@@ -325,16 +396,46 @@ public partial class GameManager : Node3D
                 }
             }
 
+            switch (cell.Content)
+            {
+                case CellContent.Pellet:
+                    obj = ManagePellet(cell, PelletScene);
+                    break;
+                case CellContent.PowerPellet:
+                    obj = ManagePellet(cell, PowerPelletScene);
+                    break;
+                case CellContent.ChameleonCloak:
+                    obj = ManagePellet(cell, ChameleonPelletScene);
+                    break;
+                case CellContent.Scavenger:
+                    obj = ManagePellet(cell, ScavengerPelletScene);
+                    break;
+                case CellContent.BigMooseJuice:
+                    obj = ManagePellet(cell, BigMoosePelletScene);
+                    break;
+            }
+
             if (cell.Content == CellContent.Empty)
             {
-                var pellet = Pellets.SingleOrDefault(p =>
-                    p.Item1.X == cell.X && p.Item1.Y == cell.Y
+                IEnumerable<(int, Cell, Node3D)> orderedPellets;
+
+                if (PlayForward)
+                {
+                    orderedPellets = Pellets.OrderBy(p => p.Item1);
+                }
+                else
+                {
+                    orderedPellets = Pellets.OrderByDescending(p => p.Item1);
+                }
+
+                var pellet = orderedPellets.FirstOrDefault(p =>
+                    p.Item2.X == cell.X && p.Item2.Y == cell.Y
                 );
 
-                if (pellet.Item1 != null)
+                if (pellet.Item2 != null)
                 {
                     // TODO: Check performance on this function.
-                    RemoveChild(pellet.Item2);
+                    RemoveChild(pellet.Item3);
                     Pellets.Remove(pellet);
                 }
             }
@@ -347,7 +448,6 @@ public partial class GameManager : Node3D
             AddChild(obj);
             obj.GlobalPosition = new Vector3(cell.X, 0f, cell.Y);
         }
-        GD.Print($"Visualising world");
 
         if (StateIndex == 0 && !Initialized)
         {
@@ -391,6 +491,23 @@ public partial class GameManager : Node3D
         base._PhysicsProcess(delta);
     }
 
+    private Node3D ManagePellet(Cell cell, PackedScene scene)
+    {
+        Node3D obj = null;
+
+        if (
+            !Pellets.Any(p =>
+                p.Item2.X == cell.X && p.Item2.Y == cell.Y && p.Item2.Content == cell.Content
+            )
+        )
+        {
+            obj = (Node3D)scene.Instantiate();
+            Pellets.Add((Pellets.Count() + 1, cell, obj));
+        }
+
+        return obj;
+    }
+
     private void MoveCharacter(
         Node3D node,
         Vector3 spawnPosition,
@@ -416,7 +533,7 @@ public partial class GameManager : Node3D
 
         node.GlobalPosition = node.GlobalPosition.MoveToward(
             targetPosition,
-            (float)delta * GameSpeed
+            (float)delta * GameSettings.GameSpeed
         );
     }
 }

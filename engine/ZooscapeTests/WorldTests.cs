@@ -10,6 +10,7 @@ using Zooscape.Domain.Enums;
 using Zooscape.Domain.Models;
 using Zooscape.Domain.Utilities;
 using Zooscape.Domain.ValueObjects;
+using ZooscapeTests.Mocks;
 
 namespace ZooscapeTests;
 
@@ -66,7 +67,7 @@ public class WorldTests
         var animalIds = TestUtils.GenerateAnimalIds();
 
         // Act
-        var world = new World(inputMap, 4, 10);
+        var world = new World(inputMap, 4, 10, new MockAnimalFactory());
 
         foreach (var zookeeperId in zookeeperIds)
             world.AddZookeeper(zookeeperId);
@@ -111,7 +112,9 @@ public class WorldTests
         var animalIds = TestUtils.GenerateAnimalIds();
 
         // Act
-        var exception = Assert.Throws<ArgumentException>(() => new World(inputMap, 4, 10));
+        var exception = Assert.Throws<ArgumentException>(
+            () => new World(inputMap, 4, 10, new MockAnimalFactory())
+        );
 
         // Assert
         Assert.Equal("Map Error: Exactly one zookeeper spawn point required", exception.Message);
@@ -137,7 +140,9 @@ public class WorldTests
         var animalIds = TestUtils.GenerateAnimalIds();
 
         // Act
-        var exception = Assert.Throws<ArgumentException>(() => new World(inputMap, 4, 10));
+        var exception = Assert.Throws<ArgumentException>(
+            () => new World(inputMap, 4, 10, new MockAnimalFactory())
+        );
 
         // Assert
         Assert.Equal("Map Error: Exactly four animal spawn points required", exception.Message);
@@ -163,7 +168,18 @@ public class WorldTests
 
         var settings = new GameSettings { WorldMap = inputMap };
         var options = Options.Create(settings);
-        var gameState = new GameStateService(options, NullLogger<GameStateService>.Instance);
+        var powerUpService = new TestMocks.MockPowerUpService();
+        var obstacleService = new TestMocks.MockObstacleService();
+        var globalSeededRandomiser = new GlobalSeededRandomizer(1234);
+
+        var gameState = new GameStateService(
+            options,
+            NullLogger<GameStateService>.Instance,
+            powerUpService,
+            obstacleService,
+            new MockAnimalFactory(),
+            globalSeededRandomiser
+        );
 
         foreach (var animalId in TestUtils.GenerateAnimalIds())
             gameState.AddAnimal(animalId, "");
@@ -199,7 +215,19 @@ public class WorldTests
 
         var settings = new GameSettings { WorldMap = inputMap };
         var options = Options.Create(settings);
-        var gameState = new GameStateService(options, NullLogger<GameStateService>.Instance);
+
+        var powerUpService = new TestMocks.MockPowerUpService();
+        var obstacleService = new TestMocks.MockObstacleService();
+        var globalSeededRandomiser = new GlobalSeededRandomizer(1234);
+
+        var gameState = new GameStateService(
+            options,
+            NullLogger<GameStateService>.Instance,
+            powerUpService,
+            obstacleService,
+            new MockAnimalFactory(),
+            globalSeededRandomiser
+        );
 
         var animal = gameState.AddAnimal(Guid.NewGuid(), "").Value!;
         gameState.AddAnimal(Guid.NewGuid(), "");
@@ -222,7 +250,7 @@ public class WorldTests
 
         var animalIds = TestUtils.GenerateAnimalIds();
 
-        var world = new World(inputMap, 4, 10);
+        var world = new World(inputMap, 4, 10, new MockAnimalFactory());
 
         foreach (var zookeeperId in zookeeperIds)
             world.AddZookeeper(zookeeperId);

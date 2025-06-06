@@ -23,8 +23,20 @@ public class Animal : IAnimal
     public bool IsViable { get; set; } = false;
     public AnimalCommand FirstCommand { get; set; }
     public int TimeInCage { get; private set; }
+    public ScoreStreak ScoreStreak { get; }
+    public ActivePowerUp? ActivePowerUp { get; set; }
+    public PowerUpType? HeldPowerUp { get; set; }
+    public int PowerUpsUsed { get; set; }
 
-    public Animal(Guid id, string nickname, GridCoords spawnPoint, int queueSize)
+    public Animal(
+        Guid id,
+        string nickname,
+        GridCoords spawnPoint,
+        int queueSize,
+        double scoreStreakGrowthFactor,
+        double scoreStreakMax,
+        int scoreStreakGracePeriod
+    )
     {
         Id = id;
         Nickname = nickname;
@@ -34,6 +46,11 @@ public class Animal : IAnimal
         Score = 0;
         CapturedCounter = 0;
         DistanceCovered = 0;
+        ScoreStreak = new ScoreStreak(
+            scoreStreakGrowthFactor,
+            scoreStreakMax,
+            scoreStreakGracePeriod
+        );
 
         _commandQueue = new AnimalQueue<AnimalCommand>(queueSize);
     }
@@ -68,6 +85,16 @@ public class Animal : IAnimal
         Score = newScore;
     }
 
+    public void AddToScore(int points, double multiplier)
+    {
+        if (ActivePowerUp != null && ActivePowerUp.Type == PowerUpType.BigMooseJuice)
+        {
+            Score += (int)(points * multiplier);
+        }
+        Score = Score + (int)(points * ScoreStreak.Multiplier);
+        ScoreStreak.Grow();
+    }
+
     public void IncrementTimeOnSpawn()
     {
         TicksOnSpawn++;
@@ -78,5 +105,6 @@ public class Animal : IAnimal
         CapturedCounter++;
         Location = SpawnPoint;
         _commandQueue.Clear();
+        ScoreStreak.Reset();
     }
 }

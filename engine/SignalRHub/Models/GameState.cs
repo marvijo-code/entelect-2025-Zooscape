@@ -1,4 +1,5 @@
 ﻿using Zooscape.Application.Services;
+using Zooscape.Domain.Enums;
 
 namespace Zooscape.Infrastructure.SignalRHub.Models;
 
@@ -15,7 +16,7 @@ public class GameState
         TimeStamp = DateTime.UtcNow;
         Tick = gameState.TickCounter;
         Cells = gameState
-            .World.Cells.OfType<Domain.Enums.CellContents>()
+            .World.Cells.OfType<CellContents>()
             .SelectMany(
                 (_, index) =>
                 {
@@ -27,7 +28,7 @@ public class GameState
                         {
                             X = x,
                             Y = y,
-                            Content = (CellContent)gameState.World.Cells[x, y],
+                            Content = gameState.World.Cells[x, y],
                         },
                     };
                 }
@@ -47,6 +48,8 @@ public class GameState
                 CapturedCounter = a.CapturedCounter,
                 DistanceCovered = a.DistanceCovered,
                 IsViable = a.IsViable,
+                HeldPowerUp = a.HeldPowerUp,
+                ActivePowerUp = a.ActivePowerUp,
             })
             .ToList();
 

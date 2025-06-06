@@ -1,7 +1,7 @@
 using System;
 using Godot;
 
-public class BotReference
+public class AnimalReference
 {
     public Guid ConnectionId { get; set; }
     public Node3D NodeReference { get; set; }

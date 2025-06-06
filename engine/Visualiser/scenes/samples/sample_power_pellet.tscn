@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://dnk031ntuh23"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_burq0"]
+albedo_color = Color(0.45478, 0.719392, 1, 1)
+
+[node name="sample_power_pellet" type="Node3D"]
+
+[node name="CSGSphere3D" type="CSGSphere3D" parent="."]
+radius = 0.3
+material = SubResource("StandardMaterial3D_burq0")
