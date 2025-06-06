@@ -16,10 +16,15 @@ public class OpponentProximityHeuristic : IHeuristic
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
-        if (state.Zookeepers == null || !state.Zookeepers.Any())
+        if (
+            heuristicContext.CurrentGameState.Zookeepers == null
+            || !heuristicContext.CurrentGameState.Zookeepers.Any()
+        )
             return 0m;
 
-        var dists = state.Zookeepers.Select(z => Heuristics.ManhattanDistance(z.X, z.Y, nx, ny));
+        var dists = heuristicContext.CurrentGameState.Zookeepers.Select(z =>
+            Heuristics.ManhattanDistance(z.X, z.Y, nx, ny)
+        );
 
         if (!dists.Any())
             return 0m;

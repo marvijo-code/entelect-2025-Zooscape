@@ -21,7 +21,7 @@ public class PathSafetyHeuristic : IHeuristic
             .Count(nextAction =>
             {
                 var (x2, y2) = Heuristics.ApplyMove(nx, ny, nextAction);
-                return Heuristics.IsTraversable(state, x2, y2);
+                return Heuristics.IsTraversable(heuristicContext.CurrentGameState, x2, y2);
             });
 
         return mobilityScore <= 1 ? -1m : 0m;

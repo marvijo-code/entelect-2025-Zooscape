@@ -38,9 +38,8 @@ public class QuadrantAwarenessHeuristic : IHeuristic
         int[] pelletsByQuadrant = new int[4];
         foreach (
             var cell in heuristicContext.CurrentGameState.Cells.Where(c =>
-            {
-                return c.Content == CellContent.Pellet;
-            })
+                c.Content == CellContent.Pellet
+            )
         )
         {
             int q = (cell.X >= centerX ? 1 : 0) + (cell.Y >= centerY ? 2 : 0);
@@ -50,9 +49,8 @@ public class QuadrantAwarenessHeuristic : IHeuristic
         int[] animalsByQuadrant = new int[4];
         foreach (
             var animal in heuristicContext.CurrentGameState.Animals.Where(a =>
-            {
-                return a.Id != heuristicContext.CurrentAnimal.Id && a.IsViable;
-            })
+                a.Id != heuristicContext.CurrentAnimal.Id && a.IsViable
+            )
         )
         {
             int q = (animal.X >= centerX ? 1 : 0) + (animal.Y >= centerY ? 2 : 0);

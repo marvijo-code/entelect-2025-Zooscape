@@ -18,7 +18,7 @@ public class MovementConsistencyHeuristic : IHeuristic
         // Favor moves that continue in a straight line when possible
 
         // Use the recent positions to infer direction (if available through static tracking)
-        string animalKey = me.Id.ToString();
+        string animalKey = heuristicContext.CurrentAnimal.Id.ToString();
         // Access the static _recentPositions from HeuristicsManager
         if (HeuristicsManager._recentPositions.ContainsKey(animalKey))
         {
@@ -44,7 +44,7 @@ public class MovementConsistencyHeuristic : IHeuristic
                     inferredDirection = BotAction.Up;
 
                 // Bonus for continuing in the same direction
-                if (move == inferredDirection)
+                if (heuristicContext.CurrentMove == inferredDirection)
                 {
                     return 0.6m;
                 }
@@ -60,7 +60,7 @@ public class MovementConsistencyHeuristic : IHeuristic
 
                 if (
                     opposites.ContainsKey(inferredDirection)
-                    && opposites[inferredDirection] == move
+                    && opposites[inferredDirection] == heuristicContext.CurrentMove
                 )
                 {
                     return -1.2m;
