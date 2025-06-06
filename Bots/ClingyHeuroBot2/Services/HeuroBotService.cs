@@ -1,4 +1,5 @@
 using ClingyHeuroBot2.Heuristics;
+using Marvijo.Zooscape.Bots.ClingyHeuroBot2.Heuristics; // For ScoreLog
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
@@ -11,15 +12,13 @@ public class HeuroBotService : IBot<HeuroBotService>
 {
     private readonly ILogger _logger;
     private readonly HeuristicsManager _heuristics;
-    private readonly HeuristicLogHelper _logHelper; // Added field
     public bool LogHeuristicScores { get; set; } = false;
 
     public HeuroBotService(ILogger? logger = null)
     {
         _logger = logger ?? Logger.None;
         var weights = WEIGHTS.GetWeights();
-        _logHelper = new HeuristicLogHelper(); // Initialize the field
-        _heuristics = new HeuristicsManager(_logger, _logHelper, weights);
+        _heuristics = new HeuristicsManager(_logger, weights);
     }
 
     public Guid BotId { get; set; }
@@ -30,6 +29,18 @@ public class HeuroBotService : IBot<HeuroBotService>
 
     // Track visited quadrants for exploration incentive
     private HashSet<int> _visitedQuadrants = new();
+
+    // Keep track of recently visited positions for each animal to avoid cycles
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<
+        string,
+        System.Collections.Generic.Queue<(int, int)>
+    > _animalRecentPositionsHistory = new();
+
+    // Track the last committed direction for each animal
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<
+        string,
+        BotAction?
+    > _animalLastDirectionsHistory = new();
 
     public void SetBotId(Guid botId) => BotId = botId;
 
@@ -68,6 +79,28 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         // Filter legal moves: avoid walls
         var legalActions = new List<BotAction>();
+
+        // Animal-specific history for context
+        string animalId = me.Id.ToString();
+        var currentAnimalPositions = _animalRecentPositionsHistory.GetOrAdd(
+            animalId,
+            _ => new System.Collections.Generic.Queue<(int, int)>()
+        );
+
+        // Update position history (logic from old UpdatePathMemory)
+        currentAnimalPositions.Enqueue((me.X, me.Y));
+        while (currentAnimalPositions.Count > 10) // Keep last 10 positions
+        {
+            currentAnimalPositions.Dequeue();
+        }
+        if (me.X == me.SpawnX && me.Y == me.SpawnY) // Clear history if respawned
+        {
+            currentAnimalPositions.Clear();
+            _animalLastDirectionsHistory.TryRemove(animalId, out _);
+        }
+
+        _animalLastDirectionsHistory.TryGetValue(animalId, out BotAction? lastDirection);
+
         foreach (var a in actions)
         {
             int nx = me.X,
@@ -97,30 +130,47 @@ public class HeuroBotService : IBot<HeuroBotService>
         BotAction bestAction = BotAction.Up;
         decimal bestScore = decimal.MinValue;
         var actionScores = new Dictionary<BotAction, decimal>();
+        var moveScoreLogs = new List<ScoreLog>();
 
         foreach (var action in legalActions)
         {
-            var score = _heuristics.ScoreMove(gameState, me, action, LogHeuristicScores);
-            if (_logger != null && LogHeuristicScores)
-            {
-                _logger.Information("Action {Action} - Initial score: {Score}", action, score);
-            }
+            // Get initial score log from HeuristicsManager
+            ScoreLog currentScoreLog = _heuristics.ScoreMove(
+                gameState,
+                me,
+                action,
+                LogHeuristicScores,
+                _visitCounts,
+                currentAnimalPositions, // Pass animal's recent positions
+                lastDirection // Pass animal's last committed direction
+            );
+            decimal currentTotalScore = currentScoreLog.TotalScore;
+            List<string> currentDetailedLog = currentScoreLog.DetailedLogLines;
+
+            // Apply penalties/bonuses specific to HeuroBotService
+            // These should ideally be heuristics, but for now, we adjust the score and log them manually if needed.
+
             // Penalty for reversing the previous move
             if (_previousAction.HasValue && IsOpposite(_previousAction.Value, action))
             {
                 decimal reverseMovePenaltyValue = WEIGHTS.ReverseMovePenalty;
-                // Log this as a heuristic component
-                _logHelper.LogScoreComponent(
-                    _logger,
-                    LogHeuristicScores,
-                    "ReverseMovePenalty",
-                    reverseMovePenaltyValue,
-                    1m,
-                    reverseMovePenaltyValue,
-                    score + reverseMovePenaltyValue
-                );
-                score += reverseMovePenaltyValue;
+                if (LogHeuristicScores)
+                {
+                    currentDetailedLog.Insert(
+                        currentDetailedLog.Count - 2,
+                        string.Format(
+                            "    {0,-35}: Raw={1,8:F4}, Weight={2,8:F4}, Contribution={3,8:F4}, NewScore={4,8:F4}",
+                            "ReverseMovePenalty",
+                            reverseMovePenaltyValue,
+                            1m,
+                            reverseMovePenaltyValue,
+                            currentTotalScore + reverseMovePenaltyValue
+                        )
+                    );
+                }
+                currentTotalScore += reverseMovePenaltyValue;
             }
+
             // Visit penalty and exploration bonuses
             int nx = me.X,
                 ny = me.Y;
@@ -143,66 +193,93 @@ public class HeuroBotService : IBot<HeuroBotService>
             decimal rawVisitFactor = visits;
             decimal visitWeight = WEIGHTS.VisitPenalty;
             decimal visitPenaltyContribution = rawVisitFactor * visitWeight;
-            // Log this as a heuristic component
-            _logHelper.LogScoreComponent(
-                _logger,
-                LogHeuristicScores,
-                "VisitPenalty",
-                rawVisitFactor,
-                visitWeight,
-                visitPenaltyContribution,
-                score + visitPenaltyContribution
-            );
-            score += visitPenaltyContribution;
-            if (visits == 0)
+            if (LogHeuristicScores)
             {
-                decimal unexploredBonusValue = WEIGHTS.UnexploredBonus;
-                // Log this as a heuristic component
-                _logHelper.LogScoreComponent(
-                    _logger,
-                    LogHeuristicScores,
-                    "UnexploredBonus",
-                    unexploredBonusValue,
-                    1m,
-                    unexploredBonusValue,
-                    score + unexploredBonusValue
+                currentDetailedLog.Insert(
+                    currentDetailedLog.Count - 2,
+                    string.Format(
+                        "    {0,-35}: Raw={1,8:F4}, Weight={2,8:F4}, Contribution={3,8:F4}, NewScore={4,8:F4}",
+                        "VisitPenalty",
+                        rawVisitFactor,
+                        visitWeight,
+                        visitPenaltyContribution,
+                        currentTotalScore + visitPenaltyContribution
+                    )
                 );
-                score += unexploredBonusValue;
             }
+            currentTotalScore += visitPenaltyContribution;
+
             int quad = GetQuadrant(nx, ny, gameState);
             if (!_visitedQuadrants.Contains(quad))
             {
                 decimal unexploredQuadrantBonusValue = WEIGHTS.UnexploredQuadrantBonus;
-                // Log this as a heuristic component
-                _logHelper.LogScoreComponent(
-                    _logger,
-                    LogHeuristicScores,
-                    "UnexploredQuadrantBonus",
-                    unexploredQuadrantBonusValue,
-                    1m,
-                    unexploredQuadrantBonusValue,
-                    score + unexploredQuadrantBonusValue
-                );
-                score += unexploredQuadrantBonusValue;
+                if (LogHeuristicScores)
+                {
+                    currentDetailedLog.Insert(
+                        currentDetailedLog.Count - 2,
+                        string.Format(
+                            "    {0,-35}: Raw={1,8:F4}, Weight={2,8:F4}, Contribution={3,8:F4}, NewScore={4,8:F4}",
+                            "UnexploredQuadrantBonus",
+                            unexploredQuadrantBonusValue,
+                            1m,
+                            unexploredQuadrantBonusValue,
+                            currentTotalScore + unexploredQuadrantBonusValue
+                        )
+                    );
+                }
+                currentTotalScore += unexploredQuadrantBonusValue;
             }
-            actionScores[action] = score;
-            if (_logger != null && LogHeuristicScores)
+
+            // Update the ScoreLog with the final adjusted score and potentially modified detailed logs
+            var finalScoreLog = new ScoreLog(action, currentTotalScore, currentDetailedLog);
+            moveScoreLogs.Add(finalScoreLog);
+            actionScores[action] = finalScoreLog.TotalScore; // Keep this for compatibility if other parts use it
+
+            if (finalScoreLog.TotalScore > bestScore)
             {
-                _logger.Information(
-                    "Action {Action} - Final Calculated Score: {Score}",
-                    action,
-                    score
-                );
-            }
-            // Console.WriteLine($"Action {action}: Score = {score}"); // Replaced by detailed Serilog logging
-            if (score > bestScore)
-            {
-                bestScore = score;
+                bestScore = finalScoreLog.TotalScore;
                 bestAction = action;
             }
         }
 
         if (_logger != null && LogHeuristicScores)
+        {
+            _logger.Information(
+                "\n=============== Move Scores Summary (Bot: {BotId}) ==============",
+                BotId
+            );
+            foreach (var log in moveScoreLogs.OrderByDescending(l => l.TotalScore))
+            {
+                _logger.Information(
+                    "  Move \"{Move}\": {Score}",
+                    log.Move,
+                    Math.Round(log.TotalScore, 4)
+                );
+            }
+            _logger.Information("==================== End Summary ====================\n");
+
+            _logger.Information(
+                "\n============== Detailed Heuristic Scores (Bot: {BotId}) ==============",
+                BotId
+            );
+            foreach (var log in moveScoreLogs) // Or order as preferred, e.g., by action enum order
+            {
+                foreach (var line in log.DetailedLogLines)
+                {
+                    _logger.Information(line);
+                }
+            }
+            _logger.Information("================== End Detailed Scores ==================\n");
+
+            // Original final choice log
+            _logger.Information(
+                "===== Bot {BotId} Chose Action: {ChosenAction} with Final Score: {BestScore} =====\n",
+                BotId,
+                bestAction,
+                Math.Round(bestScore, 4)
+            );
+        }
+        else if (_logger != null) // Log only the chosen action if detailed scores are off
         {
             _logger.Information(
                 "===== Bot {BotId} Chose Action: {ChosenAction} with Final Score: {BestScore} =====\n",
@@ -240,6 +317,8 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (!_visitedQuadrants.Contains(bestQuad))
             _visitedQuadrants.Add(bestQuad);
 
+        _animalLastDirectionsHistory[animalId] = bestAction; // Update last committed direction
+        _previousAction = bestAction;
         return (bestAction, actionScores);
     }
 

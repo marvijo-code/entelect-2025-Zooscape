@@ -50,13 +50,24 @@ namespace Marvijo.Zooscape.Bots.Common
         BotAction CurrentMove { get; }
 
         /// <summary>
+        /// Gets the logger instance for heuristic logging.
+        /// </summary>
+        ILogger Logger { get; }
+
+        /// <summary>
+        /// Gets the queue of recently visited positions by the current animal.
+        /// </summary>
+        System.Collections.Generic.Queue<(int X, int Y)> AnimalRecentPositions { get; }
+
+        /// <summary>
+        /// Gets the last committed direction of the current animal.
+        /// Null if no direction has been committed yet or not tracked.
+        /// </summary>
+        BotAction? AnimalLastDirection { get; }
+
+        /// <summary>
         /// Gets the calculated new position (X, Y) after applying CurrentMove to CurrentAnimal.
         /// </summary>
         (int X, int Y) MyNewPosition { get; }
-
-        /// <summary>
-        /// Gets the logger instance.
-        /// </summary>
-        ILogger? Logger { get; }
     }
 }

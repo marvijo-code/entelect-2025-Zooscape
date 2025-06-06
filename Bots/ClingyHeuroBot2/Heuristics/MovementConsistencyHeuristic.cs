@@ -1,3 +1,4 @@
+#pragma warning disable SKEXP0110
 using System.Collections.Generic;
 using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
@@ -14,60 +15,58 @@ public class MovementConsistencyHeuristic : IHeuristic
     /// <summary>Encourage consistent movement direction to avoid oscillation - inspired by GatherNear's consistency</summary>
     public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        // Without action history, we'll use a simple heuristic based on position
-        // Favor moves that continue in a straight line when possible
+        BotAction? previousDirection = heuristicContext.AnimalLastDirection;
 
-        // Use the recent positions to infer direction (if available through static tracking)
-        string animalKey = heuristicContext.CurrentAnimal.Id.ToString();
-        // Access the static _recentPositions from HeuristicsManager
-        if (HeuristicsManager._recentPositions.ContainsKey(animalKey))
+        // If no committed last direction, try to infer from recent positions
+        if (!previousDirection.HasValue)
         {
-            var positions = HeuristicsManager._recentPositions[animalKey];
-            if (positions.Count >= 2)
+            var positions = heuristicContext.AnimalRecentPositions;
+            if (positions != null && positions.Count >= 2)
             {
-                var recentPos = positions.ToArray(); // Requires System.Linq
-                var lastPos = recentPos[recentPos.Length - 1];
-                var secondLastPos = recentPos[recentPos.Length - 2];
+                var recentPosArray = positions.ToArray();
+                var lastPos = recentPosArray[recentPosArray.Length - 1];
+                var secondLastPos = recentPosArray[recentPosArray.Length - 2];
 
-                // Infer the recent direction
                 int deltaX = lastPos.Item1 - secondLastPos.Item1;
                 int deltaY = lastPos.Item2 - secondLastPos.Item2;
 
-                BotAction inferredDirection = BotAction.Up; // Default, will be overwritten
                 if (deltaX > 0)
-                    inferredDirection = BotAction.Right;
+                    previousDirection = BotAction.Right;
                 else if (deltaX < 0)
-                    inferredDirection = BotAction.Left;
-                else if (deltaY > 0) // Assuming Y positive is Down in game coordinates
-                    inferredDirection = BotAction.Down;
-                else if (deltaY < 0) // Assuming Y negative is Up in game coordinates
-                    inferredDirection = BotAction.Up;
-
-                // Bonus for continuing in the same direction
-                if (heuristicContext.CurrentMove == inferredDirection)
-                {
-                    return 0.6m;
-                }
-
-                // Penalty for reversing direction
-                var opposites = new Dictionary<BotAction, BotAction>
-                {
-                    { BotAction.Up, BotAction.Down },
-                    { BotAction.Down, BotAction.Up },
-                    { BotAction.Left, BotAction.Right },
-                    { BotAction.Right, BotAction.Left },
-                };
-
-                if (
-                    opposites.ContainsKey(inferredDirection)
-                    && opposites[inferredDirection] == heuristicContext.CurrentMove
-                )
-                {
-                    return -1.2m;
-                }
+                    previousDirection = BotAction.Left;
+                else if (deltaY > 0)
+                    previousDirection = BotAction.Down; // Assuming Y positive is Down
+                else if (deltaY < 0)
+                    previousDirection = BotAction.Up; // Assuming Y negative is Up
             }
         }
 
-        return 0m;
+        if (previousDirection.HasValue)
+        {
+            // Bonus for continuing in the same direction
+            if (heuristicContext.CurrentMove == previousDirection.Value)
+            {
+                return 0.6m;
+            }
+
+            // Penalty for reversing direction
+            var opposites = new Dictionary<BotAction, BotAction>
+            {
+                { BotAction.Up, BotAction.Down },
+                { BotAction.Down, BotAction.Up },
+                { BotAction.Left, BotAction.Right },
+                { BotAction.Right, BotAction.Left },
+            };
+
+            if (
+                opposites.ContainsKey(previousDirection.Value)
+                && opposites[previousDirection.Value] == heuristicContext.CurrentMove
+            )
+            {
+                return -1.2m;
+            }
+        }
+
+        return 0m; // No consistency bonus/penalty if no previous direction could be determined
     }
 }

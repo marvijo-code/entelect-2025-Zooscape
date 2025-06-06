@@ -14,14 +14,9 @@ public class CycleDetectionHeuristic : IHeuristic
     public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
-        string animalKey = heuristicContext.CurrentAnimal.Id.ToString();
+        var positions = heuristicContext.AnimalRecentPositions;
 
-        if (!HeuristicsManager._recentPositions.ContainsKey(animalKey))
-            return 0m;
-
-        var positions = HeuristicsManager._recentPositions[animalKey];
-
-        if (positions.Count < 3)
+        if (positions == null || positions.Count < 3)
             return 0m;
 
         int visitCount = positions.Count(p => p.Item1 == nx && p.Item2 == ny);

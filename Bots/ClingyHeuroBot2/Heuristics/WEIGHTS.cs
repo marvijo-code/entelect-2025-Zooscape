@@ -33,6 +33,8 @@ public static class WEIGHTS
     public const decimal AnimalCongestion = -0.6m;
     public const decimal CaptureRecoveryStrategy = 1.3m;
 
+    public const decimal UnexploredBonusHeuristicWeight = 1.0m; // Weight for the UnexploredBonusHeuristic
+
     // New winning heuristic weights
     public const decimal FirstCommandAdvantage = 1.8m;
     public const decimal TravelDistanceMaximizer = 0.6m;
@@ -84,7 +86,7 @@ public static class WEIGHTS
             { "Mobility", Mobility },
             { "PathSafety", PathSafety },
             { "ReverseMovePenalty", ReverseMovePenalty },
-            { "UnexploredBonus", UnexploredBonus },
+            { "UnexploredBonus", UnexploredBonusHeuristicWeight },
             { "VisitPenalty", VisitPenalty },
             { "UnexploredQuadrantBonus", UnexploredQuadrantBonus },
             { "ZookeeperPrediction", ZookeeperPrediction },
