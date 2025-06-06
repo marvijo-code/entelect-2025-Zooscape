@@ -1,4 +1,4 @@
-using DeepMCTS.Enums; // Changed namespace for Enums
+using Marvijo.Zooscape.Bots.Common.Enums;
 
 namespace Marvijo.Zooscape.Bots.Common.Models // Changed namespace
 {

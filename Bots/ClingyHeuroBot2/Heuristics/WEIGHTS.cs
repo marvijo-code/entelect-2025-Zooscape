@@ -1,4 +1,4 @@
-namespace HeuroBot;
+namespace ClingyHeuroBot2.Heuristics;
 
 using System.Collections.Generic;
 

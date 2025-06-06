@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using ClingyHeuroBot2;
-using HeuroBot; // for WEIGHTS
+using ClingyHeuroBot2.Heuristics;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
@@ -14,7 +10,7 @@ namespace HeuroBot.Services;
 public class HeuroBotService : IBot<HeuroBotService>
 {
     private readonly ILogger _logger;
-    private readonly Heuristics _heuristics;
+    private readonly HeuristicsManager _heuristics;
     public bool LogHeuristicScores { get; set; } = false;
 
     public HeuroBotService(ILogger? logger = null)
@@ -22,7 +18,7 @@ public class HeuroBotService : IBot<HeuroBotService>
         _logger = logger ?? Logger.None;
         var weights = WEIGHTS.GetWeights();
         var logHelper = new HeuristicLogHelper();
-        _heuristics = new Heuristics(_logger, logHelper, weights);
+        _heuristics = new HeuristicsManager(_logger, logHelper, weights);
     }
 
     public Guid BotId { get; set; }
@@ -91,7 +87,7 @@ public class HeuroBotService : IBot<HeuroBotService>
                     break;
             }
             var cell = gameState.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
-            if (cell != null && cell.Content != DeepMCTS.Enums.CellContent.Wall)
+            if (cell != null && cell.Content != CellContent.Wall)
                 legalActions.Add(a);
         }
         if (!legalActions.Any())

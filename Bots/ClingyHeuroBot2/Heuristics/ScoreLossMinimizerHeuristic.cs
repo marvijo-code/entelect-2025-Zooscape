@@ -1,10 +1,10 @@
 using System.Linq;
-using ClingyHeuroBot2;
+using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 
-namespace ClingyHeuroBot2;
+namespace ClingyHeuroBot2.Heuristics;
 
 public class ScoreLossMinimizerHeuristic : IHeuristic
 {
@@ -13,7 +13,7 @@ public class ScoreLossMinimizerHeuristic : IHeuristic
     /// <summary>
     /// Calculates risk/reward considering score loss from capture
     /// </summary>
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move)
+    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
     {
         // Assume capture penalty is 50% of score (adjust based on actual game settings)
         float capturePenaltyPercent = 0.5f;

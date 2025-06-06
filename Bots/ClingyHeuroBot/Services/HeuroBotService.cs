@@ -1,4 +1,3 @@
-using DeepMCTS.Enums;
 using HeuroBotV2; // for WEIGHTS
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;

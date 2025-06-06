@@ -1,37 +1,28 @@
 using System.Collections.Generic;
 using System.Linq;
-using ClingyHeuroBot2;
+using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 
-namespace ClingyHeuroBot2;
+namespace ClingyHeuroBot2.Heuristics;
 
 public class MovementConsistencyHeuristic : IHeuristic
 {
     public string Name => "MovementConsistency";
 
     /// <summary>Encourage consistent movement direction to avoid oscillation - inspired by GatherNear's consistency</summary>
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move)
+    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
     {
         // Without action history, we'll use a simple heuristic based on position
         // Favor moves that continue in a straight line when possible
 
         // Use the recent positions to infer direction (if available through static tracking)
         string animalKey = me.Id.ToString();
-        // Assuming Heuristics._recentPositions is accessible (e.g., public static)
-        if (
-            global::HeuroBot.Bots.ClingyHeuroBot2.Heuristics.Heuristics._recentPositions.ContainsKey(
-                animalKey
-            )
-        )
+        // Access the static _recentPositions from HeuristicsManager
+        if (HeuristicsManager._recentPositions.ContainsKey(animalKey))
         {
-            var positions = global::HeuroBot
-                .Bots
-                .ClingyHeuroBot2
-                .Heuristics
-                .Heuristics
-                ._recentPositions[animalKey];
+            var positions = HeuristicsManager._recentPositions[animalKey];
             if (positions.Count >= 2)
             {
                 var recentPos = positions.ToArray(); // Requires System.Linq

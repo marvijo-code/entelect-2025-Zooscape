@@ -1,37 +1,52 @@
 #pragma warning disable SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 using System.Linq;
-using HeuroBot.Services; // For Heuristics.HeuristicsImpl
+using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Serilog;
 
-namespace ClingyHeuroBot2
+namespace ClingyHeuroBot2.Heuristics;
+
+public class ZookeeperPredictionHeuristic : IHeuristic
 {
-    public class ZookeeperPredictionHeuristic : IHeuristic
+    public string Name => "ZookeeperPrediction";
+
+    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
     {
-        public string Name => "ZookeeperPrediction";
+        var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
 
-        public decimal CalculateRawScore(GameState state, Animal me, BotAction move)
+        // Simplified implementation - predict zookeepers will move toward closest animal
+        var zookeepers = state.Zookeepers.ToList();
+        if (!zookeepers.Any())
+            return 0m;
+
+        foreach (var zookeeper in zookeepers)
         {
-            var (nx, ny) = Heuristics.HeuristicsImpl.ApplyMove(me.X, me.Y, move);
-            var zookeeperNextPositions =
-                Heuristics.HeuristicsImpl.GetPotentialZookeeperNextPositions(state);
+            // Simple prediction: zookeeper moves toward closest animal
+            var closestAnimal = state
+                .Animals.OrderBy(a =>
+                    Heuristics.ManhattanDistance(a.X, a.Y, zookeeper.X, zookeeper.Y)
+                )
+                .FirstOrDefault();
+            if (closestAnimal != null)
+            {
+                // Predict zookeeper will move one step toward closest animal
+                int dx =
+                    closestAnimal.X > zookeeper.X ? 1 : (closestAnimal.X < zookeeper.X ? -1 : 0);
+                int dy =
+                    closestAnimal.Y > zookeeper.Y ? 1 : (closestAnimal.Y < zookeeper.Y ? -1 : 0);
+                int predictedX = zookeeper.X + dx;
+                int predictedY = zookeeper.Y + dy;
 
-            if (!zookeeperNextPositions.Any()) // No zookeepers or no predictable positions
-                return 0m;
+                if (predictedX == nx && predictedY == ny)
+                    return -3.0m; // Strong penalty for moving into predicted zookeeper position
 
-            if (zookeeperNextPositions.Any(pos => pos.x == nx && pos.y == ny))
-                return -3.0m; // Strong penalty for moving into a predicted zookeeper square
-
-            // Calculate minimum distance to any predicted zookeeper position
-            // Ensure zookeeperNextPositions is not empty before calling Min, though already checked by !Any()
-            int minDist = zookeeperNextPositions.Min(pos =>
-                Heuristics.HeuristicsImpl.ManhattanDistance(pos.x, pos.y, nx, ny)
-            );
-
-            if (minDist <= 2) // If close to a predicted zookeeper square
-                return -1.5m / ((decimal)minDist + 0.5m); // Penalty inversely proportional to distance
-
-            return 0m; // No significant threat from predicted zookeeper positions
+                int distToPredicted = Heuristics.ManhattanDistance(predictedX, predictedY, nx, ny);
+                if (distToPredicted <= 2)
+                    return -1.5m / ((decimal)distToPredicted + 0.5m);
+            }
         }
+
+        return 0m;
     }
 }
