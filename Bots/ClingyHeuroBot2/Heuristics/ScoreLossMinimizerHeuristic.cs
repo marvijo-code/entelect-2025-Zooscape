@@ -13,7 +13,7 @@ public class ScoreLossMinimizerHeuristic : IHeuristic
     /// <summary>
     /// Calculates risk/reward considering score loss from capture
     /// </summary>
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
         // Assume capture penalty is 50% of score (adjust based on actual game settings)
         float capturePenaltyPercent = 0.5f;
@@ -21,7 +21,7 @@ public class ScoreLossMinimizerHeuristic : IHeuristic
         // Calculate potential score loss if captured
         decimal potentialLoss = me.Score * (decimal)capturePenaltyPercent;
 
-        var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
+        var (nx, ny) = heuristicContext.MyNewPosition;
 
         // Calculate capture risk based on zookeeper proximity
         decimal captureRisk = 0m;

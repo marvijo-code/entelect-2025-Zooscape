@@ -11,9 +11,9 @@ public class QuadrantAwarenessHeuristic : IHeuristic
 {
     public string Name => "QuadrantAwareness";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
+        var (nx, ny) = heuristicContext.MyNewPosition;
 
         if (!state.Cells.Any())
             return 0m; // Should not happen

@@ -11,12 +11,12 @@ public class RecalcWindowSafetyHeuristic : IHeuristic
 {
     public string Name => "RecalcWindowSafety";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
         int ticksToRecalc = (20 - (state.Tick % 20)) % 20;
         if (ticksToRecalc > 3)
             return 0m; // evaluate only in last 3 ticks of window
-        var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
+        var (nx, ny) = heuristicContext.MyNewPosition;
         int dist = state.Zookeepers.Any()
             ? state.Zookeepers.Min(z => Heuristics.ManhattanDistance(z.X, z.Y, nx, ny))
             : 999;

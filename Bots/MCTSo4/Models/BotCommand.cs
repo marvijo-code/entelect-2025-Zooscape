@@ -1,7 +1,6 @@
-namespace MCTSo4.Models
+namespace MCTSo4.Models;
+
+public class BotCommand
 {
-    public class BotCommand
-    {
-        public Move Action { get; set; }
-    }
+    public Move Action { get; set; }
 }

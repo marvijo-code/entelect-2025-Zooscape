@@ -3,60 +3,55 @@ using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Utils;
 using Serilog;
 
-namespace ClingyHeuroBot2.Heuristics
+namespace ClingyHeuroBot2.Heuristics;
+
+public class CaptureAvoidanceHeuristic : IHeuristic
 {
-    public class CaptureAvoidanceHeuristic : IHeuristic
+    public string Name => "CaptureAvoidance";
+
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        public string Name => "CaptureAvoidance";
+        var (nx, ny) = heuristicContext.MyNewPosition;
+        bool amITarget = false;
+        Zookeeper? targetingZookeeper = null;
 
-        public decimal CalculateRawScore(
-            GameState state,
-            Animal me,
-            BotAction move,
-            ILogger? logger
-        )
+        foreach (var zookeeper in heuristicContext.CurrentGameState.Zookeepers)
         {
-            var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
-            bool amITarget = false;
-            Zookeeper? targetingZookeeper = null;
+            var animalsByDistance = heuristicContext
+                .CurrentGameState.Animals.Where(a => a.IsViable)
+                .OrderBy(a => BotUtils.ManhattanDistance(zookeeper.X, zookeeper.Y, a.X, a.Y));
 
-            foreach (var zookeeper in state.Zookeepers)
+            if (animalsByDistance.FirstOrDefault()?.Id == heuristicContext.CurrentAnimal.Id)
             {
-                var animalsByDistance = state
-                    .Animals.Where(a => a.IsViable)
-                    .OrderBy(a => Heuristics.ManhattanDistance(zookeeper.X, zookeeper.Y, a.X, a.Y));
-
-                if (animalsByDistance.FirstOrDefault()?.Id == me.Id)
-                {
-                    amITarget = true;
-                    targetingZookeeper = zookeeper;
-                    break;
-                }
+                amITarget = true;
+                targetingZookeeper = zookeeper;
+                break;
             }
-
-            if (amITarget && targetingZookeeper != null)
-            {
-                int currentDist = Heuristics.ManhattanDistance(
-                    targetingZookeeper.X,
-                    targetingZookeeper.Y,
-                    me.X,
-                    me.Y
-                );
-                int newDist = Heuristics.ManhattanDistance(
-                    targetingZookeeper.X,
-                    targetingZookeeper.Y,
-                    nx,
-                    ny
-                );
-
-                if (newDist > currentDist)
-                    return 2.0m;
-                else if (newDist < currentDist)
-                    return -2.0m;
-            }
-            return 0m;
         }
+
+        if (amITarget && targetingZookeeper != null)
+        {
+            int currentDist = BotUtils.ManhattanDistance(
+                targetingZookeeper.X,
+                targetingZookeeper.Y,
+                heuristicContext.CurrentAnimal.X,
+                heuristicContext.CurrentAnimal.Y
+            );
+            int newDist = BotUtils.ManhattanDistance(
+                targetingZookeeper.X,
+                targetingZookeeper.Y,
+                nx,
+                ny
+            );
+
+            if (newDist > currentDist)
+                return 2.0m;
+            else if (newDist < currentDist)
+                return -2.0m;
+        }
+        return 0m;
     }
 }

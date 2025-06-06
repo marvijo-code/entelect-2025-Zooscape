@@ -12,7 +12,7 @@ public class PelletEfficiencyHeuristic : IHeuristic
 {
     public string Name => "PelletEfficiency";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
         logger?.Verbose("{Heuristic} not implemented", Name);
         return 0m;

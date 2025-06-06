@@ -3,16 +3,15 @@ using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 
-namespace ClingyHeuroBot2.Heuristics
-{
-    public class FirstCommandAdvantageHeuristic : IHeuristic
+namespace ClingyHeuroBot2.Heuristics;
+
+public class FirstCommandAdvantageHeuristic : IHeuristic
 {
     public string Name => "FirstCommandAdvantage";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
         logger?.Verbose("{Heuristic} not implemented", Name);
         return 0m;
-    }
     }
 }

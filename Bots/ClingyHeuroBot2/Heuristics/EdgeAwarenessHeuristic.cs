@@ -3,21 +3,15 @@ using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 
-namespace ClingyHeuroBot2.Heuristics
-{
-    public class EdgeAwarenessHeuristic : IHeuristic
-    {
-        public string Name => "EdgeAwareness";
+namespace ClingyHeuroBot2.Heuristics;
 
-        public decimal CalculateRawScore(
-            GameState state,
-            Animal me,
-            BotAction move,
-            ILogger? logger
-        )
-        {
-            logger?.Verbose("{Heuristic} not implemented", Name);
-            return 0m;
-        }
+public class EdgeAwarenessHeuristic : IHeuristic
+{
+    public string Name => "EdgeAwareness";
+
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    {
+        heuristicContext.Logger?.Verbose("{Heuristic} not implemented", Name);
+        return 0m;
     }
 }

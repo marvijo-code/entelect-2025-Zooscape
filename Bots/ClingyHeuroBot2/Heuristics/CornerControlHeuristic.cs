@@ -3,6 +3,7 @@ using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Utils; // Added
 using Serilog;
 
 namespace ClingyHeuroBot2.Heuristics
@@ -11,24 +12,17 @@ namespace ClingyHeuroBot2.Heuristics
     {
         public string Name => "CornerControl";
 
-        public decimal CalculateRawScore(
-            GameState state,
-            Animal me,
-            BotAction move,
-            ILogger? logger
-        )
+        public decimal CalculateRawScore(IHeuristicContext heuristicContext)
         {
-            var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
-            var corners = new[]
-            {
-                (0, 0),
-                (0, state.Cells.Max(c => c.Y)),
-                (state.Cells.Max(c => c.X), 0),
-                (state.Cells.Max(c => c.X), state.Cells.Max(c => c.Y)),
-            };
+            var (nx, ny) = heuristicContext.MyNewPosition; // Updated
+
+            int maxX = heuristicContext.CurrentGameState.Cells.Max(c => c.X);
+            int maxY = heuristicContext.CurrentGameState.Cells.Max(c => c.Y);
+
+            var corners = new[] { (0, 0), (0, maxY), (maxX, 0), (maxX, maxY) };
 
             var minDistance = corners.Min(c =>
-                Heuristics.ManhattanDistance(nx, ny, c.Item1, c.Item2)
+                BotUtils.ManhattanDistance(nx, ny, c.Item1, c.Item2) // Updated
             );
             return (1.0m / (minDistance + 1)) * 0.1m;
         }

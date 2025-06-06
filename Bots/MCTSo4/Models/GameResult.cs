@@ -1,10 +1,9 @@
-namespace MCTSo4.Models
+namespace MCTSo4.Models;
+
+public enum GameResult
 {
-    public enum GameResult
-    {
-        Unknown,
-        Win,
-        Lose,
-        Timeout,
-    }
+    Unknown,
+    Win,
+    Lose,
+    Timeout,
 }

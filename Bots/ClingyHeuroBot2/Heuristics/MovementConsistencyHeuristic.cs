@@ -12,7 +12,7 @@ public class MovementConsistencyHeuristic : IHeuristic
     public string Name => "MovementConsistency";
 
     /// <summary>Encourage consistent movement direction to avoid oscillation - inspired by GatherNear's consistency</summary>
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
         // Without action history, we'll use a simple heuristic based on position
         // Favor moves that continue in a straight line when possible

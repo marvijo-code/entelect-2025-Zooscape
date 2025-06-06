@@ -15,15 +15,15 @@ public class HeuristicLogHelper
         decimal accumulatedScoreAfterThisComponent
     )
     {
-        if (logHeuristicScores && logger != null)
+        if (logHeuristicScores && logger != null && componentContribution != 0m)
         {
             logger.Information(
-                "    {HeuristicName}: Raw={RawValue}, Weight={Weight}, Contribution={Contribution}, NewScore={NewScore}",
+                "    {HeuristicName,-40}: Raw={RawValue,8:F4}, Weight={Weight,8:F4}, Contribution={Contribution,10:F4}, NewScore={NewScore,10:F4}",
                 heuristicName,
-                Math.Round(rawValue, 4),
-                Math.Round(weight, 4),
-                Math.Round(componentContribution, 4),
-                Math.Round(accumulatedScoreAfterThisComponent, 4)
+                rawValue, // Math.Round is not strictly needed here if F4 format specifier handles it, but Serilog might do its own rounding/truncation. Keeping for consistency if values are used elsewhere.
+                weight,
+                componentContribution,
+                accumulatedScoreAfterThisComponent
             );
         }
     }

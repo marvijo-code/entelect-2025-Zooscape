@@ -11,9 +11,9 @@ public class TimeToCaptureHeuristic : IHeuristic
 {
     public string Name => "TimeToCapture";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
+        var (nx, ny) = heuristicContext.MyNewPosition;
 
         if (!state.Zookeepers.Any())
         {

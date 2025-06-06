@@ -3,6 +3,7 @@ using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Utils; // Added
 using Serilog;
 
 namespace ClingyHeuroBot2.Heuristics
@@ -11,22 +12,21 @@ namespace ClingyHeuroBot2.Heuristics
     {
         public string Name => "AreaControl";
 
-        public decimal CalculateRawScore(
-            GameState state,
-            Animal me,
-            BotAction move,
-            ILogger? logger
-        )
+        public decimal CalculateRawScore(IHeuristicContext heuristicContext)
         {
-            var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
+            var (nx, ny) = heuristicContext.MyNewPosition; // Updated
             decimal value = 0;
 
-            if (state.Cells == null)
+            if (heuristicContext.CurrentGameState.Cells == null)
                 return 0m;
 
-            foreach (var cell in state.Cells.Where(c => c.Content == CellContent.Pellet))
+            foreach (
+                var cell in heuristicContext.CurrentGameState.Cells.Where(c =>
+                    c.Content == CellContent.Pellet
+                )
+            )
             {
-                int dist = Heuristics.ManhattanDistance(cell.X, cell.Y, nx, ny);
+                int dist = BotUtils.ManhattanDistance(cell.X, cell.Y, nx, ny); // Updated
                 if (dist <= 5) // Increased radius to 5
                     value += 1.0m / (dist + 1); // Weight by inverse distance
             }

@@ -12,9 +12,9 @@ public class PathSafetyHeuristic : IHeuristic
 {
     public string Name => "PathSafety";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
+        var (nx, ny) = heuristicContext.MyNewPosition;
 
         decimal mobilityScore = Enum.GetValues<BotAction>()
             .Cast<BotAction>()

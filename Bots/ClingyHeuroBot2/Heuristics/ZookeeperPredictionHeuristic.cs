@@ -11,9 +11,9 @@ public class ZookeeperPredictionHeuristic : IHeuristic
 {
     public string Name => "ZookeeperPrediction";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
+        var (nx, ny) = heuristicContext.MyNewPosition;
 
         // Simplified implementation - predict zookeepers will move toward closest animal
         var zookeepers = state.Zookeepers.ToList();

@@ -6,28 +6,22 @@ using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 
-namespace ClingyHeuroBot2.Heuristics
+namespace ClingyHeuroBot2.Heuristics;
+
+public class MobilityHeuristic : IHeuristic
 {
-    public class MobilityHeuristic : IHeuristic
+    public string Name => "Mobility";
+
+    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
     {
-        public string Name => "Mobility";
+        var (nx, ny) = heuristicContext.MyNewPosition;
 
-        public decimal CalculateRawScore(
-            GameState state,
-            Animal me,
-            BotAction move,
-            ILogger? logger
-        )
-        {
-            var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
-
-            return Enum.GetValues<BotAction>()
-                .Cast<BotAction>()
-                .Count(nextAction =>
-                {
-                    var (x2, y2) = Heuristics.ApplyMove(nx, ny, nextAction);
-                    return Heuristics.IsTraversable(state, x2, y2);
-                });
-        }
+        return Enum.GetValues<BotAction>()
+            .Cast<BotAction>()
+            .Count(nextAction =>
+            {
+                var (x2, y2) = Heuristics.ApplyMove(nx, ny, nextAction);
+                return Heuristics.IsTraversable(state, x2, y2);
+            });
     }
 }

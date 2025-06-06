@@ -10,7 +10,7 @@ public class WallCollisionRiskHeuristic : IHeuristic
 {
     public string Name => "WallCollisionRisk";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
         var (x, y) = Heuristics.ApplyMove(me.X, me.Y, move);
         int steps = 0;

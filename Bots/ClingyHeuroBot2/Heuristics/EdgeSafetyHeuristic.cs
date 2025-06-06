@@ -1,7 +1,7 @@
 #pragma warning disable SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 using System;
 using System.Linq;
-using ClingyHeuroBot2;
+// using ClingyHeuroBot2; // Removed as Heuristics.ApplyMove is no longer used from local
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
@@ -13,17 +13,17 @@ public class EdgeSafetyHeuristic : IHeuristic
 {
     public string Name => "EdgeSafety";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
+        var (nx, ny) = heuristicContext.MyNewPosition; // Updated
 
-        if (!state.Cells.Any())
+        if (!heuristicContext.CurrentGameState.Cells.Any())
             return 0m; // Should not happen in a valid game state
 
-        int minX = state.Cells.Min(c => c.X);
-        int maxX = state.Cells.Max(c => c.X);
-        int minY = state.Cells.Min(c => c.Y);
-        int maxY = state.Cells.Max(c => c.Y);
+        int minX = heuristicContext.CurrentGameState.Cells.Min(c => c.X);
+        int maxX = heuristicContext.CurrentGameState.Cells.Max(c => c.X);
+        int minY = heuristicContext.CurrentGameState.Cells.Min(c => c.Y);
+        int maxY = heuristicContext.CurrentGameState.Cells.Max(c => c.Y);
 
         // Calculate distance to the closest edge
         int distToClosestEdge = Math.Min(

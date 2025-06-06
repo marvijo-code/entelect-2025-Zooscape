@@ -10,9 +10,9 @@ public class SpawnProximityHeuristic : IHeuristic
 {
     public string Name => "SpawnProximity";
 
-    public decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger)
+    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
     {
-        var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
+        var (nx, ny) = heuristicContext.MyNewPosition;
 
         int spawnDist = Heuristics.ManhattanDistance(me.SpawnX, me.SpawnY, nx, ny);
 

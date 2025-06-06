@@ -3,11 +3,10 @@ using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 
-namespace Marvijo.Zooscape.Bots.Common
+namespace Marvijo.Zooscape.Bots.Common;
+
+public interface IHeuristic
 {
-    public interface IHeuristic
-    {
-        string Name { get; }
-        decimal CalculateRawScore(GameState state, Animal me, BotAction move, ILogger? logger);
-    }
+    string Name { get; }
+    decimal CalculateRawScore(IHeuristicContext context);
 }

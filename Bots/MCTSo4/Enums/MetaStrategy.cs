@@ -1,11 +1,10 @@
-namespace MCTSo4.Enums
+namespace MCTSo4.Enums;
+
+public enum MetaStrategy
 {
-    public enum MetaStrategy
-    {
-        Collecting,
-        Evading,
-        EscapeFocus,
-        PowerUpHunt,
-        ZoneControl,
-    }
+    Collecting,
+    Evading,
+    EscapeFocus,
+    PowerUpHunt,
+    ZoneControl,
 }

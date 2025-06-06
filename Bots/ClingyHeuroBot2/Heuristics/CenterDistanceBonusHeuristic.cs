@@ -3,6 +3,7 @@ using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Utils; // Added
 using Serilog;
 
 namespace ClingyHeuroBot2.Heuristics
@@ -11,17 +12,12 @@ namespace ClingyHeuroBot2.Heuristics
     {
         public string Name => "CenterDistanceBonus";
 
-        public decimal CalculateRawScore(
-            GameState state,
-            Animal me,
-            BotAction move,
-            ILogger? logger
-        )
+        public decimal CalculateRawScore(IHeuristicContext heuristicContext)
         {
-            var (nx, ny) = Heuristics.ApplyMove(me.X, me.Y, move);
-            var cx = state.Cells.Max(c => c.X) / 2;
-            var cy = state.Cells.Max(c => c.Y) / 2;
-            var dist = Heuristics.ManhattanDistance(nx, ny, cx, cy);
+            var (nx, ny) = heuristicContext.MyNewPosition; // Updated
+            var cx = heuristicContext.CurrentGameState.Cells.Max(c => c.X) / 2;
+            var cy = heuristicContext.CurrentGameState.Cells.Max(c => c.Y) / 2;
+            var dist = BotUtils.ManhattanDistance(nx, ny, cx, cy); // Updated
             return (1.0m / (dist + 1)) * 0.2m;
         }
     }

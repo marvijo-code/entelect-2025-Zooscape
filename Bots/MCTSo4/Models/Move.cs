@@ -1,10 +1,9 @@
-namespace MCTSo4.Models
+namespace MCTSo4.Models;
+
+public enum Move
 {
-    public enum Move
-    {
-        Up = 1,
-        Down = 2,
-        Left = 3,
-        Right = 4,
-    }
+    Up = 1,
+    Down = 2,
+    Left = 3,
+    Right = 4,
 }
