@@ -30,6 +30,64 @@ function getCachedData(key, computeFn, ttl = CACHE_TTL) {
   });
 }
 
+// New route to load JSON from an arbitrary (but validated) local file path
+app.get('/api/file/load-json', async (req, res) => {
+  const { path: filePath } = req.query;
+  console.log(`API: Attempting to load JSON from path: ${filePath}`);
+
+  if (!filePath) {
+    return res.status(400).json({ error: 'File path query parameter is required.' });
+  }
+
+  try {
+    // Security Check 1: Ensure the path is absolute (simple check)
+    if (!path.isAbsolute(filePath)) {
+      console.warn(`Access denied: Path is not absolute: ${filePath}`);
+      return res.status(400).json({ error: 'Invalid path: Must be an absolute file path.' });
+    }
+
+    // Security Check 2: Normalize and resolve the path to prevent directory traversal (e.g., ../)
+    const resolvedPath = path.resolve(filePath);
+
+    // Security Check 3: Ensure the resolved path is within an allowed parent directory
+    // For example, restrict to files within the project's 'visualizer-2d' directory or its subdirectories.
+    // __dirname here is 'visualizer-2d/api', so path.join(__dirname, '..') is 'visualizer-2d'
+    // __dirname is 'visualizer-2d/api'. path.join(__dirname, '..', '..') goes up two levels to '2025-Zooscape'
+    const allowedBaseDir = path.resolve(path.join(__dirname, '..', '..')); 
+    if (!resolvedPath.startsWith(allowedBaseDir)) {
+      console.warn(`Access denied: Path is outside allowed base directory. Resolved: ${resolvedPath}, Base: ${allowedBaseDir}`);
+      return res.status(403).json({ error: 'Access denied: Path is outside allowed directory.' });
+    }
+
+    // Security Check 4: Check file extension
+    const ext = path.extname(resolvedPath).toLowerCase();
+    if (ext !== '.json' && ext !== '.log') {
+      console.warn(`Access denied: Invalid file extension: ${ext} for path ${resolvedPath}`);
+      return res.status(400).json({ error: 'Invalid file type. Only .json and .log files are allowed.' });
+    }
+
+    // Check if file exists
+    await fs.access(resolvedPath); // Throws if doesn't exist or no access
+
+    const fileContent = await fs.readFile(resolvedPath, 'utf8');
+    const jsonData = JSON.parse(fileContent);
+    
+    console.log(`Successfully loaded and parsed JSON from ${resolvedPath}`);
+    res.json(jsonData);
+  } catch (error) {
+    console.error(`Error processing path ${filePath}:`, error);
+    if (error.code === 'ENOENT') {
+      res.status(404).json({ error: 'File not found.' });
+    } else if (error.code === 'EACCES') {
+      res.status(403).json({ error: 'Access to file denied.' });
+    } else if (error instanceof SyntaxError) {
+      res.status(400).json({ error: 'Invalid JSON content in file.' });
+    } else {
+      res.status(500).json({ error: 'Failed to load JSON from file.' });
+    }
+  }
+});
+
 // Ensure logs directory exists
 async function ensureLogsDir() {
   try {
@@ -461,6 +519,13 @@ app.post('/api/clear-cache', (req, res) => {
 });
 
 // Start server
+
+// Global error handler (optional, but good practice)
+app.use((err, req, res, next) => {
+  console.error('Global error handler caught:', err.stack);
+  res.status(500).send('Something broke!');
+});
+
 app.listen(PORT, () => {
   console.log(`API server running on port ${PORT}`);
   ensureLogsDir();

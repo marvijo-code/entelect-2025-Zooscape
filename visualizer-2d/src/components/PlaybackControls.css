@@ -1,0 +1,75 @@
+.playback-controls-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  background-color: #f0f0f0;
+  border-top: 1px solid #ccc;
+  gap: 10px; /* Adds space between control elements */
+}
+
+.control-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.2em; /* Slightly larger icons/text */
+  transition: background-color 0.2s ease-in-out;
+}
+
+.control-button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.control-button:disabled {
+  background-color: #c0c0c0;
+  cursor: not-allowed;
+}
+
+.scrubber {
+  flex-grow: 1; /* Allows scrubber to take available space */
+  max-width: 300px; /* Max width for scrubber */
+  margin: 0 10px;
+  cursor: pointer;
+}
+
+.scrubber:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.tick-display {
+  font-size: 0.9em;
+  min-width: 100px; /* Ensure enough space for tick count */
+  text-align: center;
+  color: #333;
+}
+
+.speed-select {
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: white;
+  cursor: pointer;
+}
+
+.speed-select:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Styles for single-frame view to visually indicate disabled controls */
+.playback-controls-container.single-frame-view .control-button,
+.playback-controls-container.single-frame-view .scrubber,
+.playback-controls-container.single-frame-view .speed-select {
+  opacity: 0.5;
+  pointer-events: none; /* Further ensure no interaction */
+}
+
+.playback-controls-container.single-frame-view .play-pause-button {
+  /* Keep play/pause visually distinct but still disabled */
+  background-color: #6c757d; 
+}

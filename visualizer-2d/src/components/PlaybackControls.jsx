@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/PlaybackControls.css';
+import './PlaybackControls.css';
 
 const PlaybackControls = ({
   currentFrame,
@@ -12,7 +12,8 @@ const PlaybackControls = ({
   onSpeedChange,
   onRestart,
   onExitReplay,
-  isFetchingTick
+  isFetchingTick,
+  isSingleFrameView = false
 }) => {
   const [speed, setSpeed] = useState(1.0);
   
@@ -27,16 +28,16 @@ const PlaybackControls = ({
   };
 
   return (
-    <div className="playback-controls">
+    <div className={`playback-controls-container ${isSingleFrameView ? 'single-frame-view' : ''}`}>
       <div className="controls-row">
-        <button onClick={onRestart} className="control-button" title="Restart">
+        <button onClick={onRestart} disabled={isSingleFrameView} className="control-button" title="Restart">
           ⏮
         </button>
         <button 
           onClick={onRewind} 
           className="control-button" 
           title="Previous frame"
-          disabled={isFetchingTick}
+          disabled={isFetchingTick || isSingleFrameView}
         >
           ⏪
         </button>
@@ -44,7 +45,7 @@ const PlaybackControls = ({
           onClick={onPlayPause} 
           className="control-button play-pause-button" 
           title={isPlaying ? "Pause" : "Play"}
-          disabled={isFetchingTick}
+          disabled={isFetchingTick || isSingleFrameView}
         >
           {isPlaying ? '⏸' : '▶'}
         </button>
@@ -52,7 +53,7 @@ const PlaybackControls = ({
           onClick={onForward} 
           className="control-button" 
           title="Next frame"
-          disabled={isFetchingTick}
+          disabled={isFetchingTick || isSingleFrameView}
         >
           ⏩
         </button>
@@ -65,7 +66,7 @@ const PlaybackControls = ({
             max={totalFrames > 0 ? totalFrames - 1 : 0}
             value={currentFrame}
             onChange={handleSliderChange}
-            disabled={isFetchingTick}
+            disabled={isFetchingTick || isSingleFrameView}
           />
         </div>
         
@@ -78,6 +79,7 @@ const PlaybackControls = ({
             value={speed} 
             onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
             className="speed-selector"
+            disabled={isSingleFrameView}
           >
             <option value="0.25">0.25x</option>
             <option value="0.5">0.5x</option>

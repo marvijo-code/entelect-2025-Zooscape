@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import './Grid.css'; // Import CSS for the Grid component
 // Import from the new JavaScript models file
-import { CellContent } from '../models.js'; 
+import { CellContent } from '../models.js';
 
 // Performance optimization constants
 const RENDER_OPTIMIZATION = {
@@ -56,26 +56,26 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
     const entityId = getEntityId(entity);
     return entityId ? `Bot-${entityId}` : 'Unknown Bot';
   }, [getEntityId]);
-  
+
   const getEntityScore = useCallback((entity) => {
-    return entity.score !== undefined ? entity.score : 
-           entity.Score !== undefined ? entity.Score : 0;
+    return entity.score !== undefined ? entity.score :
+      entity.Score !== undefined ? entity.Score : 0;
   }, []);
-  
+
   const getEntityCaptured = useCallback((entity) => {
-    return entity.capturedCounter !== undefined ? entity.capturedCounter : 
-           entity.CapturedCounter !== undefined ? entity.CapturedCounter : 0;
+    return entity.capturedCounter !== undefined ? entity.capturedCounter :
+      entity.CapturedCounter !== undefined ? entity.CapturedCounter : 0;
   }, []);
-  
+
   const getEntityDistance = useCallback((entity) => {
-    return entity.distanceCovered !== undefined ? entity.distanceCovered : 
-           entity.DistanceCovered !== undefined ? entity.DistanceCovered : 0;
+    return entity.distanceCovered !== undefined ? entity.distanceCovered :
+      entity.DistanceCovered !== undefined ? entity.DistanceCovered : 0;
   }, []);
 
   // Memoize grid dimensions calculation
   const { maxX, maxY } = useMemo(() => {
     if (cells.length === 0) return { maxX: 10, maxY: 10 };
-    
+
     let maxX = 0, maxY = 0;
     for (const cell of cells) {
       const x = getCellX(cell);
@@ -104,43 +104,43 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
   // Calculate the optimal tile size based on container dimensions - optimized with debounce
   useEffect(() => {
     if (!containerRef.current) return;
-    
+
     let resizeTimeout;
-    
+
     const updateSize = () => {
       if (!containerRef.current) return; // Add null check
-      
+
       const containerWidth = containerRef.current.clientWidth;
       const containerHeight = containerRef.current.clientHeight;
-      
+
       setContainerSize({
         width: containerWidth,
         height: containerHeight
       });
-      
+
       // Calculate the maximum possible tile size that fits the grid completely
       const maxTileWidth = containerWidth / (maxX + 1);
       const maxTileHeight = containerHeight / (maxY + 1);
-      
+
       // Use Math.floor to avoid overflow, cap at 40px maximum
       const newTileSize = Math.floor(Math.min(maxTileWidth, maxTileHeight, 40));
-      
+
       setTileSize(Math.max(newTileSize, 12)); // Increased minimum tile size from 8px to 12px
     };
-    
+
     // Debounced resize handler
     const debouncedResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(updateSize, 100);
     };
-    
+
     // Initial size calculation
     updateSize();
-    
+
     // Add resize observer to handle container size changes
     const resizeObserver = new ResizeObserver(debouncedResize);
     resizeObserver.observe(containerRef.current);
-    
+
     // Cleanup
     return () => {
       clearTimeout(resizeTimeout);
@@ -150,7 +150,7 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       resizeObserver.disconnect();
     };
   }, [maxX, maxY]);
-  
+
   const gridWidth = (maxX + 1) * tileSize;
   const gridHeight = (maxY + 1) * tileSize;
 
@@ -164,8 +164,8 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
     uniqueXCoords.add(getCellX(cell));
     uniqueYCoords.add(getCellY(cell));
   });
-  console.log(`Unique X coordinates (first 100 cells): [${Array.from(uniqueXCoords).sort((a,b) => a-b).slice(0, 10).join(', ')}...]`);
-  console.log(`Unique Y coordinates (first 100 cells): [${Array.from(uniqueYCoords).sort((a,b) => a-b).slice(0, 10).join(', ')}...]`);
+  console.log(`Unique X coordinates (first 100 cells): [${Array.from(uniqueXCoords).sort((a, b) => a - b).slice(0, 10).join(', ')}...]`);
+  console.log(`Unique Y coordinates (first 100 cells): [${Array.from(uniqueYCoords).sort((a, b) => a - b).slice(0, 10).join(', ')}...]`);
 
   // Memoize cell color function
   const getCellColor = useCallback((content) => {
@@ -188,11 +188,11 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
         return '#F5F5F5'; // Light grey for empty cells
     }
   }, []);
-  
+
   // Memoize color conversion function
   const getColorWithOpacity = useCallback((color, opacity = 0.5) => {
     if (!color) return 'rgba(144, 238, 144, 0.5)';
-    
+
     switch (color) {
       case 'blue': return 'rgba(0, 0, 255, 0.5)';
       case 'green': return 'rgba(0, 128, 0, 0.5)';
@@ -215,11 +215,11 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       const color = getCellColor(content);
       const cellBorder = '1px solid #333';
       const zIndex = 1; // Default z-index for cells, above background
-      
+
       if (x === undefined || y === undefined) return null;
 
-      const positionStyle = RENDER_OPTIMIZATION.USE_TRANSFORM ? 
-        { transform: `translate(${x * tileSize}px, ${y * tileSize}px)` } : 
+      const positionStyle = RENDER_OPTIMIZATION.USE_TRANSFORM ?
+        { transform: `translate(${x * tileSize}px, ${y * tileSize}px)` } :
         { left: x * tileSize, top: y * tileSize };
 
       return (
@@ -237,7 +237,7 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
             backgroundColor: color,
             border: cellBorder,
             boxSizing: 'border-box',
-            zIndex: zIndex, 
+            zIndex: zIndex,
             opacity: 1, // Ensure cells are opaque
           }}
         />
@@ -251,23 +251,23 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       const animalId = getEntityId(animal);
       const animalX = getEntityX(animal);
       const animalY = getEntityY(animal);
-      
+
       if (animalX === undefined || animalY === undefined) {
         console.warn("Animal missing coordinates:", animal);
         return null;
       }
-      
+
       const animalNickname = getEntityNickname(animal);
       const fontSize = Math.max(Math.floor(tileSize / 2.5), 10);
-      
+
       // Get additional stats when showDetails is true
       const animalScore = showDetails ? getEntityScore(animal) : null;
       const animalCaptured = showDetails ? getEntityCaptured(animal) : null;
       const animalDistance = showDetails ? getEntityDistance(animal) : null;
-      
+
       // Check if this animal is being hovered
       const isHovered = hoverInfo && hoverInfo.type === 'animal' && (hoverInfo.id === animalId || hoverInfo.index === animalIndex);
-      
+
       // Prepare the detail text
       let detailText = animalNickname;
       if (showDetails && isHovered) {
@@ -282,15 +282,15 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
           detailText += ` D:${animalDistance}`;
         }
       }
-      
+
       // Enhanced tooltip text for hover
-      const tooltipText = showDetails 
+      const tooltipText = showDetails
         ? `${animalNickname} - Position: (${animalX},${animalY}) - Score: ${animalScore} - Captured: ${animalCaptured} - Distance: ${animalDistance}`
         : `${animalNickname} (Animal)`;
-      
+
       // Get animal color
       const animalColor = colorMap[animalId];
-      
+
       return (
         <React.Fragment key={`animal-group-${animalId || animalIndex}`}>
           <div // Animal circle
@@ -350,27 +350,27 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       const zookeeperId = getEntityId(zookeeper);
       const zooX = getEntityX(zookeeper);
       const zooY = getEntityY(zookeeper);
-      
+
       if (zooX === undefined || zooY === undefined) {
         console.warn("Zookeeper missing coordinates:", zookeeper);
         return null;
       }
-      
+
       const zooNickname = getEntityNickname(zookeeper);
       const fontSize = Math.max(Math.floor(tileSize / 3), 8);
-      
+
       // Check if this zookeeper is being hovered
       const isHovered = hoverInfo && hoverInfo.type === 'zookeeper' && (hoverInfo.id === zookeeperId || hoverInfo.index === zookeeperIndex);
-      
+
       // Enhanced tooltip and detail text for zookeepers in replay mode
-      const tooltipText = showDetails 
+      const tooltipText = showDetails
         ? `${zooNickname} (Zookeeper) - Position: (${zooX},${zooY})`
         : `${zooNickname} (Zookeeper)`;
-        
+
       const detailText = showDetails && isHovered
         ? `${zooNickname} (${zooX},${zooY})`
         : zooNickname;
-      
+
       return (
         <React.Fragment key={`zookeeper-group-${zookeeperId || zookeeperIndex}`}>
           <div // Zookeeper square
@@ -455,17 +455,17 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       const entityX = hoverInfo.x;
       const entityY = hoverInfo.y;
       const nickname = getEntityNickname(entity);
-      
+
       newTop = entityY * tileSize; // Position relative to the entity marker
       newLeft = (entityX + 1) * tileSize + offset; // Default to the right
-      
+
       content = `${nickname} (${hoverInfo.type})`;
       content += ` - Pos: (${entityX},${entityY})`;
 
       if (hoverInfo.type === 'animal' && showDetails) {
         content += ` - Scr: ${getEntityScore(entity)} - Cap: ${getEntityCaptured(entity)} - Dis: ${getEntityDistance(entity)}`;
       }
-      
+
       if (newLeft + tooltipEstimatedWidth > gridActualWidth) {
         nearEdge = true;
         newLeft = entityX * tileSize - tooltipEstimatedWidth - offset;
@@ -501,7 +501,7 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
 
   return (
     <div className="grid-container" ref={containerRef}>
-      <div 
+      <div
         className="grid"
         style={{
           position: 'relative',
@@ -516,10 +516,10 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
         {renderedAnimals}
         {renderedZookeepers}
         {renderedPerTickScoreboard}
-        
+
         {/* Hover tooltip - controlled by hoverInfo and tooltipStyle */}
         {hoverInfo && currentTooltipContent && (
-          <div 
+          <div
             className={`entity-tooltip`} // Base class, 'right-edge' logic is now in style
             style={tooltipStyle}
           >
