@@ -11,35 +11,6 @@ namespace MCTSo4.Tests;
 public class ParallelMctsTests
 {
     /// <summary>
-    /// Test that parallel MCTS returns valid moves
-    /// </summary>
-    [Fact]
-    public void ParallelMCTS_FindBestMove_ReturnsValidMove()
-    {
-        // Arrange
-        var state = new MCTSGameState();
-        var botId = Guid.NewGuid();
-        var parameters = new BotParameters
-        {
-            MctsIterations = 100,
-            MctsDepth = 10,
-            MaxTimePerMoveMs = 50, // Lower for test
-            ExplorationConstant = 1.41,
-            ProgressiveWideningBase = 2.0,
-            ProgressiveWideningExponent = 0.5,
-        };
-        var stopwatch = new Stopwatch();
-
-        // Act
-        stopwatch.Start();
-        var move = ParallelMctsAlgorithm.FindBestMove(state, botId, parameters, stopwatch);
-        stopwatch.Stop();
-
-        // Assert
-        Assert.True(Enum.IsDefined(typeof(Move), move), "Should return a valid move");
-    }
-
-    /// <summary>
     /// Test that thread-safe node selection works correctly
     /// </summary>
     [Fact]

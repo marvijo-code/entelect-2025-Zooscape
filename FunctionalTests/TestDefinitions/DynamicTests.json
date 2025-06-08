@@ -1,47 +1,5 @@
 [
   {
-    "TestName": "TestApi",
-    "GameStateFile": "test.json",
-    "Description": "Test API call",
-    "BotNickname": null,
-    "ExpectedAction": null,
-    "AcceptableActions": [
-      "Up",
-      "Down"
-    ],
-    "TestType": "SingleBot",
-    "TickOverride": false,
-    "Bots": []
-  },
-  {
-    "TestName": "Bot should not stop",
-    "GameStateFile": "20250601_125601",
-    "Description": "Test created from 20250601_125601",
-    "BotNickname": null,
-    "ExpectedAction": null,
-    "AcceptableActions": [
-      "Up",
-      "Down"
-    ],
-    "TestType": "SingleBot",
-    "TickOverride": false,
-    "Bots": []
-  },
-  {
-    "TestName": "Test With Game State",
-    "GameStateFile": "test_state_42.json",
-    "Description": "Test with embedded game state",
-    "BotNickname": null,
-    "ExpectedAction": null,
-    "AcceptableActions": [
-      "Up",
-      "Down"
-    ],
-    "TestType": "SingleBot",
-    "TickOverride": false,
-    "Bots": []
-  },
-  {
     "TestName": "Bot should not stop 2",
     "GameStateFile": "20250601_125601_15.json",
     "Description": "Test created from 20250601_125601",

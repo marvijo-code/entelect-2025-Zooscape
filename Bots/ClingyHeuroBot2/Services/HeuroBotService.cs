@@ -75,10 +75,18 @@ public class HeuroBotService : IBot<HeuroBotService>
             _visitedQuadrants.Add(currentQuadrant);
 
         // Enumerate all possible actions
-        var actions = Enum.GetValues<BotAction>().Cast<BotAction>();
+        var allPossibleActions = Enum.GetValues<BotAction>().Cast<BotAction>();
 
-        // Filter legal moves: avoid walls
+        // Filter legal moves: avoid walls and only allow UseItem if on a power-up cell
         var legalActions = new List<BotAction>();
+        var currentCell = gameState.Cells.FirstOrDefault(c => c.X == me.X && c.Y == me.Y);
+        bool onPowerUpCell =
+            currentCell != null
+            && (
+                currentCell.Content == CellContent.ChameleonCloak
+                || currentCell.Content == CellContent.Scavenger
+                || currentCell.Content == CellContent.BigMooseJuice
+            );
 
         // Animal-specific history for context
         string animalId = me.Id.ToString();
@@ -101,28 +109,40 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         _animalLastDirectionsHistory.TryGetValue(animalId, out BotAction? lastDirection);
 
-        foreach (var a in actions)
+        foreach (var actionType in allPossibleActions)
         {
-            int nx = me.X,
-                ny = me.Y;
-            switch (a)
+            if (actionType == BotAction.UseItem)
             {
-                case BotAction.Up:
-                    ny--;
-                    break;
-                case BotAction.Down:
-                    ny++;
-                    break;
-                case BotAction.Left:
-                    nx--;
-                    break;
-                case BotAction.Right:
-                    nx++;
-                    break;
+                if (onPowerUpCell) // Only consider UseItem if on a power-up cell
+                {
+                    legalActions.Add(actionType);
+                }
             }
-            var cell = gameState.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
-            if (cell != null && cell.Content != CellContent.Wall)
-                legalActions.Add(a);
+            else // For movement actions
+            {
+                int nx = me.X,
+                    ny = me.Y;
+                switch (actionType)
+                {
+                    case BotAction.Up:
+                        ny--;
+                        break;
+                    case BotAction.Down:
+                        ny++;
+                        break;
+                    case BotAction.Left:
+                        nx--;
+                        break;
+                    case BotAction.Right:
+                        nx++;
+                        break;
+                }
+                var targetCell = gameState.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
+                if (targetCell != null && targetCell.Content != CellContent.Wall)
+                {
+                    legalActions.Add(actionType);
+                }
+            }
         }
         if (!legalActions.Any())
             legalActions.Add(BotAction.Up);
