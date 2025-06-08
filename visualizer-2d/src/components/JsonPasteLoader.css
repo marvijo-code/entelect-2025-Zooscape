@@ -1,56 +1,60 @@
 .json-paste-loader-container {
-  padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  background-color: #f9f9f9;
-  margin: 20px auto;
+  padding: var(--spacing-xl, 20px);
+  border: 1px solid var(--border-primary, #38383a);
+  border-radius: var(--radius-large, 12px);
+  background-color: var(--surface-primary, #1c1c1e);
+  margin: var(--spacing-xl, 20px) auto;
   max-width: 700px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-medium, 0 3px 6px rgba(0,0,0,0.16));
 }
 
 .json-paste-loader-container h3 {
   margin-top: 0;
-  margin-bottom: 10px;
-  color: #333;
+  margin-bottom: var(--spacing-md, 12px);
+  color: var(--text-primary, #ffffff);
   font-size: 1.5em;
 }
 
 .json-paste-loader-container p {
   font-size: 0.95em;
-  color: #555;
-  margin-bottom: 20px;
+  color: var(--text-secondary, #ebebf5);
+  margin-bottom: var(--spacing-lg, 16px);
   text-align: center;
   max-width: 90%;
 }
 
 .json-input-textarea {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: var(--spacing-md, 12px);
+  border: 1px solid var(--border-secondary, #48484a);
+  border-radius: var(--radius-medium, 8px);
   font-family: monospace;
   font-size: 0.9em;
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-lg, 16px);
   box-sizing: border-box; 
   min-height: 200px;
   resize: vertical;
+  background-color: var(--surface-secondary, #2c2c2e);
+  color: var(--text-primary, #ffffff);
 }
 
 .load-json-button {
-  padding: 12px 25px;
-  background-color: #007bff;
-  color: white;
+  padding: var(--spacing-md, 12px) var(--spacing-xl, 20px);
+  background-color: var(--accent-blue, #007aff);
+  color: white; /* White text on accent blue is usually fine */
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-medium, 8px);
   cursor: pointer;
   font-size: 1em;
   font-weight: bold;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .load-json-button:hover {
-  background-color: #0056b3;
+  background-color: #0056cc; /* A slightly darker shade of accent-blue for hover */
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-small);
 }

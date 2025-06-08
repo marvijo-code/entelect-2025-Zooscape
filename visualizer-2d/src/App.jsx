@@ -49,7 +49,52 @@ const App = () => {
     lastProcessTime: 0,
     averageProcessTime: 0
   });
-  const animalColors = useMemo(() => ['blue', 'green', 'purple', 'cyan', 'magenta', 'yellow', 'lime', 'teal'], []);
+  const animalColors = useMemo(() => ['blue', 'green', 'purple', 'cyan', 'magenta', 'yellow', 'lime', 'teal', 'red', 'orange', 'pink', 'brown', 'gray', 'olive'], []);
+
+  const namedColorsToHex = {
+    blue: '#0000FF', green: '#008000', purple: '#800080', cyan: '#00FFFF',
+    magenta: '#FF00FF', yellow: '#FFFF00', lime: '#00FF00', teal: '#008080',
+    red: '#FF0000', orange: '#FFA500', pink: '#FFC0CB', brown: '#A52A2A',
+    gray: '#808080', olive: '#808000',
+    transparent: '#00000000' // Special case for transparent
+  };
+
+  const getTextColorForBackground = (bgColorName) => {
+    if (!bgColorName || bgColorName === 'transparent') {
+      return 'var(--text-primary)'; // Default text color from CSS variables for transparent backgrounds
+    }
+
+    const lowerBgColorName = bgColorName.toLowerCase();
+    let hexColor = namedColorsToHex[lowerBgColorName];
+
+    if (!hexColor) {
+      if (lowerBgColorName.startsWith('#')) {
+        hexColor = lowerBgColorName;
+      } else {
+        // If the color name is not in our map and not a hex, default or log warning
+        // For simplicity, defaulting. A more robust solution might try to compute style from a dummy element.
+        console.warn(`[getTextColorForBackground] Unknown color name: ${bgColorName}, defaulting text color.`);
+        return 'var(--text-primary)';
+      }
+    }
+    
+    if (hexColor === '#00000000') return 'var(--text-primary)'; // Explicitly handle transparent hex
+
+    // Ensure hexColor is valid for parsing (e.g., #RRGGBB)
+    if (!/^#[0-9A-F]{6}$/i.test(hexColor) && !/^#[0-9A-F]{8}$/i.test(hexColor)) {
+        console.warn(`[getTextColorForBackground] Invalid hex color format: ${hexColor} from ${bgColorName}, defaulting text color.`);
+        return 'var(--text-primary)';
+    }
+
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+
+    // Calculate luminance (standard formula)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+    return luminance > 0.5 ? 'black' : 'white'; // Threshold 0.5 is common
+  };
 
   const handleLoadPastedJson = useCallback((jsonData) => {
     console.log("Loading pasted JSON data:", jsonData);
@@ -548,13 +593,23 @@ const App = () => {
         if (latestState.animals) {
           const newColors = {};
           latestState.animals.forEach(animal => {
-            if (!animalColorMap[animal.id]) {
-              newColors[animal.id] = animalColors[Math.floor(Math.random() * animalColors.length)];
+            const animalKey = animal.id || animal.Id;
+            if (!animalKey) {
+              console.warn('Animal in tick data is missing an ID', animal);
+              return; // Skip this animal if it has no ID
+            }
+            if (!animalColorMap[animalKey]) {
+              newColors[animalKey] = animalColors[Math.floor(Math.random() * animalColors.length)];
             } else {
-              newColors[animal.id] = animalColorMap[animal.id];
+              newColors[animalKey] = animalColorMap[animalKey];
             }
           });
-          setAnimalColorMap(prevColors => ({ ...prevColors, ...newColors }));
+          console.log('[LiveTick] About to update animalColorMap. Current:', JSON.stringify(animalColorMap), 'Merging:', JSON.stringify(newColors));
+          setAnimalColorMap(prevColors => {
+            const updatedMap = { ...prevColors, ...newColors };
+            console.log('[LiveTick] animalColorMap updated. Prev:', JSON.stringify(prevColors), 'New partial:', JSON.stringify(newColors), 'Result:', JSON.stringify(updatedMap));
+            return updatedMap;
+          });
         }
         
         // Clear the queue
@@ -882,7 +937,12 @@ const App = () => {
 
   // Memoize per-tick scoreboard for replay mode
   const perTickScoreboard = useMemo(() => {
-    if (!isReplaying || !currentGameState) {
+    // Condition to show scores: Must have currentGameState AND (isReplaying OR (live mode AND connected AND game initialized))
+    console.log('[Scoreboard] Recomputing. animalColorMap:', JSON.stringify(animalColorMap));
+    const showScores = currentGameState && 
+                         (isReplaying || (!showReplayMode && isConnected && gameInitialized));
+
+    if (!showScores) {
       return null;
     }
 
@@ -940,16 +1000,24 @@ const App = () => {
       <div className="replay-scoreboard">
         <h4>Current Scores</h4>
         <ul>
-          {scoresData.map((entry, index) => (
-            <li key={entry.id || index}>
-              <span>{index + 1}. {entry.nickname}:</span>
-              <span>{entry.score} / {finalScoresMap[entry.id] !== undefined ? finalScoresMap[entry.id] : 'N/A'}</span>
-            </li>
-          ))}
+          {scoresData.map((entry, index) => {
+            const botIdForColor = entry.id;
+            const colorToApply = animalColorMap[botIdForColor] || 'transparent';
+            console.log(`[Scoreboard] Rendering bot ${entry.nickname} (ID: ${botIdForColor}), applying bgColor: ${colorToApply}`);
+            return (
+              <li 
+                key={botIdForColor || index}
+                style={{ backgroundColor: colorToApply, color: getTextColorForBackground(colorToApply) }}
+              >
+                <span>{index + 1}. {entry.nickname}:</span>
+                <span>{entry.score} / {finalScoresMap[entry.id] !== undefined ? finalScoresMap[entry.id] : 'N/A'}</span>
+              </li>
+            );
+          })}
         </ul>
       </div>
     );
-  }, [isReplaying, currentGameState, finalScoresMap]);
+  }, [isReplaying, currentGameState, finalScoresMap, showReplayMode, isConnected, gameInitialized, animalColorMap]);
 
   // Render active tab content
   const renderActiveTabContent = useCallback(() => {
@@ -1083,8 +1151,9 @@ return (
           )}
         </div>
         
+        {perTickScoreboard}
         {/* Playback Controls - visible in replay mode or when game is initialized from pasted JSON */}
-        {(isReplaying || (gameInitialized && !connection && allGameStates.length === 1)) && (
+        {(gameInitialized && currentGameState && (isReplaying || (!showReplayMode && isConnected))) && (
           <div className="playback-controls-container">
             <PlaybackControls
               currentFrame={isReplaying ? currentReplayTick : 0} // For pasted JSON, currentFrame is 0

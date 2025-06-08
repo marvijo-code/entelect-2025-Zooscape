@@ -1431,3 +1431,38 @@ html body .waiting-message {
   box-shadow: none;
   opacity: 0.6;
 }
+
+/* Styling for the Current Scores panel (perTickScoreboard) */
+.replay-scoreboard {
+  background-color: var(--surface-secondary, #2c2c2e); /* Dark background, fallback if var not found */
+  padding: var(--spacing-md, 12px);
+  border-radius: var(--radius-medium, 8px);
+  margin: var(--spacing-md, 12px);
+  border: 1px solid var(--border-primary, #38383a);
+  box-shadow: var(--shadow-medium, 0 3px 6px rgba(0,0,0,0.16));
+}
+
+.replay-scoreboard h4 {
+  color: var(--text-primary, #ffffff);
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm, 8px);
+  font-size: 1.1em;
+  border-bottom: 1px solid var(--border-secondary, #48484a);
+  padding-bottom: var(--spacing-sm, 8px);
+}
+
+.replay-scoreboard ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.replay-scoreboard li {
+  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
+  margin-bottom: var(--spacing-xs, 4px);
+  border-radius: var(--radius-small, 6px);
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95em;
+  /* Background and text color are set dynamically in App.jsx */
+}
