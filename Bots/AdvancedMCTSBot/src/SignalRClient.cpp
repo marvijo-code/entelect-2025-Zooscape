@@ -191,24 +191,53 @@ public:
         
         // Append SignalR record separator and send the request
         std::string messageWithDelimiter = message + '\x1e';
-        BOOL result = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+        // Append SignalR record separator and send the request
+        std::string messageWithDelimiter = message + '\x1e';
+        BOOL bResults = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
                                         (LPVOID)messageWithDelimiter.c_str(), messageWithDelimiter.length(), 
                                         messageWithDelimiter.length(), 0);
         
-        if (result) {
-            result = WinHttpReceiveResponse(hRequest, nullptr);
+        if (bResults) {
+            bResults = WinHttpReceiveResponse(hRequest, nullptr);
+            if (bResults) {
+                DWORD dwStatusCode = 0;
+                DWORD dwSize = sizeof(dwStatusCode);
+                WinHttpQueryHeaders(hRequest,
+                                    WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                                    WINHTTP_HEADER_NAME_BY_INDEX,
+                                    &dwStatusCode, &dwSize, WINHTTP_NO_HEADER_INDEX);
+                
+                // Log the actual path for clarity
+                char actualPath[256];
+                DWORD actualPathLen = sizeof(actualPath);
+                if (WinHttpQueryOption(hRequest, WINHTTP_OPTION_URL_PATH, actualPath, &actualPathLen)) {
+                     std::cout << "SignalR POST to " << actualPath << " returned HTTP " << dwStatusCode << std::endl;
+                } else {
+                     std::cout << "SignalR POST returned HTTP " << dwStatusCode << " (could not get path)" << std::endl;
+                }
+
+                if (dwStatusCode >= 200 && dwStatusCode < 300) { // Typically 200 OK, 202 Accepted, or 204 No Content
+                    std::cout << "Sent SignalR message: " << message << std::endl;
+                    WinHttpCloseHandle(hRequest);
+                    hRequest = nullptr;
+                    return true;
+                } else {
+                    std::cerr << "SignalR POST failed with HTTP status " << dwStatusCode << " for message: " << message << std::endl;
+                    // You could add code here to read the response body for more detailed error info from the server
+                    bResults = FALSE; // Treat non-2xx as a failure for our logic
+                }
+            } else {
+                std::cerr << "WinHttpReceiveResponse failed with WinAPI error: " << GetLastError() << " for message: " << message << std::endl;
+            }
+        } else {
+            std::cerr << "WinHttpSendRequest failed with WinAPI error: " << GetLastError() << " for message: " << message << std::endl;
         }
         
         WinHttpCloseHandle(hRequest);
         hRequest = nullptr;
         
-        if (result) {
-            std::cout << "Sent SignalR message: " << message << std::endl;
-            return true;
-        } else {
-            std::cout << "Failed to send SignalR message" << std::endl;
-            return false;
-        }
+        std::cout << "Failed to send SignalR message (see details above): " << message << std::endl;
+        return false;
     }
     
     std::string receive() {

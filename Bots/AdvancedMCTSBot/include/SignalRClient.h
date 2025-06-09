@@ -34,12 +34,11 @@ struct SimpleJson {
     }
     
     std::string toString() const {
-        std::string result = "{" + data;
-        if (!result.empty() && result.back() == ',') {
-            result.pop_back(); // Remove trailing comma
+        std::string temp_data = data;
+        if (!temp_data.empty() && temp_data.back() == ',') {
+            temp_data.pop_back(); // Remove trailing comma from data if present
         }
-        result += "}";
-        return result;
+        return "{" + temp_data + "}";
     }
 };
 
