@@ -173,8 +173,8 @@ public:
             return false;
         }
         
-        // Create request path with connection token
-        std::wstring requestPath = L"/bothub?connectionToken=" + std::wstring(connectionToken.begin(), connectionToken.end());
+        // Create request path with connection ID
+        std::wstring requestPath = L"/bothub?id=" + std::wstring(connectionToken.begin(), connectionToken.end()); // connectionToken actually holds the connectionId
         
         hRequest = WinHttpOpenRequest(hConnect, L"POST", requestPath.c_str(),
                                      nullptr, WINHTTP_NO_REFERER, 
@@ -189,10 +189,11 @@ public:
         std::wstring headers = L"Content-Type: application/json\r\n";
         WinHttpAddRequestHeaders(hRequest, headers.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD);
         
-        // Send the request
+        // Append SignalR record separator and send the request
+        std::string messageWithDelimiter = message + '\x1e';
         BOOL result = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
-                                        (LPVOID)message.c_str(), message.length(), 
-                                        message.length(), 0);
+                                        (LPVOID)messageWithDelimiter.c_str(), messageWithDelimiter.length(), 
+                                        messageWithDelimiter.length(), 0);
         
         if (result) {
             result = WinHttpReceiveResponse(hRequest, nullptr);
@@ -288,10 +289,9 @@ bool SignalRClient::sendBotCommand(BotAction action) {
         default: actionStr = "UP"; break;
     }
     
-    SimpleJson data(actionStr);
     SimpleJson commandMsg;
     commandMsg.addString("method", "BotCommand");
-    commandMsg.addObject("data", data);
+    commandMsg.addString("data", actionStr); // Ensure "data" field is a simple string like "UP"
     
     return wsClient->send(commandMsg.toString());
 }
