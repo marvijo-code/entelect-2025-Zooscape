@@ -1,0 +1,53 @@
+# Build directories
+build/
+bin/
+obj/
+
+# Compiled binaries
+AdvancedMCTSBot
+*.exe
+*.out
+*.app
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Configuration overrides
+config_local.json
+secrets.json
+
+# Profiling data
+*.prof
+gmon.out
+callgrind.out.*
+
+# Core dumps
+core
+core.*
+
+# Backup files
+*.bak
+*.backup
