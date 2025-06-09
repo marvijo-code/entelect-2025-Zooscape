@@ -8,6 +8,8 @@
 #include <fstream>
 #include <thread>
 #include <chrono>
+#include <cstdlib>
+#include <random>
 // Removed JSON dependency for Windows build
 
 class AdvancedMCTSBot {
@@ -35,9 +37,51 @@ private:
         bool enableLogging = true;
         bool enableHeuristicLogging = false;
         
+        std::string generateGuid() {
+            // Simple GUID generation for Windows
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dis(0, 15);
+            
+            const char* chars = "0123456789abcdef";
+            std::string guid;
+            
+            for (int i = 0; i < 32; ++i) {
+                if (i == 8 || i == 12 || i == 16 || i == 20) {
+                    guid += '-';
+                }
+                guid += chars[dis(gen)];
+            }
+            
+            return guid;
+        }
+        
         void loadFromFile(const std::string& configPath) {
             // Simplified config loading - use defaults for Windows build
             std::cout << "Using default configuration (JSON parsing disabled for Windows build)" << std::endl;
+            
+            // Check environment variables for bot token (like C# bots)
+            const char* envToken = std::getenv("Token");
+            if (envToken != nullptr) {
+                botToken = std::string(envToken);
+                std::cout << "Using bot token from environment variable" << std::endl;
+            } else {
+                // Generate a new GUID-like token if not found
+                botToken = generateGuid();
+                std::cout << "Generated new bot token: " << botToken << std::endl;
+            }
+            
+            // Check other environment variables
+            const char* envNickname = std::getenv("BOT_NICKNAME");
+            if (envNickname != nullptr) {
+                botNickname = std::string(envNickname);
+            }
+            
+            const char* envServerUrl = std::getenv("RUNNER_IPV4");
+            const char* envServerPort = std::getenv("RUNNER_PORT");
+            if (envServerUrl != nullptr && envServerPort != nullptr) {
+                serverUrl = "http://" + std::string(envServerUrl) + ":" + std::string(envServerPort);
+            }
         }
         
         void saveToFile(const std::string& configPath) const {
