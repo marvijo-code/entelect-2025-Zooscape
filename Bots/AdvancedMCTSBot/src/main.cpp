@@ -198,8 +198,9 @@ private:
         });
         
         // Registration handler
-        signalRClient->onRegistered([this](const std::string& botId) {
-            std::cout << "Bot registered with ID: " << botId << std::endl;
+        signalRClient->onRegistered([this](const std::string& receivedBotId) {
+            this->botId = receivedBotId; // Store the botId
+            std::cout << "Bot registered with ID: " << this->botId << std::endl;
         });
         
         // Disconnect handler
@@ -219,7 +220,12 @@ private:
             }
             
             // Use MCTS to determine best move
-            BotAction bestAction = mctsEngine->findBestAction(gameState, "player1");
+            // Ensure botId is populated before using it
+            if (this->botId.empty()) {
+                std::cerr << "Bot ID is not set. Cannot determine best action." << std::endl;
+                return;
+            }
+            BotAction bestAction = mctsEngine->findBestAction(gameState, this->botId);
             
             // Send the move
             if (!signalRClient->sendBotCommand(bestAction)) {
