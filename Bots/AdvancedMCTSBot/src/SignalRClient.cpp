@@ -191,8 +191,6 @@ public:
         
         // Append SignalR record separator and send the request
         std::string messageWithDelimiter = message + '\x1e';
-        // Append SignalR record separator and send the request
-        std::string messageWithDelimiter = message + '\x1e';
         BOOL bResults = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
                                         (LPVOID)messageWithDelimiter.c_str(), messageWithDelimiter.length(), 
                                         messageWithDelimiter.length(), 0);
