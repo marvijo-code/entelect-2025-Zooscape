@@ -3,35 +3,220 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <sstream>
+#include <random>
 
-// Simplified WebSocket client for Windows build
+#ifdef _WIN32
+#include <windows.h>
+#include <winhttp.h>
+#pragma comment(lib, "winhttp.lib")
+#endif
+
+// Real HTTP client for Windows using WinHTTP
 class WebSocketClient {
+private:
+    HINTERNET hSession = nullptr;
+    HINTERNET hConnect = nullptr;
+    HINTERNET hRequest = nullptr;
+    std::string serverHost;
+    int serverPort;
+    bool connected = false;
+    std::string botId;
+    std::string connectionToken;
+    
 public:
     WebSocketClient() = default;
-    ~WebSocketClient() = default;
+    
+    ~WebSocketClient() {
+        disconnect();
+    }
     
     bool connect(const std::string& url) {
-        // Simplified connection - just simulate success for now
-        std::cout << "Simulating WebSocket connection to: " << url << std::endl;
-        return true;
+        // Parse URL to extract host and port
+        // Expected format: http://localhost:5000/bothub
+        size_t protocolEnd = url.find("://");
+        if (protocolEnd == std::string::npos) return false;
+        
+        size_t hostStart = protocolEnd + 3;
+        size_t portStart = url.find(":", hostStart);
+        size_t pathStart = url.find("/", hostStart);
+        
+        if (portStart != std::string::npos && pathStart != std::string::npos) {
+            serverHost = url.substr(hostStart, portStart - hostStart);
+            serverPort = std::stoi(url.substr(portStart + 1, pathStart - portStart - 1));
+        } else {
+            serverHost = "localhost";
+            serverPort = 5000;
+        }
+        
+        std::cout << "Attempting to connect to SignalR hub at " << serverHost << ":" << serverPort << std::endl;
+        
+        // Initialize WinHTTP
+        hSession = WinHttpOpen(L"AdvancedMCTSBot/1.0", 
+                              WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+                              WINHTTP_NO_PROXY_NAME, 
+                              WINHTTP_NO_PROXY_BYPASS, 0);
+        
+        if (!hSession) {
+            std::cout << "Failed to initialize WinHTTP session" << std::endl;
+            return false;
+        }
+        
+        // Convert host to wide string
+        std::wstring wHost(serverHost.begin(), serverHost.end());
+        
+        hConnect = WinHttpConnect(hSession, wHost.c_str(), serverPort, 0);
+        if (!hConnect) {
+            std::cout << "Failed to connect to server" << std::endl;
+            WinHttpCloseHandle(hSession);
+            return false;
+        }
+        
+        // Perform SignalR negotiation
+        if (negotiate()) {
+            connected = true;
+            std::cout << "Successfully connected to SignalR server" << std::endl;
+            return true;
+        } else {
+            std::cout << "SignalR negotiation failed" << std::endl;
+            disconnect();
+            return false;
+        }
+    }
+    
+    bool negotiate() {
+        // Step 1: Negotiate connection
+        hRequest = WinHttpOpenRequest(hConnect, L"POST", L"/bothub/negotiate",
+                                     nullptr, WINHTTP_NO_REFERER, 
+                                     WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
+        
+        if (!hRequest) {
+            std::cout << "Failed to create negotiate request" << std::endl;
+            return false;
+        }
+        
+        // Add headers for negotiate
+        std::wstring headers = L"Content-Type: application/json\r\nContent-Length: 0\r\n";
+        WinHttpAddRequestHeaders(hRequest, headers.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD);
+        
+        // Send negotiate request
+        BOOL result = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+                                        WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+        
+        if (result) {
+            result = WinHttpReceiveResponse(hRequest, nullptr);
+        }
+        
+        if (result) {
+            DWORD dwSize = 0;
+            DWORD dwDownloaded = 0;
+            std::string response;
+            
+            do {
+                dwSize = 0;
+                if (!WinHttpQueryDataAvailable(hRequest, &dwSize)) {
+                    break;
+                }
+                
+                if (dwSize > 0) {
+                    char* pszOutBuffer = new char[dwSize + 1];
+                    ZeroMemory(pszOutBuffer, dwSize + 1);
+                    
+                    if (WinHttpReadData(hRequest, pszOutBuffer, dwSize, &dwDownloaded)) {
+                        response += std::string(pszOutBuffer, dwDownloaded);
+                    }
+                    delete[] pszOutBuffer;
+                }
+            } while (dwSize > 0);
+            
+            std::cout << "Negotiate response: " << response << std::endl;
+            
+            // Parse connection token from response (simplified)
+            size_t tokenStart = response.find("\"connectionToken\":\"");
+            if (tokenStart != std::string::npos) {
+                tokenStart += 19; // Length of "connectionToken":"
+                size_t tokenEnd = response.find("\"", tokenStart);
+                if (tokenEnd != std::string::npos) {
+                    connectionToken = response.substr(tokenStart, tokenEnd - tokenStart);
+                    std::cout << "Got connection token: " << connectionToken.substr(0, 20) << "..." << std::endl;
+                }
+            }
+        }
+        
+        WinHttpCloseHandle(hRequest);
+        hRequest = nullptr;
+        
+        return result && !connectionToken.empty();
     }
     
     void disconnect() {
-        std::cout << "Simulating WebSocket disconnect" << std::endl;
+        if (hRequest) {
+            WinHttpCloseHandle(hRequest);
+            hRequest = nullptr;
+        }
+        if (hConnect) {
+            WinHttpCloseHandle(hConnect);
+            hConnect = nullptr;
+        }
+        if (hSession) {
+            WinHttpCloseHandle(hSession);
+            hSession = nullptr;
+        }
+        connected = false;
+        connectionToken.clear();
+        std::cout << "Disconnected from SignalR server" << std::endl;
     }
     
     bool send(const std::string& message) {
-        std::cout << "Simulating WebSocket send: " << message << std::endl;
-        return true;
+        if (!connected || connectionToken.empty()) {
+            std::cout << "Not connected to SignalR server" << std::endl;
+            return false;
+        }
+        
+        // Create request path with connection token
+        std::wstring requestPath = L"/bothub?connectionToken=" + std::wstring(connectionToken.begin(), connectionToken.end());
+        
+        hRequest = WinHttpOpenRequest(hConnect, L"POST", requestPath.c_str(),
+                                     nullptr, WINHTTP_NO_REFERER, 
+                                     WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
+        
+        if (!hRequest) {
+            std::cout << "Failed to create send request" << std::endl;
+            return false;
+        }
+        
+        // Add headers
+        std::wstring headers = L"Content-Type: application/json\r\n";
+        WinHttpAddRequestHeaders(hRequest, headers.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD);
+        
+        // Send the request
+        BOOL result = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+                                        (LPVOID)message.c_str(), message.length(), 
+                                        message.length(), 0);
+        
+        if (result) {
+            result = WinHttpReceiveResponse(hRequest, nullptr);
+        }
+        
+        WinHttpCloseHandle(hRequest);
+        hRequest = nullptr;
+        
+        if (result) {
+            std::cout << "Sent SignalR message: " << message << std::endl;
+            return true;
+        } else {
+            std::cout << "Failed to send SignalR message" << std::endl;
+            return false;
+        }
     }
     
     std::string receive() {
-        // Simulate receiving messages
+        // For this demo, we'll simulate receiving game state updates
         return "";
     }
     
     bool isConnected() const {
-        return true; // Simplified
+        return connected;
     }
 };
 
@@ -48,241 +233,105 @@ bool SignalRClient::connect() {
         return true;
     }
     
-    try {
-        if (!establishConnection()) {
-            setError("Failed to establish connection");
-            return false;
-        }
-        
+    std::string fullUrl = serverUrl + "/" + hubName;
+    if (wsClient->connect(fullUrl)) {
         isConnected.store(true);
-        shouldStop.store(false);
         
-        // Start worker threads
-        connectionThread = std::make_unique<std::thread>(&SignalRClient::connectionWorker, this);
-        heartbeatThread = std::make_unique<std::thread>(&SignalRClient::heartbeatWorker, this);
+        // Start heartbeat thread
+        heartbeatThread = std::thread(&SignalRClient::heartbeatLoop, this);
         
-        std::cout << "SignalR connection established" << std::endl;
         return true;
     }
-    catch (const std::exception& e) {
-        setError("Connection failed: " + std::string(e.what()));
-        return false;
-    }
+    
+    return false;
 }
 
 void SignalRClient::disconnect() {
-    if (!isConnected.load()) {
-        return;
-    }
-    
-    shouldStop.store(true);
-    isConnected.store(false);
-    
-    // Wake up waiting threads
-    queueCondition.notify_all();
-    
-    // Join threads
-    if (connectionThread && connectionThread->joinable()) {
-        connectionThread->join();
-    }
-    if (heartbeatThread && heartbeatThread->joinable()) {
-        heartbeatThread->join();
-    }
-    
-    closeConnection();
-    std::cout << "SignalR connection closed" << std::endl;
-}
-
-bool SignalRClient::isConnectionActive() const {
-    return isConnected.load();
-}
-
-void SignalRClient::setGameStateUpdateHandler(std::function<void(const GameState&)> handler) {
-    onGameStateUpdate = handler;
-}
-
-void SignalRClient::setGameEndHandler(std::function<void(const std::string&)> handler) {
-    onGameEnd = handler;
-}
-
-void SignalRClient::setErrorHandler(std::function<void(const std::string&)> handler) {
-    onError = handler;
-}
-
-bool SignalRClient::sendMove(BotAction action) {
-    if (!isConnected.load()) {
-        setError("Not connected");
-        return false;
-    }
-    
-    try {
-        // Convert action to string representation
-        std::string actionStr;
-        switch (action) {
-            case BotAction::Up: actionStr = "UP"; break;
-            case BotAction::Down: actionStr = "DOWN"; break;
-            case BotAction::Left: actionStr = "LEFT"; break;
-            case BotAction::Right: actionStr = "RIGHT"; break;
-            case BotAction::UseItem: actionStr = "USE_ITEM"; break;`
-            default: actionStr = "UP"; break;
-        }
-        
-        SimpleJson data(actionStr);
-        std::string message = createJsonMessage("SendMove", data);
-        
-        return wsClient->send(message);
-    }
-    catch (const std::exception& e) {
-        setError("Failed to send move: " + std::string(e.what()));
-        return false;
-    }
-}
-
-bool SignalRClient::joinGame(const std::string& gameId, const std::string& botName) {
-    if (!isConnected.load()) {
-        setError("Not connected");
-        return false;
-    }
-    
-    try {
-        SimpleJson data(gameId + ":" + botName);
-        std::string message = createJsonMessage("JoinGame", data);
-        
-        return wsClient->send(message);
-    }
-    catch (const std::exception& e) {
-        setError("Failed to join game: " + std::string(e.what()));
-        return false;
-    }
-}
-
-bool SignalRClient::leaveGame() {
-    if (!isConnected.load()) {
-        return true;
-    }
-    
-    try {
-        SimpleJson data("");
-        std::string message = createJsonMessage("LeaveGame", data);
-        
-        return wsClient->send(message);
-    }
-    catch (const std::exception& e) {
-        setError("Failed to leave game: " + std::string(e.what()));
-        return false;
-    }
-}
-
-std::string SignalRClient::getConnectionId() const {
-    return connectionId;
-}
-
-std::string SignalRClient::getLastError() const {
-    return lastError;
-}
-
-void SignalRClient::connectionWorker() {
-    while (!shouldStop.load()) {
-        try {
-            std::string message = wsClient->receive();
-            if (!message.empty()) {
-                processMessage(message);
-            }
-            
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-        catch (const std::exception& e) {
-            setError("Connection worker error: " + std::string(e.what()));
-            break;
-        }
-    }
-}
-
-void SignalRClient::heartbeatWorker() {
-    while (!shouldStop.load()) {
-        try {
-            sendHeartbeat();
-            std::this_thread::sleep_for(std::chrono::seconds(30));
-        }
-        catch (const std::exception& e) {
-            setError("Heartbeat error: " + std::string(e.what()));
-            break;
-        }
-    }
-}
-
-void SignalRClient::processMessage(const std::string& message) {
-    try {
-        SimpleJson json = parseJson(message);
-        
-        // Simple message type detection based on content
-        if (message.find("GameState") != std::string::npos) {
-            handleGameStateMessage(json);
-        }
-        else if (message.find("GameEnd") != std::string::npos) {
-            handleGameEndMessage(json);
-        }
-        else if (message.find("Error") != std::string::npos) {
-            handleErrorMessage(json);
-        }
-    }
-    catch (const std::exception& e) {
-        setError("Failed to process message: " + std::string(e.what()));
-    }
-}
-
-void SignalRClient::handleGameStateMessage(const SimpleJson& data) {
-    if (onGameStateUpdate) {
-        // Create a dummy game state for now
-        GameState state;
-        onGameStateUpdate(state);
-    }
-}
-
-void SignalRClient::handleGameEndMessage(const SimpleJson& data) {
-    if (onGameEnd) {
-        onGameEnd(data.asString());
-    }
-}
-
-void SignalRClient::handleErrorMessage(const SimpleJson& data) {
-    if (onError) {
-        onError(data.asString());
-    }
-}
-
-void SignalRClient::sendHeartbeat() {
     if (isConnected.load()) {
-        SimpleJson data("ping");
-        std::string message = createJsonMessage("Heartbeat", data);
-        wsClient->send(message);
-    }
-}
-
-SimpleJson SignalRClient::parseJson(const std::string& jsonStr) {
-    // Simplified JSON parsing - just return the string
-    return SimpleJson(jsonStr);
-}
-
-std::string SignalRClient::createJsonMessage(const std::string& method, const SimpleJson& data) {
-    // Simplified JSON creation
-    return "{\"method\":\"" + method + "\",\"data\":\"" + data.asString() + "\"}";
-}
-
-bool SignalRClient::establishConnection() {
-    connectionId = "test-connection-id";
-    connectionToken = "test-token";
-    
-    return wsClient->connect(serverUrl + "/" + hubName);
-}
-
-void SignalRClient::closeConnection() {
-    if (wsClient) {
+        isConnected.store(false);
+        
+        if (heartbeatThread.joinable()) {
+            heartbeatThread.join();
+        }
+        
         wsClient->disconnect();
     }
 }
 
-void SignalRClient::setError(const std::string& error) {
-    lastError = error;
-    std::cerr << "SignalR Error: " << error << std::endl;
+bool SignalRClient::registerBot(const std::string& token, const std::string& nickname) {
+    if (!isConnected.load()) {
+        return false;
+    }
+    
+    // Create registration message
+    SimpleJson registerMsg;
+    registerMsg.addString("method", "Register");
+    registerMsg.addString("token", token);
+    registerMsg.addString("nickname", nickname);
+    
+    return wsClient->send(registerMsg.toString());
+}
+
+bool SignalRClient::sendBotCommand(BotAction action) {
+    if (!isConnected.load()) {
+        return false;
+    }
+    
+    // Convert action to string
+    std::string actionStr;
+    switch (action) {
+        case BotAction::Up: actionStr = "UP"; break;
+        case BotAction::Down: actionStr = "DOWN"; break;
+        case BotAction::Left: actionStr = "LEFT"; break;
+        case BotAction::Right: actionStr = "RIGHT"; break;
+        case BotAction::UseItem: actionStr = "USE_ITEM"; break;
+        default: actionStr = "UP"; break;
+    }
+    
+    SimpleJson data(actionStr);
+    SimpleJson commandMsg;
+    commandMsg.addString("method", "BotCommand");
+    commandMsg.addObject("data", data);
+    
+    return wsClient->send(commandMsg.toString());
+}
+
+void SignalRClient::heartbeatLoop() {
+    while (isConnected.load()) {
+        if (wsClient->isConnected()) {
+            SimpleJson heartbeat;
+            heartbeat.addString("method", "Heartbeat");
+            heartbeat.addString("data", "ping");
+            wsClient->send(heartbeat.toString());
+        }
+        
+        std::this_thread::sleep_for(std::chrono::seconds(30));
+    }
+}
+
+void SignalRClient::onGameState(std::function<void(const GameState&)> callback) {
+    gameStateCallback = callback;
+}
+
+void SignalRClient::onRegistered(std::function<void(const std::string&)> callback) {
+    registeredCallback = callback;
+}
+
+void SignalRClient::onDisconnect(std::function<void(const std::string&)> callback) {
+    disconnectCallback = callback;
+}
+
+void SignalRClient::processMessage(const std::string& message) {
+    // Simple message processing - in a real implementation this would parse JSON
+    std::cout << "Received message: " << message << std::endl;
+    
+    if (message.find("GameState") != std::string::npos && gameStateCallback) {
+        // Create a dummy game state for now
+        GameState state;
+        gameStateCallback(state);
+    }
+    
+    if (message.find("Registered") != std::string::npos && registeredCallback) {
+        registeredCallback("bot-id-123");
+    }
 }

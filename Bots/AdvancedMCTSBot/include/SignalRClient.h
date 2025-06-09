@@ -22,6 +22,25 @@ struct SimpleJson {
     int asInt() const { return std::stoi(data); }
     double asDouble() const { return std::stod(data); }
     bool asBool() const { return data == "true"; }
+    
+    // Add methods needed by implementation
+    void addString(const std::string& key, const std::string& value) {
+        // Simple key-value format for demo
+        data += "\"" + key + "\":\"" + value + "\",";
+    }
+    
+    void addObject(const std::string& key, const SimpleJson& obj) {
+        data += "\"" + key + "\":" + obj.toString() + ",";
+    }
+    
+    std::string toString() const {
+        std::string result = "{" + data;
+        if (!result.empty() && result.back() == ',') {
+            result.pop_back(); // Remove trailing comma
+        }
+        result += "}";
+        return result;
+    }
 };
 
 // Forward declarations
@@ -40,38 +59,19 @@ private:
     std::atomic<bool> shouldStop{false};
     
     // Threading
-    std::unique_ptr<std::thread> connectionThread;
-    std::unique_ptr<std::thread> heartbeatThread;
-    
-    // Message handling
-    std::queue<std::string> messageQueue;
-    std::mutex queueMutex;
-    std::condition_variable queueCondition;
-    
-    // Callbacks
-    std::function<void(const GameState&)> onGameStateUpdate;
-    std::function<void(const std::string&)> onGameEnd;
-    std::function<void(const std::string&)> onError;
+    std::thread heartbeatThread;
     
     // WebSocket client
     std::unique_ptr<WebSocketClient> wsClient;
     
+    // Callbacks
+    std::function<void(const GameState&)> gameStateCallback;
+    std::function<void(const std::string&)> registeredCallback;
+    std::function<void(const std::string&)> disconnectCallback;
+    
     // Internal methods
-    void connectionWorker();
-    void heartbeatWorker();
+    void heartbeatLoop();
     void processMessage(const std::string& message);
-    void handleGameStateMessage(const SimpleJson& data);
-    void handleGameEndMessage(const SimpleJson& data);
-    void handleErrorMessage(const SimpleJson& data);
-    void sendHeartbeat();
-    
-    // Message parsing
-    SimpleJson parseJson(const std::string& jsonStr);
-    std::string createJsonMessage(const std::string& method, const SimpleJson& data);
-    
-    // Connection management
-    bool establishConnection();
-    void closeConnection();
     
 public:
     SignalRClient(const std::string& url, const std::string& hub);
@@ -80,23 +80,18 @@ public:
     // Connection management
     bool connect();
     void disconnect();
-    bool isConnectionActive() const;
+    bool isConnectionActive() const { return isConnected.load(); }
+    
+    // Bot registration and commands
+    bool registerBot(const std::string& token, const std::string& nickname);
+    bool sendBotCommand(BotAction action);
     
     // Event handlers
-    void setGameStateUpdateHandler(std::function<void(const GameState&)> handler);
-    void setGameEndHandler(std::function<void(const std::string&)> handler);
-    void setErrorHandler(std::function<void(const std::string&)> handler);
-    
-    // Game actions
-    bool sendMove(BotAction action);
-    bool joinGame(const std::string& gameId, const std::string& botName);
-    bool leaveGame();
-    
-    // Utility
-    std::string getConnectionId() const;
-    std::string getLastError() const;
+    void onGameState(std::function<void(const GameState&)> callback);
+    void onRegistered(std::function<void(const std::string&)> callback);
+    void onDisconnect(std::function<void(const std::string&)> callback);
     
 private:
     std::string lastError;
-    void setError(const std::string& error);
+    void setError(const std::string& error) { lastError = error; }
 };

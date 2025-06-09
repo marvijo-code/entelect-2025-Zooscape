@@ -6,6 +6,8 @@
 #include <atomic>
 #include <signal.h>
 #include <fstream>
+#include <thread>
+#include <chrono>
 // Removed JSON dependency for Windows build
 
 class AdvancedMCTSBot {
@@ -97,13 +99,13 @@ public:
         
         // Connect to SignalR hub
         if (!signalRClient->connect()) {
-            std::cerr << "Failed to connect to SignalR hub: " << signalRClient->getLastError() << std::endl;
+            std::cerr << "Failed to connect to SignalR hub" << std::endl;
             return false;
         }
         
-        // Join game
-        if (!signalRClient->joinGame("default", config.botNickname)) {
-            std::cerr << "Failed to join game: " << signalRClient->getLastError() << std::endl;
+        // Register bot
+        if (!signalRClient->registerBot(config.botToken, config.botNickname)) {
+            std::cerr << "Failed to register bot" << std::endl;
             return false;
         }
         
@@ -123,7 +125,6 @@ public:
         isRunning.store(false);
         
         if (signalRClient) {
-            signalRClient->leaveGame();
             signalRClient->disconnect();
         }
         
@@ -148,18 +149,18 @@ public:
 private:
     void setupEventHandlers() {
         // Game state update handler
-        signalRClient->setGameStateUpdateHandler([this](const GameState& gameState) {
+        signalRClient->onGameState([this](const GameState& gameState) {
             handleGameStateUpdate(gameState);
         });
         
-        // Game end handler
-        signalRClient->setGameEndHandler([this](const std::string& result) {
-            handleGameEnd(result);
+        // Registration handler
+        signalRClient->onRegistered([this](const std::string& botId) {
+            std::cout << "Bot registered with ID: " << botId << std::endl;
         });
         
-        // Error handler
-        signalRClient->setErrorHandler([this](const std::string& error) {
-            handleError(error);
+        // Disconnect handler
+        signalRClient->onDisconnect([this](const std::string& reason) {
+            std::cout << "Disconnected: " << reason << std::endl;
         });
     }
     
@@ -177,8 +178,8 @@ private:
             BotAction bestAction = mctsEngine->findBestAction(gameState, "player1");
             
             // Send the move
-            if (!signalRClient->sendMove(bestAction)) {
-                std::cerr << "Failed to send move: " << signalRClient->getLastError() << std::endl;
+            if (!signalRClient->sendBotCommand(bestAction)) {
+                std::cerr << "Failed to send move" << std::endl;
             } else if (config.enableLogging) {
                 std::cout << "Sent move: " << static_cast<int>(bestAction) << std::endl;
             }
