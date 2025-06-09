@@ -131,14 +131,14 @@ public:
             
             std::cout << "Negotiate response: " << response << std::endl;
             
-            // Parse connection token from response (simplified)
-            size_t tokenStart = response.find("\"connectionToken\":\"");
+            // Parse connection ID from response (SignalR Core uses connectionId, not connectionToken)
+            size_t tokenStart = response.find("\"connectionId\":\"");
             if (tokenStart != std::string::npos) {
-                tokenStart += 19; // Length of "connectionToken":"
+                tokenStart += 16; // Length of "connectionId":"
                 size_t tokenEnd = response.find("\"", tokenStart);
                 if (tokenEnd != std::string::npos) {
                     connectionToken = response.substr(tokenStart, tokenEnd - tokenStart);
-                    std::cout << "Got connection token: " << connectionToken.substr(0, 20) << "..." << std::endl;
+                    std::cout << "Got connection ID: " << connectionToken.substr(0, 20) << "..." << std::endl;
                 }
             }
         }
