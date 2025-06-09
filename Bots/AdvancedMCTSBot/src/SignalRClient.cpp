@@ -5,6 +5,7 @@
 #include <thread>
 #include <sstream>
 #include <random>
+#include <mutex> // Added for std::mutex
 
 #ifdef _WIN32
 #include <windows.h>
@@ -17,13 +18,15 @@ class WebSocketClient {
 private:
     HINTERNET hSession = nullptr;
     HINTERNET hConnect = nullptr;
-    HINTERNET hRequest = nullptr;
+    HINTERNET hRequest = nullptr; // Per-request handle, managed within send/negotiate
     std::string serverHost;
     int serverPort;
     bool connected = false;
-    std::string botId;
-    std::string connectionToken;
+    std::string botId; // This seems unused in WebSocketClient
+    std::string connectionToken; // Stores the connectionId from negotiation
     
+    static std::mutex consoleOutputMutex; // Mutex for synchronizing console output
+
 public:
     WebSocketClient() = default;
     
@@ -150,10 +153,11 @@ public:
     }
     
     void disconnect() {
-        if (hRequest) {
-            WinHttpCloseHandle(hRequest);
-            hRequest = nullptr;
-        }
+        // hRequest is closed within send/negotiate, no need to close it here generally
+        // if (hRequest) {
+        //     WinHttpCloseHandle(hRequest);
+        //     hRequest = nullptr;
+        // }
         if (hConnect) {
             WinHttpCloseHandle(hConnect);
             hConnect = nullptr;
@@ -168,6 +172,8 @@ public:
     }
     
     bool send(const std::string& message) {
+        std::lock_guard<std::mutex> lock(consoleOutputMutex); // Lock for console output
+
         if (!connected || connectionToken.empty()) {
             std::cout << "Not connected to SignalR server" << std::endl;
             return false;
@@ -176,31 +182,31 @@ public:
         // Create request path with connection ID
         std::wstring requestPath = L"/bothub?id=" + std::wstring(connectionToken.begin(), connectionToken.end()); // connectionToken actually holds the connectionId
         
-        hRequest = WinHttpOpenRequest(hConnect, L"POST", requestPath.c_str(),
+        HINTERNET hSendRequest = WinHttpOpenRequest(hConnect, L"POST", requestPath.c_str(),
                                      nullptr, WINHTTP_NO_REFERER, 
                                      WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
         
-        if (!hRequest) {
+        if (!hSendRequest) {
             std::cout << "Failed to create send request" << std::endl;
             return false;
         }
         
         // Add headers
         std::wstring headers = L"Content-Type: application/json\r\n";
-        WinHttpAddRequestHeaders(hRequest, headers.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD);
+        WinHttpAddRequestHeaders(hSendRequest, headers.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD);
         
         // Append SignalR record separator and send the request
         std::string messageWithDelimiter = message + '\x1e';
-        BOOL bResults = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+        BOOL bResults = WinHttpSendRequest(hSendRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
                                         (LPVOID)messageWithDelimiter.c_str(), messageWithDelimiter.length(), 
                                         messageWithDelimiter.length(), 0);
         
         if (bResults) {
-            bResults = WinHttpReceiveResponse(hRequest, nullptr);
+            bResults = WinHttpReceiveResponse(hSendRequest, nullptr);
             if (bResults) {
                 DWORD dwStatusCode = 0;
                 DWORD dwSize = sizeof(dwStatusCode);
-                WinHttpQueryHeaders(hRequest,
+                WinHttpQueryHeaders(hSendRequest,
                                     WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
                                     WINHTTP_HEADER_NAME_BY_INDEX,
                                     &dwStatusCode, &dwSize, WINHTTP_NO_HEADER_INDEX);
@@ -208,7 +214,7 @@ public:
                 // Log the actual path for clarity
                 char actualPath[256];
                 DWORD actualPathLen = sizeof(actualPath);
-                if (WinHttpQueryOption(hRequest, WINHTTP_OPTION_URL_PATH, actualPath, &actualPathLen)) {
+                if (WinHttpQueryOption(hSendRequest, WINHTTP_OPTION_URL_PATH, actualPath, &actualPathLen)) {
                      std::cout << "SignalR POST to " << actualPath << " returned HTTP " << dwStatusCode << std::endl;
                 } else {
                      std::cout << "SignalR POST returned HTTP " << dwStatusCode << " (could not get path)" << std::endl;
@@ -216,8 +222,7 @@ public:
 
                 if (dwStatusCode >= 200 && dwStatusCode < 300) { // Typically 200 OK, 202 Accepted, or 204 No Content
                     std::cout << "Sent SignalR message: " << message << std::endl;
-                    WinHttpCloseHandle(hRequest);
-                    hRequest = nullptr;
+                    WinHttpCloseHandle(hSendRequest);
                     return true;
                 } else {
                     std::cerr << "SignalR POST failed with HTTP status " << dwStatusCode << " for message: " << message << std::endl;
@@ -231,8 +236,7 @@ public:
             std::cerr << "WinHttpSendRequest failed with WinAPI error: " << GetLastError() << " for message: " << message << std::endl;
         }
         
-        WinHttpCloseHandle(hRequest);
-        hRequest = nullptr;
+        WinHttpCloseHandle(hSendRequest);
         
         std::cout << "Failed to send SignalR message (see details above): " << message << std::endl;
         return false;
@@ -240,6 +244,7 @@ public:
     
     std::string receive() {
         // For this demo, we'll simulate receiving game state updates
+        // Proper implementation would require a listening mechanism (e.g., on a WebSocket)
         return "";
     }
     
@@ -247,6 +252,9 @@ public:
         return connected;
     }
 };
+
+// Define static member
+std::mutex WebSocketClient::consoleOutputMutex;
 
 SignalRClient::SignalRClient(const std::string& url, const std::string& hub)
     : serverUrl(url), hubName(hub), wsClient(std::make_unique<WebSocketClient>()) {
