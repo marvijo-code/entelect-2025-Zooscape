@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "GameState.h"
 #include "MCTSEngine.h"
 #include "SignalRClient.h"
@@ -10,6 +12,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <random>
+#include <csignal>
 // Removed JSON dependency for Windows build
 
 class AdvancedMCTSBot {
@@ -18,24 +21,39 @@ private:
     std::unique_ptr<SignalRClient> signalRClient;
     std::atomic<bool> isRunning;
     std::string botId;
+    std::atomic<bool> shutdownRequested{false};
     
     // Configuration
     struct BotConfig {
-        std::string serverUrl = "http://localhost:5000";
-        std::string hubName = "bothub";
-        std::string botToken = "";
-        std::string botNickname = "AdvancedMCTSBot";
+        std::string serverUrl;
+        std::string hubName;
+        std::string botToken;
+        std::string botNickname;
         
         // MCTS Configuration
-        double explorationConstant = 1.414;
-        int maxIterations = 10000;
-        int maxSimulationDepth = 100;
-        int timeLimit = 1000; // milliseconds
-        int numThreads = 4;
+        double explorationConstant;
+        int maxIterations;
+        int maxSimulationDepth;
+        int timeLimit; // milliseconds
+        int numThreads;
         
         // Logging
-        bool enableLogging = true;
-        bool enableHeuristicLogging = false;
+        bool enableLogging;
+        bool enableHeuristicLogging;
+        
+        BotConfig() : 
+            serverUrl("http://localhost:5000"),
+            hubName("bothub"),
+            botToken(""),
+            botNickname("AdvancedMCTSBot"),
+            explorationConstant(1.414),
+            maxIterations(10000),
+            maxSimulationDepth(100),
+            timeLimit(1000),
+            numThreads(4),
+            enableLogging(true),
+            enableHeuristicLogging(false)
+        {}
         
         std::string generateGuid() {
             // Simple GUID generation for Windows
@@ -56,7 +74,7 @@ private:
             return guid;
         }
         
-        void loadFromFile(const std::string& configPath) {
+        void loadFromFile(const std::string& /*configPath*/) {
             // Simplified config loading - use defaults for Windows build
             std::cout << "Using default configuration (JSON parsing disabled for Windows build)" << std::endl;
             
@@ -64,7 +82,7 @@ private:
             const char* envToken = std::getenv("Token");
             if (envToken != nullptr) {
                 botToken = std::string(envToken);
-                std::cout << "Using bot token from environment variable" << std::endl;
+                std::cout << "Using bot token from environment variable: " << envToken << std::endl;
             } else {
                 // Generate a new GUID-like token if not found
                 botToken = generateGuid();
@@ -102,8 +120,12 @@ private:
             }
         }
     } config;
-    
+
 public:
+    void requestShutdown() {
+        shutdownRequested.store(true);
+    }
+
     AdvancedMCTSBot() : isRunning(false) {
         // Load configuration
         config.loadFromFile("config.json");
@@ -147,15 +169,6 @@ public:
             return false;
         }
         
-        // Register bot
-        if (!signalRClient->registerBot(config.botToken, config.botNickname)) {
-            std::cerr << "Failed to register bot" << std::endl;
-            return false;
-        }
-        
-        isRunning.store(true);
-        std::cout << "AdvancedMCTSBot started successfully" << std::endl;
-        
         return true;
     }
     
@@ -180,10 +193,25 @@ public:
             return;
         }
         
+        std::cout << "Waiting for registration confirmation..." << std::endl;
+        
+        // Wait timeout (30 seconds)
+        auto start = std::chrono::steady_clock::now();
+        while (botId.empty() && 
+               std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count() < 30) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        
+        if (botId.empty()) {
+            std::cerr << "[ERROR] Registration timed out after 30 seconds" << std::endl;
+            stop();
+            return;
+        }
+        
         std::cout << "AdvancedMCTSBot is running. Press Ctrl+C to stop." << std::endl;
         
         // Main game loop
-        while (isRunning.load()) {
+        while (isRunning.load() && !shutdownRequested.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         
@@ -197,15 +225,26 @@ private:
             handleGameStateUpdate(gameState);
         });
         
+        // Connection handler
+        signalRClient->onConnected([this]() {
+            std::cout << "SignalR connection established. Registering bot..." << std::endl;
+            if (!signalRClient->registerBot(config.botToken, config.botNickname)) {
+                std::cerr << "Failed to send registration request" << std::endl;
+            }
+        });
+        
         // Registration handler
         signalRClient->onRegistered([this](const std::string& receivedBotId) {
-            this->botId = receivedBotId; // Store the botId
-            std::cout << "Bot registered with ID: " << this->botId << std::endl;
+            this->botId = receivedBotId;
+            std::cout << "[REGISTRATION SUCCESS] Bot registered with ID: " << this->botId << std::endl;
+            std::cout << "Animal (AdvancedMCTSBot) added to game world" << std::endl;
+            isRunning.store(true);
         });
         
         // Disconnect handler
-        signalRClient->onDisconnect([this](const std::string& reason) {
-            std::cout << "Disconnected: " << reason << std::endl;
+        signalRClient->onDisconnected([this](const std::string& message) {
+            std::cout << "Disconnected from SignalR hub: " << message << std::endl;
+            stop();
         });
     }
     
@@ -257,17 +296,16 @@ private:
 std::unique_ptr<AdvancedMCTSBot> g_bot;
 
 void signalHandler(int signal) {
-    std::cout << "\nReceived signal " << signal << ". Shutting down gracefully..." << std::endl;
     if (g_bot) {
-        g_bot->stop();
+        std::cout << "[SIGNAL] Received signal, shutting down..." << signal << std::endl;
+        g_bot->requestShutdown();
     }
-    exit(0);
 }
 
-int main(int argc, char* argv[]) {
+int main(int /*argc*/, char* /*argv*/[]) {
     // Set up signal handling
-    signal(SIGINT, signalHandler);
-    signal(SIGTERM, signalHandler);
+    std::signal(SIGINT, signalHandler);
+    std::signal(SIGTERM, signalHandler);
     
     try {
         std::cout << "=== Advanced MCTS Bot for Zooscape ===" << std::endl;

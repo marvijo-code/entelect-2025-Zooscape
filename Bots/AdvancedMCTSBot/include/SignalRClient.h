@@ -67,6 +67,8 @@ private:
     std::function<void(const GameState&)> gameStateCallback;
     std::function<void(const std::string&)> registeredCallback;
     std::function<void(const std::string&)> disconnectCallback;
+    std::function<void()> onConnectedCallback;
+    std::function<void(const std::string&)> onDisconnectedCallback;
     
     // Internal methods
     void heartbeatLoop();
@@ -86,9 +88,25 @@ public:
     bool sendBotCommand(BotAction action);
     
     // Event handlers
-    void onGameState(std::function<void(const GameState&)> callback);
-    void onRegistered(std::function<void(const std::string&)> callback);
-    void onDisconnect(std::function<void(const std::string&)> callback);
+    void onGameState(std::function<void(const GameState&)> callback) {
+        gameStateCallback = callback;
+    }
+    
+    void onRegistered(std::function<void(const std::string&)> callback) {
+        registeredCallback = callback;
+    }
+    
+    void onDisconnect(std::function<void(const std::string&)> callback) {
+        disconnectCallback = callback;
+    }
+    
+    void onConnected(std::function<void()> callback) {
+        onConnectedCallback = callback;
+    }
+    
+    void onDisconnected(std::function<void(const std::string&)> callback) {
+        onDisconnectedCallback = callback;
+    }
     
 private:
     std::string lastError;

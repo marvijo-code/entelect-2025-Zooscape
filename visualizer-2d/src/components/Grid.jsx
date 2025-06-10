@@ -72,6 +72,17 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       entity.DistanceCovered !== undefined ? entity.DistanceCovered : 0;
   }, []);
 
+  const getEntityHeldPowerUp = useCallback((entity) => entity.heldPowerUp !== undefined ? entity.heldPowerUp : entity.HeldPowerUp, []);
+  const getEntityActivePowerUp = useCallback((entity) => entity.activePowerUp !== undefined ? entity.activePowerUp : entity.ActivePowerUp, []);
+  const getEntityPowerUpDuration = useCallback((entity) => entity.powerUpDuration !== undefined ? entity.powerUpDuration : entity.PowerUpDuration, []);
+  const getEntityScoreStreak = useCallback((entity) => entity.scoreStreak !== undefined ? entity.scoreStreak : entity.ScoreStreak, []);
+
+  const getPowerUpName = useCallback((powerUpContent) => {
+    if (powerUpContent === null || powerUpContent === undefined) return 'None';
+    const entry = Object.entries(CellContent).find(([key, value]) => value === powerUpContent);
+    return entry ? entry[0] : 'Unknown';
+  }, []);
+
   // Memoize grid dimensions calculation
   const { maxX, maxY } = useMemo(() => {
     if (cells.length === 0) return { maxX: 10, maxY: 10 };
@@ -182,6 +193,18 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       case CellContent.ZookeeperSpawn:
       case 4: // Numeric value for ZookeeperSpawn
         return '#F08080'; // Light coral
+      case CellContent.PowerPellet:
+      case 5:
+        return '#FF69B4'; // Hot Pink for PowerPellet
+      case CellContent.ChameleonCloak:
+      case 6:
+        return '#9370DB'; // Medium Purple for ChameleonCloak
+      case CellContent.Scavenger:
+      case 7:
+        return '#FFA500'; // Orange for Scavenger
+      case CellContent.BigMooseJuice:
+      case 8:
+        return '#DC143C'; // Crimson for BigMooseJuice
       case CellContent.Empty:
       case 0: // Numeric value for Empty
       default:
@@ -264,6 +287,10 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       const animalScore = showDetails ? getEntityScore(animal) : null;
       const animalCaptured = showDetails ? getEntityCaptured(animal) : null;
       const animalDistance = showDetails ? getEntityDistance(animal) : null;
+      const heldPowerUp = showDetails ? getEntityHeldPowerUp(animal) : null;
+      const activePowerUp = showDetails ? getEntityActivePowerUp(animal) : null;
+      const powerUpDuration = showDetails ? getEntityPowerUpDuration(animal) : null;
+      const scoreStreak = showDetails ? getEntityScoreStreak(animal) : null;
 
       // Check if this animal is being hovered
       const isHovered = hoverInfo && hoverInfo.type === 'animal' && (hoverInfo.id === animalId || hoverInfo.index === animalIndex);
@@ -272,15 +299,10 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       let detailText = animalNickname;
       if (showDetails && isHovered) {
         detailText = `${animalNickname} (${animalX},${animalY})`;
-        if (animalScore !== null) {
-          detailText += ` S:${animalScore}`;
-        }
-        if (animalCaptured !== null) {
-          detailText += ` C:${animalCaptured}`;
-        }
-        if (animalDistance !== null) {
-          detailText += ` D:${animalDistance}`;
-        }
+        if (animalScore !== null) detailText += ` S:${animalScore}`;
+        if (scoreStreak > 0) detailText += ` Streak:${scoreStreak}`;
+        if (heldPowerUp) detailText += ` Held:${getPowerUpName(heldPowerUp)}`;
+        if (activePowerUp) detailText += ` Active:${getPowerUpName(activePowerUp)} (${powerUpDuration})`;
       }
 
       // Enhanced tooltip text for hover

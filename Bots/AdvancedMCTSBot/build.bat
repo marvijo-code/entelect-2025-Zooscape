@@ -25,20 +25,17 @@ echo Building project...
 cmake --build . --config Release
 
 REM Check if build was successful
-if %errorlevel% eq 0 (
+if %errorlevel% equ 0 (
     echo Build successful!
     echo Executable: .\build\Release\AdvancedMCTSBot.exe
     
-    REM Copy config file to build directory
-    copy ..\config.json .
+    REM Copy config file to build directory if it exists
+    if exist ..\config.json copy ..\config.json .
     
     echo To run the bot:
     echo   cd build
     echo   .\Release\AdvancedMCTSBot.exe
 ) else (
     echo Build failed!
-    pause
     exit /b 1
 )
-
-pause

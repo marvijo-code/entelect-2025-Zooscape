@@ -211,23 +211,16 @@ public:
                                     WINHTTP_HEADER_NAME_BY_INDEX,
                                     &dwStatusCode, &dwSize, WINHTTP_NO_HEADER_INDEX);
                 
-                // Log the actual path for clarity
-                char actualPath[256];
-                DWORD actualPathLen = sizeof(actualPath);
-                if (WinHttpQueryOption(hSendRequest, WINHTTP_OPTION_URL_PATH, actualPath, &actualPathLen)) {
-                     std::cout << "SignalR POST to " << actualPath << " returned HTTP " << dwStatusCode << std::endl;
-                } else {
-                     std::cout << "SignalR POST returned HTTP " << dwStatusCode << " (could not get path)" << std::endl;
-                }
+                // Log the HTTP status
+                std::cout << "SignalR POST returned HTTP " << dwStatusCode << std::endl;
 
-                if (dwStatusCode >= 200 && dwStatusCode < 300) { // Typically 200 OK, 202 Accepted, or 204 No Content
+                if (dwStatusCode >= 200 && dwStatusCode < 300) {
                     std::cout << "Sent SignalR message: " << message << std::endl;
                     WinHttpCloseHandle(hSendRequest);
                     return true;
                 } else {
                     std::cerr << "SignalR POST failed with HTTP status " << dwStatusCode << " for message: " << message << std::endl;
-                    // You could add code here to read the response body for more detailed error info from the server
-                    bResults = FALSE; // Treat non-2xx as a failure for our logic
+                    bResults = FALSE;
                 }
             } else {
                 std::cerr << "WinHttpReceiveResponse failed with WinAPI error: " << GetLastError() << " for message: " << message << std::endl;
@@ -271,41 +264,36 @@ bool SignalRClient::connect() {
     
     std::string fullUrl = serverUrl + "/" + hubName;
     if (wsClient->connect(fullUrl)) {
+        // Send SignalR handshake: {"protocol":"json","version":1}\x1e
+        std::string handshake = "{\"protocol\":\"json\",\"version\":1}\x1e";
+        wsClient->send(handshake);
+
         isConnected.store(true);
-        
-        // Start heartbeat thread
-        heartbeatThread = std::thread(&SignalRClient::heartbeatLoop, this);
-        
+        std::cout << "SignalR connection established" << std::endl;
+        if (onConnectedCallback) {
+            onConnectedCallback();
+        }
         return true;
     }
-    
     return false;
 }
 
 void SignalRClient::disconnect() {
     if (isConnected.load()) {
         isConnected.store(false);
-        
-        if (heartbeatThread.joinable()) {
-            heartbeatThread.join();
-        }
-        
         wsClient->disconnect();
     }
 }
 
 bool SignalRClient::registerBot(const std::string& token, const std::string& nickname) {
-    if (!isConnected.load()) {
-        return false;
+    // SignalR invocation format: {"type":1,"target":"Register","arguments":["token","nickname"]}\x1e
+    std::string message = "{\"type\":1,\"target\":\"Register\",\"arguments\":[\"" + token + "\",\"" + nickname + "\"]}\x1e";
+    
+    if (wsClient->send(message)) {
+        std::cout << "[REGISTRATION] Sent registration request for bot: " << nickname << std::endl;
+        return true;
     }
-    
-    // Create registration message
-    SimpleJson registerMsg;
-    registerMsg.addString("method", "Register");
-    registerMsg.addString("token", token);
-    registerMsg.addString("nickname", nickname);
-    
-    return wsClient->send(registerMsg.toString());
+    return false;
 }
 
 bool SignalRClient::sendBotCommand(BotAction action) {
@@ -324,36 +312,16 @@ bool SignalRClient::sendBotCommand(BotAction action) {
         default: actionStr = "UP"; break;
     }
     
-    SimpleJson commandMsg;
-    commandMsg.addString("method", "BotCommand");
-    commandMsg.addString("data", actionStr); // Ensure "data" field is a simple string like "UP"
-    
-    return wsClient->send(commandMsg.toString());
-}
-
-void SignalRClient::heartbeatLoop() {
-    while (isConnected.load()) {
-        if (wsClient->isConnected()) {
-            SimpleJson heartbeat;
-            heartbeat.addString("method", "Heartbeat");
-            heartbeat.addString("data", "ping");
-            wsClient->send(heartbeat.toString());
+    // Payload expected by RunnerHub.SendPlayerCommand
+    std::string payload = "{\"Action\":\"" + actionStr + "\"}";
+    std::string message = "{\"type\":1,\"target\":\"BotCommand\",\"arguments\":[" + payload + "]}\x1e";
+    if (wsClient->send(message)) {
+        if (static_cast<int>(action) != static_cast<int>(BotAction::Up)) {
+            std::cout << "[BOT COMMAND] Sent action " << actionStr << std::endl;
         }
-        
-        std::this_thread::sleep_for(std::chrono::seconds(30));
+        return true;
     }
-}
-
-void SignalRClient::onGameState(std::function<void(const GameState&)> callback) {
-    gameStateCallback = callback;
-}
-
-void SignalRClient::onRegistered(std::function<void(const std::string&)> callback) {
-    registeredCallback = callback;
-}
-
-void SignalRClient::onDisconnect(std::function<void(const std::string&)> callback) {
-    disconnectCallback = callback;
+    return false;
 }
 
 void SignalRClient::processMessage(const std::string& message) {

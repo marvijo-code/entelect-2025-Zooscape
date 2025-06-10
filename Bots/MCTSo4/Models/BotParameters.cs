@@ -55,4 +55,5 @@ public class BotParameters
     public double Weight_EscapeProgress { get; set; } = 50.0;
     public double Weight_PowerUp { get; set; } = 20.0;
     public double Weight_OpponentContention { get; set; } = -5.0;
+    public double Weight_ScoreStreakBonus { get; set; } = 5.0; // Default value, can be tuned per strategy
 }

@@ -1,3 +1,4 @@
+using Marvijo.Zooscape.Bots.Common.Enums;
 using MCTSo4.Enums;
 
 namespace MCTSo4.Models;

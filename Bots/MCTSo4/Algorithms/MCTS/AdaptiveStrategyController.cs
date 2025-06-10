@@ -35,6 +35,9 @@ public static class AdaptiveStrategyController
             RaveWeight = 0.5,
             RaveEquivalenceParameter = 1000,
             RaveMaxDepth = 10,
+
+            // Default heuristic weights (can be overridden by strategy)
+            Weight_ScoreStreakBonus = 5.0, // Default bonus per streak level
         };
 
         // Strategy-specific parameter tuning

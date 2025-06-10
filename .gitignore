@@ -54,3 +54,5 @@ publish/
 logs.bak-*/
 logs.bak/
 *-logs/
+.aider*
+.env*

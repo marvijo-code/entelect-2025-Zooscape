@@ -3,8 +3,12 @@ export const CellContent = {
     Empty: 0,
     Wall: 1,
     Pellet: 2,
-    AnimalSpawn: 3,
+    AnimalSpawn: 3, // Note: This is a legacy value, ZookeeperSpawn is 4 in the backend
     ZookeeperSpawn: 4,
+    PowerPellet: 5,
+    ChameleonCloak: 6,
+    Scavenger: 7,
+    BigMooseJuice: 8,
 };
 
 // Interfaces are a TypeScript feature and do not exist in JavaScript.
@@ -40,6 +44,10 @@ export const CellContent = {
  * @property {number} CapturedCounter - or lowercase capturedCounter
  * @property {number} DistanceCovered - or lowercase distanceCovered
  * @property {boolean} IsViable - or lowercase isViable
+ * @property {number} [HeldPowerUp] - or lowercase heldPowerUp (a CellContent value)
+ * @property {number} [ActivePowerUp] - or lowercase activePowerUp (a CellContent value)
+ * @property {number} [PowerUpDuration] - or lowercase powerUpDuration
+ * @property {number} [ScoreStreak] - or lowercase scoreStreak
  */
 
 /**

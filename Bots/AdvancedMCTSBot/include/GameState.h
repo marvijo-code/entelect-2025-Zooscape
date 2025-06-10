@@ -108,7 +108,7 @@ public:
     }
     
     void clear() { bits.reset(); }
-    int count() const { return bits.count(); }
+    int count() const { return static_cast<int>(bits.count()); }
     
     BitBoard operator&(const BitBoard& other) const {
         BitBoard result(width, height);

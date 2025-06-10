@@ -3,6 +3,7 @@ namespace MCTSo4.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq; // Added for Linq operations
+using Marvijo.Zooscape.Bots.Common.Enums;
 using MCTSo4.Enums; // Added for CellContent enum
 using Serilog;
 
@@ -20,6 +21,9 @@ public class MCTSGameState
     public List<Cell> Cells { get; set; } = new List<Cell>();
     public List<Animal> Animals { get; set; } = new List<Animal>();
     public List<Zookeeper> Zookeepers { get; set; } = new List<Zookeeper>();
+
+    // Helper to get cell, assuming Cells list is comprehensive and represents the grid
+    private Cell? GetCell(int x, int y) => Cells.FirstOrDefault(c => c.X == x && c.Y == y);
 
     // Example properties
     // public int[,] Map { get; set; }
@@ -65,11 +69,43 @@ public class MCTSGameState
                 SpawnY = z.SpawnY,
             })
             .ToList();
+        // Deep clone animal properties including new power-up fields
+        clonedState.Animals = Animals
+            .Select(a => new Animal
+            {
+                Id = a.Id,
+                X = a.X,
+                Y = a.Y,
+                SpawnX = a.SpawnX,
+                SpawnY = a.SpawnY,
+                Score = a.Score,
+                CapturedCounter = a.CapturedCounter,
+                DistanceCovered = a.DistanceCovered,
+                IsViable = a.IsViable,
+                HeldPowerUp = a.HeldPowerUp,
+                ActivePowerUpEffect = a.ActivePowerUpEffect,
+                PowerUpDurationTicks = a.PowerUpDurationTicks,
+                ScoreStreak = a.ScoreStreak,
+            })
+            .ToList();
         return clonedState;
     }
 
     // Returns all legal moves from this state
-    public List<Move> GetLegalMoves() => Enum.GetValues<Move>().ToList();
+    public List<Move> GetLegalMoves(Guid botAnimalId)
+    {
+        var botAnimal = Animals.FirstOrDefault(a => a.Id == botAnimalId);
+        var legalMoves = new List<Move> { Move.Up, Move.Down, Move.Left, Move.Right };
+
+        if (
+            botAnimal?.HeldPowerUp != null
+            && botAnimal.HeldPowerUp.Value != CellContent.PowerPellet
+        ) // PowerPellet is passive
+        {
+            legalMoves.Add(Move.UseItem);
+        }
+        return legalMoves;
+    }
 
     // Applies a move and returns the resulting state
     public MCTSGameState Apply(Move move, Guid botAnimalId)
@@ -91,59 +127,196 @@ public class MCTSGameState
         int nextX = currentX;
         int nextY = currentY;
 
-        switch (move)
+        bool collectedPelletThisTurn = false;
+
+        if (move == Move.UseItem)
         {
-            case Move.Up:
-                nextY--;
-                break;
-            case Move.Down:
-                nextY++;
-                break;
-            case Move.Left:
-                nextX--;
-                break;
-            case Move.Right:
-                nextX++;
-                break;
-        }
-
-        // Wall collision check (assuming map boundaries are handled by walls or are very large)
-        bool isWallCollision = nextState.Cells.Any(c =>
-            c.X == nextX && c.Y == nextY && c.Content == CellContent.Wall
-        );
-
-        if (!isWallCollision)
-        {
-            botAnimal.X = nextX;
-            botAnimal.Y = nextY;
-
-            // Pellet collection check
-            var pelletCell = nextState.Cells.FirstOrDefault(c =>
-                c.X == nextX && c.Y == nextY && c.Content == CellContent.Pellet
-            );
-            if (pelletCell != null)
+            if (botAnimal.HeldPowerUp.HasValue)
             {
-                botAnimal.Score++; // Assuming 1 point per pellet
-                pelletCell.Content = CellContent.Empty;
-                GameStateLog.Verbose(
-                    "Bot {BotId} collected a pellet at ({X},{Y}). New score: {Score}",
+                GameStateLog.Debug(
+                    "Bot {BotId} uses {PowerUp}",
                     botAnimalId,
+                    botAnimal.HeldPowerUp.Value
+                );
+                switch (botAnimal.HeldPowerUp.Value)
+                {
+                    case CellContent.ChameleonCloak:
+                        botAnimal.ActivePowerUpEffect = ActivePowerUpType.ChameleonCloak;
+                        botAnimal.PowerUpDurationTicks = 20;
+                        break;
+                    case CellContent.Scavenger:
+                        botAnimal.ActivePowerUpEffect = ActivePowerUpType.Scavenger;
+                        botAnimal.PowerUpDurationTicks = 5;
+                        // Scavenger effect: collect pellets in 11x11 area
+                        for (int sx = botAnimal.X - 5; sx <= botAnimal.X + 5; sx++)
+                        {
+                            for (int sy = botAnimal.Y - 5; sy <= botAnimal.Y + 5; sy++)
+                            {
+                                var cellToScavenge = nextState.GetCell(sx, sy);
+                                if (
+                                    cellToScavenge != null
+                                    && (
+                                        cellToScavenge.Content == CellContent.Pellet
+                                        || cellToScavenge.Content == CellContent.PowerPellet
+                                    )
+                                )
+                                {
+                                    int scoreFromPellet =
+                                        (cellToScavenge.Content == CellContent.PowerPellet)
+                                            ? 10
+                                            : 1;
+                                    if (
+                                        botAnimal.ActivePowerUpEffect
+                                            == ActivePowerUpType.BigMooseJuice
+                                        && botAnimal.PowerUpDurationTicks > 0
+                                    )
+                                        scoreFromPellet *= 3;
+                                    botAnimal.Score += scoreFromPellet;
+                                    cellToScavenge.Content = CellContent.Empty;
+                                    collectedPelletThisTurn = true; // Scavenging counts as collecting
+                                }
+                            }
+                        }
+                        break;
+                    case CellContent.BigMooseJuice:
+                        botAnimal.ActivePowerUpEffect = ActivePowerUpType.BigMooseJuice;
+                        botAnimal.PowerUpDurationTicks = 5;
+                        break;
+                }
+                botAnimal.HeldPowerUp = null; // Consume the power-up
+            }
+        }
+        else // Handle movement
+        {
+            switch (move)
+            {
+                case Move.Up:
+                    nextY--;
+                    break;
+                case Move.Down:
+                    nextY++;
+                    break;
+                case Move.Left:
+                    nextX--;
+                    break;
+                case Move.Right:
+                    nextX++;
+                    break;
+            }
+
+            bool isWallCollision = nextState.GetCell(nextX, nextY)?.Content == CellContent.Wall;
+
+            if (!isWallCollision)
+            {
+                botAnimal.X = nextX;
+                botAnimal.Y = nextY;
+
+                var landedCell = nextState.GetCell(nextX, nextY);
+                if (landedCell != null)
+                {
+                    switch (landedCell.Content)
+                    {
+                        case CellContent.Pellet:
+                            int scoreToAdd =
+                                (
+                                    botAnimal.ActivePowerUpEffect == ActivePowerUpType.BigMooseJuice
+                                    && botAnimal.PowerUpDurationTicks > 0
+                                )
+                                    ? 3
+                                    : 1;
+                            scoreToAdd *= (1 + Math.Min(botAnimal.ScoreStreak, 3)); // Apply streak multiplier (max x4 for streak 3)
+                            botAnimal.Score += scoreToAdd;
+                            landedCell.Content = CellContent.Empty;
+                            collectedPelletThisTurn = true;
+                            GameStateLog.Verbose(
+                                "Bot {BotId} collected a pellet at ({X},{Y}). New score: {Score}, Streak: {Streak}",
+                                botAnimalId,
+                                nextX,
+                                nextY,
+                                botAnimal.Score,
+                                botAnimal.ScoreStreak
+                            );
+                            break;
+                        case CellContent.PowerPellet:
+                            int powerPelletScore =
+                                (
+                                    botAnimal.ActivePowerUpEffect == ActivePowerUpType.BigMooseJuice
+                                    && botAnimal.PowerUpDurationTicks > 0
+                                )
+                                    ? 30
+                                    : 10;
+                            powerPelletScore *= (1 + Math.Min(botAnimal.ScoreStreak, 3));
+                            botAnimal.Score += powerPelletScore;
+                            landedCell.Content = CellContent.Empty;
+                            collectedPelletThisTurn = true;
+                            GameStateLog.Debug(
+                                "Bot {BotId} collected a Power Pellet at ({X},{Y}). New score: {Score}, Streak: {Streak}",
+                                botAnimalId,
+                                nextX,
+                                nextY,
+                                botAnimal.Score,
+                                botAnimal.ScoreStreak
+                            );
+                            break;
+                        case CellContent.ChameleonCloak:
+                        case CellContent.Scavenger:
+                        case CellContent.BigMooseJuice:
+                            if (botAnimal.HeldPowerUp.HasValue) // If holding one, old one is lost
+                            {
+                                botAnimal.ActivePowerUpEffect = ActivePowerUpType.None;
+                                botAnimal.PowerUpDurationTicks = 0;
+                            }
+                            botAnimal.HeldPowerUp = landedCell.Content;
+                            landedCell.Content = CellContent.Empty;
+                            GameStateLog.Debug(
+                                "Bot {BotId} picked up {PowerUp} at ({X},{Y})",
+                                botAnimalId,
+                                botAnimal.HeldPowerUp,
+                                nextX,
+                                nextY
+                            );
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                GameStateLog.Verbose(
+                    "Bot {BotId} move {Move} to ({X},{Y}) resulted in wall collision.",
+                    botAnimalId,
+                    move,
                     nextX,
-                    nextY,
-                    botAnimal.Score
+                    nextY
                 );
             }
         }
+
+        // Update Score Streak
+        if (collectedPelletThisTurn)
+        {
+            botAnimal.ScoreStreak = Math.Min(botAnimal.ScoreStreak + 1, 3); // Max streak 3 for x4 multiplier
+        }
         else
         {
-            GameStateLog.Verbose(
-                "Bot {BotId} move {Move} to ({X},{Y}) resulted in wall collision.",
-                botAnimalId,
-                move,
-                nextX,
-                nextY
-            );
-            // Animal stays in the same place if wall collision
+            // GameRules: streak resets if animal does not pick up any pellets for 3 consecutive ticks.
+            // This is harder to track perfectly in simple simulation. For now, reset if no pellet this turn.
+            // A more accurate simulation would need a 'ticksSinceLastPellet' counter on Animal.
+            botAnimal.ScoreStreak = 0;
+        }
+
+        // Decrement active power-up duration
+        if (botAnimal.PowerUpDurationTicks > 0)
+        {
+            botAnimal.PowerUpDurationTicks--;
+            if (botAnimal.PowerUpDurationTicks == 0)
+            {
+                GameStateLog.Debug(
+                    "Bot {BotId} {PowerUp} effect wore off.",
+                    botAnimalId,
+                    botAnimal.ActivePowerUpEffect
+                );
+                botAnimal.ActivePowerUpEffect = ActivePowerUpType.None;
+            }
         }
 
         nextState.Tick++; // Increment tick for the new state
@@ -221,7 +394,15 @@ public class MCTSGameState
             if (distToZk < 5 && distToZk > 0) // Example threshold for proximity threat
             {
                 // Weight_ZkThreat is negative, so this subtracts from score
-                evalScore += parameters.Weight_ZkThreat / distToZk;
+                if (
+                    !(
+                        botAnimal.ActivePowerUpEffect == ActivePowerUpType.ChameleonCloak
+                        && botAnimal.PowerUpDurationTicks > 0
+                    )
+                )
+                {
+                    evalScore += parameters.Weight_ZkThreat / distToZk;
+                }
             }
         }
         if (wasCaught)
@@ -258,8 +439,41 @@ public class MCTSGameState
             evalScore += 5000; // Bonus for clearing pellets (if that's a goal)
         }
 
-        // TODO: Add evaluation for parameters.Weight_EscapeProgress, parameters.Weight_PowerUp
-        // This would require knowing how these are represented in the game state (e.g., exit points, power-up items)
+        // Power-up evaluation
+        if (
+            botAnimal.HeldPowerUp.HasValue
+            && botAnimal.HeldPowerUp.Value != CellContent.PowerPellet
+        )
+        {
+            // Simple bonus for holding a usable power-up. Could be more nuanced based on type.
+            evalScore += parameters.Weight_PowerUp * 5; // Example: Weight_PowerUp might be 10, so +50.
+        }
+        if (
+            botAnimal.ActivePowerUpEffect != ActivePowerUpType.None
+            && botAnimal.PowerUpDurationTicks > 0
+        )
+        {
+            // Bonus for having an active beneficial power-up
+            double effectBonus = 0;
+            switch (botAnimal.ActivePowerUpEffect)
+            {
+                case ActivePowerUpType.BigMooseJuice:
+                    effectBonus = parameters.Weight_PowerUp * botAnimal.PowerUpDurationTicks * 0.5; // Value based on duration
+                    break;
+                case ActivePowerUpType.Scavenger:
+                    effectBonus = parameters.Weight_PowerUp * botAnimal.PowerUpDurationTicks * 0.7; // Scavenger is generally good
+                    break;
+                // ChameleonCloak's benefit is handled by reducing ZK threat directly.
+            }
+            evalScore += effectBonus;
+        }
+
+        // Score streak evaluation
+        // Add a bonus for maintaining a streak, proportional to its level
+        evalScore += botAnimal.ScoreStreak * parameters.Weight_ScoreStreakBonus;
+
+        // TODO: Add evaluation for parameters.Weight_EscapeProgress
+        // This would require knowing how these are represented in the game state (e.g., exit points)
 
         // This log can be very spammy, changing to Verbose.
         // GameStateLog.Verbose(
