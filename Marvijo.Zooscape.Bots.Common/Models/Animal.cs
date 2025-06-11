@@ -1,3 +1,5 @@
+using Marvijo.Zooscape.Bots.Common.Enums;
+
 namespace Marvijo.Zooscape.Bots.Common.Models;
 
 public class Animal
@@ -12,4 +14,8 @@ public class Animal
     public int CapturedCounter { get; set; }
     public int DistanceCovered { get; set; }
     public bool IsViable { get; set; }
+    public PowerUpType? HeldPowerUp { get; set; }
+    public ActivePowerUpType ActivePowerUp { get; set; }
+    public int ActivePowerUpDuration { get; set; }
+    public int ScoreStreak { get; set; }
 }

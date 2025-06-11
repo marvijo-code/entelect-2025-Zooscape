@@ -63,11 +63,11 @@ try
         return;
     }
 
+    // Ensure the IP has the http:// scheme, but don't add it if it's already there.
     if (!runnerIpConfig.StartsWith("http://") && !runnerIpConfig.StartsWith("https://"))
     {
         runnerIpConfig = "http://" + runnerIpConfig;
     }
-
     string connectionUrl = $"{runnerIpConfig}:{runnerPortConfig}/{hubName}";
 
     Log.Information("Bot Nickname to be used: {BotNickname}", botNickname);

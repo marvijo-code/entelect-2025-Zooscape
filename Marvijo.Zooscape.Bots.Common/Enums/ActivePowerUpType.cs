@@ -1,4 +1,4 @@
-namespace MCTSo4.Enums;
+namespace Marvijo.Zooscape.Bots.Common.Enums;
 
 public enum ActivePowerUpType
 {

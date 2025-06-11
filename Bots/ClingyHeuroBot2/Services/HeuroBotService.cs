@@ -77,16 +77,11 @@ public class HeuroBotService : IBot<HeuroBotService>
         // Enumerate all possible actions
         var allPossibleActions = Enum.GetValues<BotAction>().Cast<BotAction>();
 
-        // Filter legal moves: avoid walls and only allow UseItem if on a power-up cell
+        // Filter for legal moves. Start with an empty list.
         var legalActions = new List<BotAction>();
-        var currentCell = gameState.Cells.FirstOrDefault(c => c.X == me.X && c.Y == me.Y);
-        bool onPowerUpCell =
-            currentCell != null
-            && (
-                currentCell.Content == CellContent.ChameleonCloak
-                || currentCell.Content == CellContent.Scavenger
-                || currentCell.Content == CellContent.BigMooseJuice
-            );
+
+        // Check if the bot can use a held power-up. Usable power-ups are those that are not null.
+        bool canUseItem = me.HeldPowerUp != null;
 
         // Animal-specific history for context
         string animalId = me.Id.ToString();
@@ -113,7 +108,7 @@ public class HeuroBotService : IBot<HeuroBotService>
         {
             if (actionType == BotAction.UseItem)
             {
-                if (onPowerUpCell) // Only consider UseItem if on a power-up cell
+                if (canUseItem)
                 {
                     legalActions.Add(actionType);
                 }

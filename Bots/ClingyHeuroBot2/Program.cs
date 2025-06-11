@@ -45,6 +45,11 @@ public class Program
             return;
         }
 
+        // Ensure the IP has the http:// scheme, but don't add it if it's already there.
+        if (!runnerIp.StartsWith("http://") && !runnerIp.StartsWith("https://"))
+        {
+            runnerIp = "http://" + runnerIp;
+        }
         string url = $"{runnerIp}:{runnerPort}/{hubName}";
         _logger.LogInformation($"Connecting to {url}");
         Console.WriteLine($"Connecting to {url}");

@@ -66,18 +66,18 @@ try
         return;
     }
 
+    // Ensure the IP has the http:// scheme, but don't add it if it's already there.
     if (!runnerIpConfig.StartsWith("http://") && !runnerIpConfig.StartsWith("https://"))
     {
         runnerIpConfig = "http://" + runnerIpConfig;
     }
-
-    string connectionUrl = $"{runnerIpConfig}:{runnerPortConfig}/{hubName}";
+    var url = $"{runnerIpConfig}:{runnerPortConfig}/{hubName}";
 
     Log.Information("Bot Nickname to be used: {BotNickname}", botNickname);
-    Log.Information("Attempting to connect to: {ConnectionUrl}", connectionUrl);
+    Log.Information("Attempting to connect to: {ConnectionUrl}", url);
 
     var connection = new HubConnectionBuilder()
-        .WithUrl(connectionUrl)
+        .WithUrl(url)
         .ConfigureLogging(logging =>
         {
             logging.AddSerilog();

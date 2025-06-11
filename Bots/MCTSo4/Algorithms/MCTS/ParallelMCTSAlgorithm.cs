@@ -38,7 +38,7 @@ public static class ParallelMctsAlgorithm
         if (botId == Guid.Empty)
         {
             AlgoLog.Error("FindBestMove called with Guid.Empty BotId. Returning a random move.");
-            var legalMoves = rootMctsState.GetLegalMoves();
+            var legalMoves = rootMctsState.GetLegalMoves(botId);
             return legalMoves.Any() ? legalMoves[Rnd.Next(legalMoves.Count)] : Move.Up;
         }
 
@@ -200,7 +200,7 @@ public static class ParallelMctsAlgorithm
     private static void ExpandAllRootActions(ThreadSafeNode root, Guid botId)
     {
         // Use a temporary list to avoid thread safety issues during initial expansion
-        var legalMoves = root.State.GetLegalMoves();
+        var legalMoves = root.State.GetLegalMoves(botId);
 
         AlgoLog.Debug(
             "Expanding all {Count} root actions for initial exploration",
@@ -481,7 +481,7 @@ public static class ParallelMctsAlgorithm
         if (!rootChildren.Any())
         {
             AlgoLog.Warning("No children found at root node. Returning a random legal move.");
-            var legalMoves = root.State.GetLegalMoves();
+            var legalMoves = root.State.GetLegalMoves(botId);
             return legalMoves.Any() ? legalMoves[Rnd.Next(legalMoves.Count)] : Move.Up;
         }
 

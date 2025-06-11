@@ -98,6 +98,9 @@ public class HeuristicsManager
             new ZookeeperCooldownHeuristic(),
             new ZookeeperPredictionHeuristic(),
             new UnexploredBonusHeuristic(),
+            new PowerUpCollectionHeuristic(),
+            new ScoreStreakHeuristic(),
+            new UseItemHeuristic(),
         ];
 
         _logger.Information(

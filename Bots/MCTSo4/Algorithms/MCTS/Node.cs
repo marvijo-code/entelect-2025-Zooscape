@@ -31,7 +31,7 @@ public class MctsNode
         BotId = botId;
         Parameters = parameters;
         Children = new List<MctsNode>();
-        UntriedActions = state.GetLegalMoves();
+        UntriedActions = state.GetLegalMoves(BotId);
         Wins = 0;
         Visits = 0;
     }

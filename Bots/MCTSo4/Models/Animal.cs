@@ -1,5 +1,6 @@
 namespace MCTSo4.Models;
 
+using Marvijo.Zooscape.Bots.Common.Enums;
 using MCTSo4.Enums; // Added for CellContent and ActivePowerUpType
 
 public class Animal

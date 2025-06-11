@@ -59,7 +59,7 @@ public class ThreadSafeNode
         _children = new ConcurrentBag<ThreadSafeNode>();
 
         // Store all legal moves for progressive widening
-        _allLegalMoves = state.GetLegalMoves();
+        _allLegalMoves = state.GetLegalMoves(BotId);
 
         // Initially make all moves available if progressive widening is not used
         _untriedActions = new ConcurrentQueue<Move>(_allLegalMoves);

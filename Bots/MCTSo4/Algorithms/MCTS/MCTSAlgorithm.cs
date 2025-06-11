@@ -30,7 +30,7 @@ public static class MctsAlgorithm
             AlgoLog.Error(
                 "FindBestMove called with Guid.Empty BotId. MCTS cannot proceed. Returning a random move."
             );
-            var legalMoves = rootMctsState.GetLegalMoves();
+            var legalMoves = rootMctsState.GetLegalMoves(botId);
             return legalMoves.Any() ? legalMoves[Rnd.Next(legalMoves.Count)] : Move.Up; // Default to Up if no legal moves somehow
         }
 
@@ -307,13 +307,13 @@ public static class MctsAlgorithm
                 AlgoLog.Information("BotId {BotId}: Fallback to first untried from root.", botId);
                 return root.UntriedActions.First();
             }
-            else if (rootMctsState.GetLegalMoves().Any())
+            else if (rootMctsState.GetLegalMoves(botId).Any())
             {
                 AlgoLog.Information(
                     "BotId {BotId}: Fallback to first legal from root state.",
                     botId
                 );
-                return rootMctsState.GetLegalMoves().First();
+                return rootMctsState.GetLegalMoves(botId).First();
             }
             else
             {
@@ -424,7 +424,7 @@ public static class MctsAlgorithm
         {
             return bestChild.Move.Value;
         }
-        var legalRootMoves = rootMctsState.GetLegalMoves();
+        var legalRootMoves = rootMctsState.GetLegalMoves(botId);
         if (legalRootMoves.Any())
         {
             AlgoLog.Information(

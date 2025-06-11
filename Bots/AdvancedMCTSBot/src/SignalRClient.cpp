@@ -195,8 +195,12 @@ public:
         std::wstring headers = L"Content-Type: application/json\r\n";
         WinHttpAddRequestHeaders(hSendRequest, headers.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD);
         
-        // Append SignalR record separator and send the request
-        std::string messageWithDelimiter = message + '\x1e';
+        // Ensure exactly **one** SignalR record separator at message end
+        std::string messageWithDelimiter = message;
+        if (messageWithDelimiter.empty() || messageWithDelimiter.back() != '\x1e') {
+            messageWithDelimiter.push_back('\x1e');
+        }
+        
         BOOL bResults = WinHttpSendRequest(hSendRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
                                         (LPVOID)messageWithDelimiter.c_str(), messageWithDelimiter.length(), 
                                         messageWithDelimiter.length(), 0);
@@ -264,8 +268,8 @@ bool SignalRClient::connect() {
     
     std::string fullUrl = serverUrl + "/" + hubName;
     if (wsClient->connect(fullUrl)) {
-        // Send SignalR handshake: {"protocol":"json","version":1}\x1e
-        std::string handshake = "{\"protocol\":\"json\",\"version\":1}\x1e";
+        // Send SignalR handshake: {"protocol":"json","version":1}
+        std::string handshake = "{\"protocol\":\"json\",\"version\":1}"; // Record separator appended in send()
         wsClient->send(handshake);
 
         isConnected.store(true);
@@ -286,8 +290,8 @@ void SignalRClient::disconnect() {
 }
 
 bool SignalRClient::registerBot(const std::string& token, const std::string& nickname) {
-    // SignalR invocation format: {"type":1,"target":"Register","arguments":["token","nickname"]}\x1e
-    std::string message = "{\"type\":1,\"target\":\"Register\",\"arguments\":[\"" + token + "\",\"" + nickname + "\"]}\x1e";
+    // SignalR invocation format: {"type":1,"target":"Register","arguments":["token","nickname"]}
+    std::string message = "{\"type\":1,\"target\":\"Register\",\"arguments\":[\"" + token + "\",\"" + nickname + "\"]}"; // Delimiter added in send()
     
     if (wsClient->send(message)) {
         std::cout << "[REGISTRATION] Sent registration request for bot: " << nickname << std::endl;

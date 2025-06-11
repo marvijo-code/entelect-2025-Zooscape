@@ -95,10 +95,17 @@ private:
                 botNickname = std::string(envNickname);
             }
             
-            const char* envServerUrl = std::getenv("RUNNER_IPV4");
-            const char* envServerPort = std::getenv("RUNNER_PORT");
-            if (envServerUrl != nullptr && envServerPort != nullptr) {
-                serverUrl = "http://" + std::string(envServerUrl) + ":" + std::string(envServerPort);
+            const char* envIp = std::getenv("RUNNER_IPV4");
+            const char* envPort = std::getenv("RUNNER_PORT");
+
+            // Use environment variables if available, otherwise keep defaults from constructor
+            if (envIp != nullptr && envPort != nullptr) {
+                std::string ip = std::string(envIp);
+                // Ensure the IP has the http:// scheme, but don't add it if it's already there.
+                if (ip.rfind("http://", 0) != 0 && ip.rfind("https://", 0) != 0) {
+                    ip = "http://" + ip;
+                }
+                serverUrl = ip + ":" + std::string(envPort);
             }
         }
         

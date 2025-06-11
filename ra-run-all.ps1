@@ -33,9 +33,9 @@ for ($i = 1; $i -le $RunCount; $i++) {
 
     $bots = @(
         @{ Name = "ClingyHeuroBot2"; Path = "Bots\ClingyHeuroBot2\ClingyHeuroBot2.csproj" },
-        @{ Name = "AdvancedMCTSBot"; Path = "Bots\AdvancedMCTSBot"; Type = "cpp" },
+        # @{ Name = "AdvancedMCTSBot"; Path = "Bots\AdvancedMCTSBot"; Type = "cpp" },
         @{ Name = "DeepMCTS"; Path = "Bots\DeepMCTS\DeepMCTS.csproj" },
-        # @{ Name = "MCTSo4"; Path = "Bots\MCTSo4\MCTSo4.csproj" },
+        @{ Name = "MCTSo4"; Path = "Bots\MCTSo4\MCTSo4.csproj" },
         @{ Name = "ClingyHeuroBot"; Path = "Bots\ClingyHeuroBot\ClingyHeuroBot.csproj" }
     )
 

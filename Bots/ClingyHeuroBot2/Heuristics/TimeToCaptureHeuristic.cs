@@ -20,12 +20,8 @@ public class TimeToCaptureHeuristic : IHeuristic
             return 0m;
         }
 
-        var zookeeper = heuristicContext
-            .CurrentGameState.Zookeepers.OrderBy(z =>
-                Heuristics.ManhattanDistance(z.X, z.Y, nx, ny)
-            )
-            .First();
-        int distToZookeeper = Heuristics.ManhattanDistance(zookeeper.X, zookeeper.Y, nx, ny);
+        int distToZookeeper = heuristicContext.CurrentGameState.Zookeepers
+            .Min(z => Heuristics.ManhattanDistance(z.X, z.Y, nx, ny));
 
         if (distToZookeeper <= 2)
         {

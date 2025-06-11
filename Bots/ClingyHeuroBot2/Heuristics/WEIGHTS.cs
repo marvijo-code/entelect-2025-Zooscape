@@ -59,6 +59,10 @@ public static class WEIGHTS
     public const decimal RecalcWindowSafety = 0.8m;
     public const decimal CenterControl = 0.6m;
 
+    public const decimal PowerUpCollection = 2.5m;
+    public const decimal UseItem = 2.0m;
+    public const decimal ScoreStreak = 0.2m;
+
     public const decimal MoveIfIdle = 3.0m;
     public const decimal ChangeDirectionWhenStuck = 2.5m;
     public const decimal ShortestPathToGoal = 1.8m;
@@ -134,6 +138,9 @@ public static class WEIGHTS
             { "DensityMapping", DensityMapping },
             { "CornerControl", CornerControl },
             { "AdaptivePathfinding", AdaptivePathfinding },
+            { "PowerUpCollection", PowerUpCollection },
+            { "UseItem", UseItem },
+            { "ScoreStreak", ScoreStreak },
         };
     }
 }

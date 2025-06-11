@@ -25,22 +25,16 @@ public class EscapeRoutesHeuristic : IHeuristic
             {
                 if (heuristicContext.CurrentGameState.Zookeepers.Any())
                 {
-                    var zookeeper = heuristicContext
-                        .CurrentGameState.Zookeepers.OrderBy(z =>
-                            BotUtils.ManhattanDistance(z.X, z.Y, nx, ny)
-                        )
-                        .First();
+                    int currentMinDist = heuristicContext.CurrentGameState.Zookeepers
+                        .Min(z => BotUtils.ManhattanDistance(z.X, z.Y, nx, ny));
 
-                    int currentDist = BotUtils.ManhattanDistance( // Updated
-                        zookeeper.X,
-                        zookeeper.Y,
-                        nx,
-                        ny
-                    );
-                    int escapeDist = BotUtils.ManhattanDistance(zookeeper.X, zookeeper.Y, ex, ey); // Updated
+                    int escapeMinDist = heuristicContext.CurrentGameState.Zookeepers
+                        .Min(z => BotUtils.ManhattanDistance(z.X, z.Y, ex, ey));
 
-                    if (escapeDist > currentDist)
+                    if (escapeMinDist > currentMinDist)
+                    {
                         escapeCount++;
+                    }
                 }
                 else
                 {
