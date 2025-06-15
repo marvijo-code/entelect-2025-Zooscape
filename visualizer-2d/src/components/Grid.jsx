@@ -343,25 +343,27 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
             style={{
               position: 'absolute',
               left: animalX * tileSize + tileSize,
-              top: animalY * tileSize + tileSize / 4 - 1,
-              backgroundColor: getColorWithOpacity(animalColor, 0.75),
-              color: 'black',
-              padding: '2px 4px',
-              fontSize: `${Math.max(Math.floor(tileSize / 2.2), 11)}px`,
+              top: animalY * tileSize + tileSize / 4 - 2,
+              backgroundColor: 'rgba(255, 255, 255, 0.95)', // High contrast white background
+              color: '#000000',
+              padding: '3px 6px',
+              fontSize: `${Math.max(Math.floor(tileSize / 1.8), 12)}px`, // Larger font size
               fontWeight: 'bold',
-              textShadow: '0px 0px 2px white, 0px 0px 2px white',
-              zIndex: 3,
+              textShadow: '1px 1px 2px rgba(0,0,0,0.3), -1px -1px 2px rgba(0,0,0,0.3)', // Enhanced text shadow
+              zIndex: 4, // Higher z-index to ensure visibility
               whiteSpace: 'nowrap',
-              border: '1px solid #ccc',
-              borderRadius: '3px',
+              border: `2px solid ${animalColor || 'blue'}`, // Colored border matching animal
+              borderRadius: '4px',
               maxWidth: showDetails ? '300px' : 'auto',
               overflow: 'visible',
               textOverflow: 'clip',
-              transition: 'background-color 0.2s ease, opacity 0.2s ease',
-              opacity: isHovered ? 1 : 0.9,
+              transition: 'all 0.2s ease',
+              opacity: 1, // Always fully opaque
               display: 'flex',
               alignItems: 'center',
-              height: `${tileSize / 2}px`
+              height: `${Math.max(tileSize / 2, 18)}px`, // Minimum height for readability
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)', // Drop shadow for depth
+              transform: isHovered ? 'scale(1.05)' : 'scale(1)', // Slight scale on hover
             }}
           >
             {detailText}
@@ -424,22 +426,24 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
             style={{
               position: 'absolute',
               left: zooX * tileSize + tileSize,
-              top: zooY * tileSize + tileSize / 4 - 1, // Adjusted top similar to animal labels
-              backgroundColor: 'rgba(250, 250, 210, 0.85)', // Lighter, more opaque yellow
-              color: 'black',
-              padding: '2px 4px', // Increased padding
-              fontSize: `${fontSize}px`,
-              fontWeight: 'bold', // Bold text
-              textShadow: '0px 0px 2px white, 0px 0px 1px white', // Added text shadow
-              zIndex: 3,
+              top: zooY * tileSize + tileSize / 4 - 2,
+              backgroundColor: 'rgba(255, 255, 255, 0.95)', // High contrast white background
+              color: '#000000',
+              padding: '3px 6px',
+              fontSize: `${Math.max(Math.floor(tileSize / 1.8), 12)}px`, // Larger font size matching animals
+              fontWeight: 'bold',
+              textShadow: '1px 1px 2px rgba(0,0,0,0.3), -1px -1px 2px rgba(0,0,0,0.3)', // Enhanced text shadow
+              zIndex: 4, // Higher z-index to ensure visibility
               whiteSpace: 'nowrap',
-              border: '1px solid #ccc',
-              borderRadius: '3px',
-              transition: 'background-color 0.2s ease, opacity 0.2s ease',
-              opacity: isHovered ? 1 : 0.85,
+              border: '2px solid red', // Red border matching zookeeper color
+              borderRadius: '4px',
+              transition: 'all 0.2s ease',
+              opacity: 1, // Always fully opaque
               display: 'flex',
               alignItems: 'center',
-              height: `${tileSize / 2}px`
+              height: `${Math.max(tileSize / 2, 18)}px`, // Minimum height for readability
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)', // Drop shadow for depth
+              transform: isHovered ? 'scale(1.05)' : 'scale(1)', // Slight scale on hover
             }}
           >
             {detailText}

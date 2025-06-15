@@ -19,8 +19,8 @@ public static class ParallelMctsAlgorithm
     private const double OverheadTimePercentage = 0.65;
 
     // Thread pool size calculation constants
-    private const int MinThreads = 2;
-    private const int MaxThreads = 8;
+    private const int MinThreads = 1;
+    private const int MaxThreads = 2;
 
     // Epsilon value for epsilon-greedy simulation
     private const double SimulationEpsilon = 0.7;

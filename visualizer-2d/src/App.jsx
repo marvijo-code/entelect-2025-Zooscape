@@ -7,14 +7,19 @@ import PlaybackControls from './components/PlaybackControls.jsx';
 import TabsContainer from './components/TabsContainer.jsx';
 import ConnectionDebugger from './components/ConnectionDebugger.jsx';
 import TestRunner from './components/TestRunner.jsx';
+import Settings from './components/Settings.jsx';
+import { getAppConfig, getValidTabIndex } from './config/appConfig.js';
 import './App.css';
 import './styles/ConnectionDebugger.css';
+import './styles/Settings.css';
 import JsonPasteLoader from './components/JsonPasteLoader.jsx';
 
-const HUB_URL = import.meta.env.VITE_HUB_URL || "http://localhost:5000/bothub";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5008/api'; // API server running on port 5008
-
 const App = () => {
+  // Initialize configuration
+  const [appConfig, setAppConfig] = useState(() => getAppConfig());
+  const HUB_URL = appConfig.hubUrl;
+  const API_BASE_URL = appConfig.apiBaseUrl;
+
   const [connection, setConnection] = useState(null);
   const [allGameStates, setAllGameStates] = useState([]);
   const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0);
@@ -30,8 +35,10 @@ const App = () => {
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardStatusMessage, setLeaderboardStatusMessage] = useState('');
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [showReplayMode, setShowReplayMode] = useState(false);
-  const [activeTabIndex, setActiveTabIndex] = useState(1);
+  const [showReplayMode, setShowReplayMode] = useState(() => appConfig.defaultReplayMode);
+  const [activeTabIndex, setActiveTabIndex] = useState(() =>
+    getValidTabIndex(appConfig.defaultActiveTab, appConfig.defaultReplayMode)
+  );
   const [liveTickQueue, setLiveTickQueue] = useState([]);
   const [currentGameState, setCurrentGameState] = useState(null);
   const [replayingGameName, setReplayingGameName] = useState(null);
@@ -353,6 +360,21 @@ const App = () => {
     setActiveTabIndex(tabIndex);
   }, []);
 
+  // Handle settings changes
+  const handleSettingsChange = useCallback((newConfig) => {
+    setAppConfig(newConfig);
+
+    // Apply settings immediately if they affect current state
+    if (newConfig.defaultReplayMode !== showReplayMode) {
+      setShowReplayMode(newConfig.defaultReplayMode);
+      // Validate and update active tab for the new mode
+      const validTabIndex = getValidTabIndex(activeTabIndex, newConfig.defaultReplayMode);
+      if (validTabIndex !== activeTabIndex) {
+        setActiveTabIndex(validTabIndex);
+      }
+    }
+  }, [showReplayMode, activeTabIndex]);
+
   const tickBufferRef = useRef([]);
   const tickProcessingTimerRef = useRef(null);
   const animationFrameRequestedRef = useRef(false);
@@ -534,7 +556,25 @@ const App = () => {
         .catch((err) => {
           console.error("SignalR Connection Error: ", err);
           setIsConnected(false);
-          setError(`Failed to connect to game server: ${err.message}`);
+
+          // Provide friendlier error messages for common scenarios
+          let friendlyMessage = "Failed to connect to game server";
+
+          if (err.message && (
+            err.message.includes("Failed to fetch") ||
+            err.message.includes("Failed to complete negotiation") ||
+            err.message.includes("NetworkError") ||
+            err.message.includes("ERR_CONNECTION_REFUSED") ||
+            err.message.includes("ECONNREFUSED")
+          )) {
+            friendlyMessage = "Game server is not running or not accessible. Please make sure the game engine is started and running on the expected port.";
+          } else if (err.message && err.message.includes("timeout")) {
+            friendlyMessage = "Connection to game server timed out. The server may be overloaded or not responding.";
+          } else if (err.message) {
+            friendlyMessage = `Failed to connect to game server: ${err.message}`;
+          }
+
+          setError(friendlyMessage);
         });
     } else {
       // If in replay mode or no HUB_URL, ensure any existing connection is stopped and cleared
@@ -571,7 +611,7 @@ const App = () => {
           console.warn(`[LiveTick] Received older tick (${tickToProcess.tick}) than current (${prevState.tick}). Ignoring.`);
           isProcessingLiveTickRef.current = false; // Release lock if ignoring
           // Still remove from queue if it's an old tick we are skipping
-          setLiveTickQueue(prevQ => prevQ.slice(1)); 
+          setLiveTickQueue(prevQ => prevQ.slice(1));
           return prevState;
         }
         tickMetricsRef.current.processedCount++;
@@ -595,7 +635,7 @@ const App = () => {
           setAnimalColorMap(prevColors => ({ ...prevColors, ...newColors }));
         }
       }
-      
+
       // Remove the processed tick from the queue
       // This will trigger the useEffect again if more ticks are present.
       setLiveTickQueue(prevQ => prevQ.slice(1));
@@ -616,7 +656,7 @@ const App = () => {
     }
 
     if (!showReplayMode && liveTickQueue.length > 0 && !isProcessingLiveTickRef.current) {
-      const timerInterval = 1000 / playbackSpeed; 
+      const timerInterval = 1000 / playbackSpeed;
       playbackTimerRef.current = setTimeout(processLiveTickInternal, timerInterval);
     }
 
@@ -1037,6 +1077,14 @@ const App = () => {
           );
         }
         return null; // Or some placeholder if Test Runner is hidden but tab 3 is active somehow
+      case 4: // Settings tab
+        return (
+          <Settings
+            onSettingsChange={handleSettingsChange}
+            currentMode={showReplayMode}
+            currentTab={activeTabIndex}
+          />
+        );
       default:
         return null;
     }
@@ -1047,6 +1095,7 @@ const App = () => {
     if (!showReplayMode && activeTabIndex === 3) { // Test Runner tab was active, but now hidden
       setActiveTabIndex(2); // Switch to Connection tab (index 2 is Connection when not in replay mode)
     }
+    // Settings tab (index 4) is always available, so no validation needed for it
     // If in replay mode, and the "Connection" tab (index 2) was active but now should be GameSelector because 'connection' is null (or not live)
     // This case might be redundant if TabsContainer already handles disabling/hiding Connection tab when not applicable.
     // However, if activeTabIndex could be 2 while showReplayMode is true AND connection is null, this ensures it switches.

@@ -34,6 +34,8 @@ function Test-PortAvailable {
     }
 }
 
+# Removed Test-WindowsTerminal function to avoid popups
+
 function Stop-DotnetProcesses {
     # Try stop any previously running dotnet instances of Zooscape or bots
     Write-Host "Stopping dotnet, AdvancedMCTSBot, DeepMCTS, ClingyHeuroBot, mctso4 processes..." -ForegroundColor Yellow
@@ -189,35 +191,18 @@ while ($keepRunningScript) {
     }
     Write-Host "Port 5000 is available." -ForegroundColor Green
 
-    # 5. Launch or restart engine
+    # 5. Launch engine (always in new tab)
     if ($isFirstRun) {
         Write-Host "[ENGINE] Launching Zooscape in new tab…" -ForegroundColor Yellow
-        $engineCommand = "dotnet run --project `"$engineCsproj`" --configuration Release"
-        $encodedEngineCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($engineCommand))
-        $wtArgsEngine = @("-w", "0", "new-tab", "--title", "Engine", "--tabColor", $engineTabColor, "-d", $engineDir, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedEngineCommand)
-        Start-Process wt -ArgumentList $wtArgsEngine -NoNewWindow
     }
     else {
-        Write-Host "[ENGINE] Restarting Zooscape in existing tab…" -ForegroundColor Yellow
-        $wtArgsEngineFocus = @("-w", "0", "focus-tab", "-t", "Engine")
-        Start-Process wt -ArgumentList $wtArgsEngineFocus -NoNewWindow
-        Start-Sleep -Milliseconds 500 # Wait for focus
-
-        # Send an empty command (like pressing Enter) to ensure prompt is active
-        $wtSendEmptyEnter = @("-w", "0", "send-text", '""', "--enter") # Send an empty string command
-        Start-Process wt -ArgumentList $wtSendEmptyEnter -NoNewWindow
-        Start-Sleep -Milliseconds 200
-
-        # Send Clear-Host
-        $wtSendClear = @("-w", "0", "send-text", "Clear-Host", "--enter")
-        Start-Process wt -ArgumentList $wtSendClear -NoNewWindow
-        Start-Sleep -Milliseconds 200
-        
-        # Send the actual command
-        $engineCommand = "dotnet run --project `"$engineCsproj`" --configuration Release"
-        $wtSendTextEngine = @("-w", "0", "send-text", $engineCommand, "--enter")
-        Start-Process wt -ArgumentList $wtSendTextEngine -NoNewWindow
+        Write-Host "[ENGINE] Launching Zooscape in new tab…" -ForegroundColor Yellow
     }
+    
+    $engineCommand = "dotnet run --project `"$engineCsproj`" --configuration Release"
+    $encodedEngineCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($engineCommand))
+    $wtArgsEngine = @("-w", "0", "new-tab", "--title", "Engine", "--tabColor", $engineTabColor, "-d", $engineDir, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedEngineCommand)
+    Start-Process wt -ArgumentList $wtArgsEngine -NoNewWindow
 
     # Give the engine a moment to start listening
     Write-Host "Waiting for engine to initialize (5 seconds)..." -ForegroundColor DarkGray
@@ -260,40 +245,9 @@ while ($keepRunningScript) {
         $tabTitle = $bot.Name
         $currentBotTabColor = $botTabColors[$botColorIndex % $botTabColors.Count]
             
-        if ($isFirstRun) {
-            $wtArgsBot = @("-w", "0", "new-tab", "--title", $tabTitle, "--tabColor", $currentBotTabColor, "-d", $botWorkingDirectory, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedBotCommand)
-            Start-Process wt -ArgumentList $wtArgsBot -NoNewWindow
-        }
-        else {
-            $wtFocusBot = @("-w", "0", "focus-tab", "-t", $tabTitle)
-            Start-Process wt -ArgumentList $wtFocusBot -NoNewWindow
-            Start-Sleep -Milliseconds 500 # Wait for focus
-
-            # Send an empty command (like pressing Enter) to ensure prompt is active
-            $wtSendEmptyEnterBot = @("-w", "0", "send-text", '""', "--enter")
-            Start-Process wt -ArgumentList $wtSendEmptyEnterBot -NoNewWindow
-            Start-Sleep -Milliseconds 200
-
-            # Send Clear-Host
-            $wtSendClearBot = @("-w", "0", "send-text", "Clear-Host", "--enter")
-            Start-Process wt -ArgumentList $wtSendClearBot -NoNewWindow
-            Start-Sleep -Milliseconds 200
-
-            if ($bot.Language -eq "cpp") {
-                # For C++ bots, send env setup and command separately
-                $wtSendEnvBot = @("-w", "0", "send-text", $envVarSetup, "--enter")
-                Start-Process wt -ArgumentList $wtSendEnvBot -NoNewWindow
-                Start-Sleep -Milliseconds 200 # Give a moment for env vars to set
-                
-                $wtSendCommandBot = @("-w", "0", "send-text", $botRunCommand, "--enter")
-                Start-Process wt -ArgumentList $wtSendCommandBot -NoNewWindow
-            }
-            else {
-                # For other bots (e.g., C#), send the combined command
-                $wtSendTextBot = @("-w", "0", "send-text", $fullCommandString, "--enter")
-                Start-Process wt -ArgumentList $wtSendTextBot -NoNewWindow
-            }
-        }
+        # Always create new tab (simplified approach)
+        $wtArgsBot = @("-w", "0", "new-tab", "--title", $tabTitle, "--tabColor", $currentBotTabColor, "-d", $botWorkingDirectory, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedBotCommand)
+        Start-Process wt -ArgumentList $wtArgsBot -NoNewWindow
         $botColorIndex++
             
         # Small delay between launching bots

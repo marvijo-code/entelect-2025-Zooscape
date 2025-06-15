@@ -10,9 +10,10 @@ function Stop-ProcessOnPort {
         [string]$ServiceName
     )
     
-    Write-Host "Attempting to stop $ServiceName on port $Port..."
+    Write-Host "Attempting to stop $ServiceName on port $Port..." -ForegroundColor Cyan
     $processLines = netstat -ano | Select-String ":$Port" | Select-String "LISTENING"
     if ($processLines) {
+        $stoppedCount = 0
         foreach ($lineInfo in $processLines) {
             $line = $lineInfo.Line.Trim() -replace '\s+', ' '
             $processId = ($line -split ' ')[-1]
@@ -21,6 +22,7 @@ function Stop-ProcessOnPort {
                 try {
                     Stop-Process -Id $processId -Force -ErrorAction Stop
                     Write-Host "Successfully stopped $ServiceName (PID: $processId) on port $Port." -ForegroundColor Green
+                    $stoppedCount++
                 }
                 catch {
                     $ErrorRecord = $_ # Assign the error record to a local variable
@@ -36,9 +38,13 @@ function Stop-ProcessOnPort {
                 Write-Warning "Could not parse PID for $ServiceName on port $Port from netstat line: $line"
             }
         }
+        
+        if ($stoppedCount -gt 0) {
+            Write-Host "Stopped $stoppedCount process(es) for $ServiceName on port $Port." -ForegroundColor Green
+        }
     }
     else {
-        Write-Host "No $ServiceName found listening on port $Port."
+        Write-Host "No $ServiceName found listening on port $Port." -ForegroundColor Gray
     }
 }
 
@@ -46,6 +52,9 @@ function Stop-ProcessOnPort {
 Stop-ProcessOnPort -Port 5252 -ServiceName "Frontend"
 Stop-ProcessOnPort -Port 5008 -ServiceName "Visualizer API"
 
+# Wait a moment for ports to be fully released
+Write-Host "Waiting for ports to be fully released..." -ForegroundColor Yellow
+Start-Sleep -Seconds 3
 
 Write-Host "Starting Zooscape Visualizer API and Frontend..."
 
@@ -142,6 +151,10 @@ try {
     # Attempt to stop processes by port first for quicker port release and service termination
     Stop-ProcessOnPort -Port 5008 -ServiceName "Visualizer API"
     Stop-ProcessOnPort -Port 5252 -ServiceName "Frontend"
+    
+    # Wait for ports to be fully released
+    Write-Host "Waiting for ports to be fully released..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 2
 
     # Then, stop and remove the PowerShell jobs
     Write-Host "Stopping and removing PowerShell background jobs..." -ForegroundColor Gray
