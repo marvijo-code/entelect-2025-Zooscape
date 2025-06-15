@@ -170,6 +170,8 @@
   align-items: flex-start;
   margin-bottom: var(--spacing-sm);
   gap: var(--spacing-md);
+  flex: 1; /* Allow it to grow and shrink */
+  min-width: 0; /* Allow shrinking below content size */
 }
 
 .game-name {
@@ -202,6 +204,7 @@
   font-size: 13px;
   color: var(--text-secondary);
   font-weight: 500;
+  flex-wrap: wrap;
 }
 
 .game-details span {

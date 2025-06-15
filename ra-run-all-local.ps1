@@ -115,7 +115,7 @@ while ($keepRunningScript) {
     }
 
     # 1. Build engine
-    Write-Host "[ENGINE] Building Zooscape…" -ForegroundColor Yellow
+    Write-Host "[ENGINE] Building Zooscape..." -ForegroundColor Yellow
     $env:HUSKY = "0"
     dotnet build $engineCsproj -c Release
     if ($LASTEXITCODE -ne 0) {

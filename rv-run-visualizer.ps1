@@ -17,19 +17,39 @@ function Stop-ProcessOnPort {
         foreach ($lineInfo in $processLines) {
             $line = $lineInfo.Line.Trim() -replace '\s+', ' '
             $processId = ($line -split ' ')[-1]
+            
+            # Validate PID is a number
             if ($processId -match '^\d+$') {
+                $processId = [int]$processId
+                
+                # Check if process exists
+                $processExists = Get-Process -Id $processId -ErrorAction SilentlyContinue
+                if (-not $processExists) {
+                    Write-Host "Process $processId not found, already terminated?" -ForegroundColor Gray
+                    continue
+                }
+                
                 Write-Host "Found $ServiceName (PID: $processId) listening on port $Port. Attempting to stop..." -ForegroundColor Yellow
                 try {
                     Stop-Process -Id $processId -Force -ErrorAction Stop
-                    Write-Host "Successfully stopped $ServiceName (PID: $processId) on port $Port." -ForegroundColor Green
-                    $stoppedCount++
+                    
+                    # Wait for process to exit
+                    $maxRetries = 5
+                    $retryCount = 0
+                    while ($retryCount -lt $maxRetries -and (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
+                        Start-Sleep -Milliseconds 200
+                        $retryCount++
+                    }
+                    
+                    if ($retryCount -eq $maxRetries) {
+                        Write-Warning "Failed to terminate process $processId after $maxRetries retries"
+                    } else {
+                        Write-Host "Successfully stopped $ServiceName (PID: $processId) on port $Port." -ForegroundColor Green
+                        $stoppedCount++
+                    }
                 }
                 catch {
-                    $ErrorRecord = $_ # Assign the error record to a local variable
-                    $ExceptionMsg = "[No exception message available]" # Default message
-                    if (($ErrorRecord).Exception) {
-                        $ExceptionMsg = $ErrorRecord.Exception.Message
-                    }
+                    $ExceptionMsg = $_.Exception.Message
                     $WarningMessage = "Failed to stop {0} (PID: {1}) on port {2}: {3}" -f $ServiceName, $processId, $Port, $ExceptionMsg
                     Write-Warning $WarningMessage
                 }
@@ -91,13 +111,8 @@ if (-not (Test-Path (Join-Path $FrontendDir "package.json"))) {
 Write-Host "Starting Visualizer API server on port 5008..."
 Push-Location $ApiDir
 try {
-    Write-Host "Installing Visualizer API dependencies..."
-    npm install
-    
-    # Start API as a background job with nodemon for hot-reloading
     $apiJob = Start-Job -ScriptBlock {
         Set-Location $using:ApiDir
-        # Call nodemon directly from node_modules/.bin
         & ".\node_modules\.bin\nodemon.cmd" --watch ./ server.js
     }
     Write-Host "Visualizer API server started as job $($apiJob.Id)"
@@ -109,10 +124,6 @@ try {
 Write-Host "Starting Frontend on port 5252..."
 Push-Location $FrontendDir
 try {
-    Write-Host "Installing Frontend dependencies..."
-    npm install
-    
-    # Start Frontend as a background job
     $frontendJob = Start-Job -ScriptBlock {
         Set-Location $using:FrontendDir
         $env:PORT = "5252"
