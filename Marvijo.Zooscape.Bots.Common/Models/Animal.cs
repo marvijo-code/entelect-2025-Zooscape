@@ -15,7 +15,6 @@ public class Animal
     public int DistanceCovered { get; set; }
     public bool IsViable { get; set; }
     public PowerUpType? HeldPowerUp { get; set; }
-    public ActivePowerUpType ActivePowerUp { get; set; }
-    public int ActivePowerUpDuration { get; set; }
+    public ActivePowerUp? ActivePowerUp { get; set; }
     public int ScoreStreak { get; set; }
 }

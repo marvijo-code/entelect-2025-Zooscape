@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import './Grid.css'; // Import CSS for the Grid component
 // Import from the new JavaScript models file
 import { CellContent } from '../models.js';
+import '../setupLogging.js';
 
 // Performance optimization constants
 const RENDER_OPTIMIZATION = {
@@ -136,13 +137,16 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       // Use Math.floor to avoid overflow, cap at 40px maximum
       const newTileSize = Math.floor(Math.min(maxTileWidth, maxTileHeight, 40));
 
-      setTileSize(Math.max(newTileSize, 12)); // Increased minimum tile size from 8px to 12px
+      const proposedSize = Math.max(newTileSize, 12); // cap min
+      if (proposedSize !== tileSize) {
+        setTileSize(proposedSize);
+      }
     };
 
     // Debounced resize handler
     const debouncedResize = () => {
       clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(updateSize, 100);
+      resizeTimeout = setTimeout(updateSize, 250);
     };
 
     // Initial size calculation
@@ -322,8 +326,9 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
             onMouseLeave={() => setHoverInfo(null)} // MODIFIED
             style={{
               position: 'absolute',
-              left: animalX * tileSize + tileSize / 4,
-              top: animalY * tileSize + tileSize / 4,
+              ...(RENDER_OPTIMIZATION.USE_TRANSFORM
+                ? { transform: `translate(${animalX * tileSize + tileSize / 4}px, ${animalY * tileSize + tileSize / 4}px)` }
+                : { left: animalX * tileSize + tileSize / 4, top: animalY * tileSize + tileSize / 4 }),
               width: tileSize / 2,
               height: tileSize / 2,
               backgroundColor: animalColor || 'blue',
@@ -379,7 +384,7 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       }
 
       const zooNickname = getEntityNickname(zookeeper);
-      const fontSize = Math.max(Math.floor(tileSize / 3), 8);
+      const fontSize = Math.max(Math.floor(tileSize / 2.2), 11);
 
       // Check if this zookeeper is being hovered
       const isHovered = hoverInfo && hoverInfo.type === 'zookeeper' && (hoverInfo.id === zookeeperId || hoverInfo.index === zookeeperIndex);
@@ -402,8 +407,9 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
             onMouseLeave={() => setHoverInfo(null)} // MODIFIED
             style={{
               position: 'absolute',
-              left: zooX * tileSize + tileSize / 4,
-              top: zooY * tileSize + tileSize / 4,
+              ...(RENDER_OPTIMIZATION.USE_TRANSFORM
+                ? { transform: `translate(${zooX * tileSize + tileSize / 4}px, ${zooY * tileSize + tileSize / 4}px)` }
+                : { left: zooX * tileSize + tileSize / 4, top: zooY * tileSize + tileSize / 4 }),
               width: tileSize / 2,
               height: tileSize / 2,
               backgroundColor: 'red',
@@ -418,13 +424,13 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
             style={{
               position: 'absolute',
               left: zooX * tileSize + tileSize,
-              top: zooY * tileSize + tileSize / 4 - 1,
-              backgroundColor: 'rgba(255, 160, 160, 0.4)',
+              top: zooY * tileSize + tileSize / 4 - 1, // Adjusted top similar to animal labels
+              backgroundColor: 'rgba(250, 250, 210, 0.85)', // Lighter, more opaque yellow
               color: 'black',
-              padding: '1px 3px',
+              padding: '2px 4px', // Increased padding
               fontSize: `${fontSize}px`,
-              fontWeight: 'bold',
-              textShadow: '0px 0px 1px white',
+              fontWeight: 'bold', // Bold text
+              textShadow: '0px 0px 2px white, 0px 0px 1px white', // Added text shadow
               zIndex: 3,
               whiteSpace: 'nowrap',
               border: '1px solid #ccc',
@@ -461,13 +467,14 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
     let newLeft = 0;
     let content = '';
     let nearEdge = false;
-    const tooltipEstimatedWidth = 180; // Estimate for edge detection
+    let tooltipEstimatedWidth = 180; // Default estimate for edge detection
     const offset = 5; // Small gap from the element
 
     if (hoverInfo.type === 'cell') {
       newTop = hoverInfo.y * tileSize;
       newLeft = (hoverInfo.x + 1) * tileSize + offset;
       content = `(${hoverInfo.x}, ${hoverInfo.y})`;
+      tooltipEstimatedWidth = 80; // Narrower estimate for cell coordinates
       if (newLeft + tooltipEstimatedWidth > gridActualWidth) {
         nearEdge = true;
         newLeft = hoverInfo.x * tileSize - tooltipEstimatedWidth - offset; // Position to the left
@@ -542,7 +549,7 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
         {/* Hover tooltip - controlled by hoverInfo and tooltipStyle */}
         {hoverInfo && currentTooltipContent && (
           <div
-            className={`entity-tooltip`} // Base class, 'right-edge' logic is now in style
+            className={`entity-tooltip ${hoverInfo && hoverInfo.type === 'cell' ? 'cell-coordinate-tooltip' : ''}`}
             style={tooltipStyle}
           >
             {currentTooltipContent}

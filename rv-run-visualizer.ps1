@@ -10,15 +10,35 @@ function Stop-ProcessOnPort {
         [string]$ServiceName
     )
     
-    Write-Host "Checking for processes using port $Port ($ServiceName)..."
-    $processInfo = netstat -ano | Select-String ":$Port" | Select-String "LISTENING"
-    if ($processInfo) {
-        $processId = ($processInfo -split ' ')[-1]
-        if ($processId -match '^\d+$') {
-            Write-Host "Stopping process with PID $processId using port $Port..."
-            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
-            Write-Host "Process stopped."
+    Write-Host "Attempting to stop $ServiceName on port $Port..."
+    $processLines = netstat -ano | Select-String ":$Port" | Select-String "LISTENING"
+    if ($processLines) {
+        foreach ($lineInfo in $processLines) {
+            $line = $lineInfo.Line.Trim() -replace '\s+', ' '
+            $processId = ($line -split ' ')[-1]
+            if ($processId -match '^\d+$') {
+                Write-Host "Found $ServiceName (PID: $processId) listening on port $Port. Attempting to stop..." -ForegroundColor Yellow
+                try {
+                    Stop-Process -Id $processId -Force -ErrorAction Stop
+                    Write-Host "Successfully stopped $ServiceName (PID: $processId) on port $Port." -ForegroundColor Green
+                }
+                catch {
+                    $ErrorRecord = $_ # Assign the error record to a local variable
+                    $ExceptionMsg = "[No exception message available]" # Default message
+                    if (($ErrorRecord).Exception) {
+                        $ExceptionMsg = $ErrorRecord.Exception.Message
+                    }
+                    $WarningMessage = "Failed to stop {0} (PID: {1}) on port {2}: {3}" -f $ServiceName, $processId, $Port, $ExceptionMsg
+                    Write-Warning $WarningMessage
+                }
+            }
+            else {
+                Write-Warning "Could not parse PID for $ServiceName on port $Port from netstat line: $line"
+            }
         }
+    }
+    else {
+        Write-Host "No $ServiceName found listening on port $Port."
     }
 }
 
@@ -117,8 +137,18 @@ try {
         Start-Sleep -Milliseconds 500
     }
 } finally {
-    # Clean up jobs when script is interrupted
-    Stop-Job -Job $apiJob, $frontendJob
-    Remove-Job -Job $apiJob, $frontendJob
-    Write-Host "All services stopped." -ForegroundColor Yellow
+    Write-Host "Interrupt received or script ending. Cleaning up..." -ForegroundColor Magenta
+
+    # Attempt to stop processes by port first for quicker port release and service termination
+    Stop-ProcessOnPort -Port 5008 -ServiceName "Visualizer API"
+    Stop-ProcessOnPort -Port 5252 -ServiceName "Frontend"
+
+    # Then, stop and remove the PowerShell jobs
+    Write-Host "Stopping and removing PowerShell background jobs..." -ForegroundColor Gray
+    if ($apiJob) { Stop-Job -Job $apiJob -Force -ErrorAction SilentlyContinue }
+    if ($frontendJob) { Stop-Job -Job $frontendJob -Force -ErrorAction SilentlyContinue }
+    if ($apiJob) { Remove-Job -Job $apiJob -Force -ErrorAction SilentlyContinue }
+    if ($frontendJob) { Remove-Job -Job $frontendJob -Force -ErrorAction SilentlyContinue }
+
+    Write-Host "All services and jobs should now be stopped." -ForegroundColor Yellow
 } 

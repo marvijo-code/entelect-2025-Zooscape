@@ -142,3 +142,13 @@
   right: 0 !important;
   transform: none !important;
 } 
+
+.cell-coordinate-tooltip {
+  padding: 5px 8px !important; /* Reduced padding, !important to override base */
+  min-width: 0 !important;     /* Remove min-width, !important to override base */
+  white-space: nowrap !important; /* Ensure it doesn't wrap, !important to override base */
+  text-align: center !important; /* Center the coordinate text, !important to override base */
+  /* Override transform from .entity-tooltip if it's too aggressive for simple coordinate tooltips */
+  /* The positioning logic is now primarily handled by inline styles from Grid.jsx */
+  /* transform: none !important; */ /* Consider if default transform is problematic */
+}

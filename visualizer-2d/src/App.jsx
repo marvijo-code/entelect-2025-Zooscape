@@ -11,13 +11,14 @@ import './App.css';
 import './styles/ConnectionDebugger.css';
 import JsonPasteLoader from './components/JsonPasteLoader.jsx';
 
-const HUB_URL = "http://localhost:5000/bothub";
-const API_BASE_URL = 'http://localhost:5008/api'; // API server running on port 5008
+const HUB_URL = import.meta.env.VITE_HUB_URL || "http://localhost:5000/bothub";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5008/api'; // API server running on port 5008
 
 const App = () => {
   const [connection, setConnection] = useState(null);
   const [allGameStates, setAllGameStates] = useState([]);
   const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0);
+  const livePlaybackTimerRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [gameInitialized, setGameInitialized] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
@@ -29,14 +30,10 @@ const App = () => {
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardStatusMessage, setLeaderboardStatusMessage] = useState('');
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [showReplayMode, setShowReplayMode] = useState(true);
+  const [showReplayMode, setShowReplayMode] = useState(false);
   const [activeTabIndex, setActiveTabIndex] = useState(1);
   const [liveTickQueue, setLiveTickQueue] = useState([]);
-  const [isProcessingLiveTick, setIsProcessingLiveTick] = useState(false);
-  const lastTickTimeRef = useRef(Date.now());
-  const frameRateRef = useRef(60); // Target 60fps by default
-  const tickProcessorRef = useRef(null);
-  const pendingAnimationFrameRef = useRef(null);
+  const [currentGameState, setCurrentGameState] = useState(null);
   const [replayingGameName, setReplayingGameName] = useState(null);
   const [replayGameId, setReplayGameId] = useState(null);
   const [replayTickCount, setReplayTickCount] = useState(0);
@@ -77,13 +74,13 @@ const App = () => {
         return 'var(--text-primary)';
       }
     }
-    
+
     if (hexColor === '#00000000') return 'var(--text-primary)'; // Explicitly handle transparent hex
 
     // Ensure hexColor is valid for parsing (e.g., #RRGGBB)
     if (!/^#[0-9A-F]{6}$/i.test(hexColor) && !/^#[0-9A-F]{8}$/i.test(hexColor)) {
-        console.warn(`[getTextColorForBackground] Invalid hex color format: ${hexColor} from ${bgColorName}, defaulting text color.`);
-        return 'var(--text-primary)';
+      console.warn(`[getTextColorForBackground] Invalid hex color format: ${hexColor} from ${bgColorName}, defaulting text color.`);
+      return 'var(--text-primary)';
     }
 
     const r = parseInt(hexColor.slice(1, 3), 16);
@@ -111,7 +108,7 @@ const App = () => {
       ...jsonData,
       tick: jsonData.tick !== undefined ? jsonData.tick : (jsonData.Tick !== undefined ? jsonData.Tick : 0),
     };
-    
+
     setAllGameStates([processedJsonData]);
     setCurrentDisplayIndex(0);
 
@@ -142,7 +139,7 @@ const App = () => {
     setIsFetchingTick(true);
     setError(null);
     console.log(`Fetching replay tick: ${gameId}, tick number: ${tickNumber}`);
-    
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
@@ -154,25 +151,25 @@ const App = () => {
       const apiTickNumber = tickNumber + 1;
       const url = `${API_BASE_URL}/replay/${gameId}/${apiTickNumber}`;
       console.log(`Making API request to: ${url}`);
-      
+
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId); // Clear timeout if fetch completes in time
-      
+
       console.log(`API response status: ${response.status}`);
-      
+
       if (!response.ok) {
         if (response.statusText === 'Aborted') { // Or check controller.signal.aborted
-             throw new Error(`Fetch aborted for tick ${apiTickNumber}: Request timed out.`);
+          throw new Error(`Fetch aborted for tick ${apiTickNumber}: Request timed out.`);
         }
         const errorText = await response.text();
         console.error(`API error response: ${errorText}`);
         throw new Error(`Failed to fetch tick ${apiTickNumber} for game ${gameId}: ${response.status} ${errorText}`);
       }
-      
+
       const tickData = await response.json();
       console.log(`Received tick data:`, tickData);
       console.log(`Tick data keys:`, Object.keys(tickData));
-      
+
       // Specifically check for cells data
       if (tickData.cells) {
         console.log(`Found cells array with ${tickData.cells.length} cells`);
@@ -187,7 +184,7 @@ const App = () => {
       } else {
         console.warn(`No cells or Cells property found in tick data. Available properties:`, Object.keys(tickData));
       }
-      
+
       if (!tickData || typeof tickData.tick === 'undefined') {
         console.error(`Invalid tick data structure:`, tickData);
         throw new Error('Invalid tick data received');
@@ -224,16 +221,16 @@ const App = () => {
 
   const handleReplayGame = useCallback(async (gameData) => {
     console.log(`Starting replay for game:`, gameData);
-    
+
     // Handle both game object and gameId string
     const gameId = typeof gameData === 'string' ? gameData : gameData.id;
     const gameName = typeof gameData === 'string' ? gameData : (gameData.name || `Game ${gameData.id}`);
     const tickCount = typeof gameData === 'object' && gameData.tickCount ? gameData.tickCount : 0;
-    
+
     console.log("handleReplayGame - Received gameData:", gameData); // DEBUG LINE
     console.log("handleReplayGame - Original gameId:", gameId);
     console.log("handleReplayGame - Extracted tickCount:", tickCount); // DEBUG LINE
-    
+
     if (!gameId) {
       setError('Invalid game selected - no ID found');
       return;
@@ -243,21 +240,21 @@ const App = () => {
     // This assumes the API server (localhost:5008) is serving logs from the specified fixed base path.
     // This is for UI display only. The relative gameId is used for API calls.
     const assumedApiLogsBasePath = 'C:\\dev\\2025-Zooscape\\visualizer-2d\\logs\\';
-    
+
     // Check if gameId already looks like an absolute path (e.g., from a different source or future API change)
     const isAbsolute = gameId.includes(':') || gameId.startsWith('/') || gameId.startsWith('\\');
-    
-    const fullDisplayPath = isAbsolute 
-                           ? gameId 
-                           : assumedApiLogsBasePath + gameId.replace(/\//g, '\\');
-    
+
+    const fullDisplayPath = isAbsolute
+      ? gameId
+      : assumedApiLogsBasePath + gameId.replace(/\//g, '\\');
+
     console.log("handleReplayGame - Original gameId (for API calls):", gameId);
     console.log("handleReplayGame - Assumed API logs base path (for display):", assumedApiLogsBasePath);
     console.log("handleReplayGame - Constructed fullDisplayPath (for UI):", fullDisplayPath);
 
     try {
       setSelectedFile(fullDisplayPath); // Store the constructed full path for UI display
-      setReplayingGameName(gameName); 
+      setReplayingGameName(gameName);
       setReplayGameId(gameId); // Use the ORIGINAL relative gameId for API calls
       setShowReplayMode(true);
       setIsReplaying(true);
@@ -265,10 +262,10 @@ const App = () => {
       setGameInitialized(true); // Game is considered initialized once a replay is selected
       setCurrentReplayTick(0);
       setError(null);
-      
+
       // Use tick count from game object instead of making API call
       setReplayTickCount(tickCount);
-      
+
       // Load initial tick
       await fetchAndDisplayReplayTick(gameId, 0);
 
@@ -296,7 +293,7 @@ const App = () => {
           console.error("Error fetching final tick data for scores:", e);
         }
       }
-      
+
       console.log(`Replay initialized for ${gameId}, total ticks: ${tickCount}`);
     } catch (error) {
       console.error('Error starting replay:', error);
@@ -315,19 +312,19 @@ const App = () => {
     console.log("Game selected for replay (LEGACY):", gameData);
     setError(null);
     setReplayingGameName(null);
-    
+
     try {
       // Expecting gameData to have worldStates array and a displayName (from GameSelector)
       if (gameData.worldStates && Array.isArray(gameData.worldStates)) {
         console.log(`Loading replay with ${gameData.worldStates.length} states. Name: ${gameData.displayName} (LEGACY)`);
-        
+
         setAllGameStates(gameData.worldStates);
         setCurrentDisplayIndex(0);
         setGameInitialized(true);
         setIsPlaying(true); // Original logic started playing immediately
         setIsGameOver(false);
         setReplayingGameName(gameData.displayName || 'Unnamed Replay');
-        
+
         // Map initial animals to colors from first state
         const firstState = gameData.worldStates[0];
         if (firstState) {
@@ -340,7 +337,7 @@ const App = () => {
             return map;
           }, {}));
         }
-        
+
         console.log("Replay game loaded successfully (LEGACY)");
       } else {
         console.error("Invalid game data format for replay (LEGACY):", gameData);
@@ -362,15 +359,8 @@ const App = () => {
 
   // Refs for state values to stabilize callbacks
   const gameInitializedRef = useRef(gameInitialized);
-  const isProcessingLiveTickRef = useRef(isProcessingLiveTick);
-
-  // Memoize current game state to avoid unnecessary re-renders
-  const currentGameState = useMemo(() => {
-    if (allGameStates.length === 0 || currentDisplayIndex < 0 || currentDisplayIndex >= allGameStates.length) {
-      return null;
-    }
-    return allGameStates[currentDisplayIndex];
-  }, [allGameStates, currentDisplayIndex]);
+  const isProcessingLiveTickRef = useRef(false); // To prevent concurrent processing of live ticks
+  const lastTickTimeRef = useRef(Date.now());
 
   // Memoize grid data to prevent unnecessary Grid re-renders
   const gridData = useMemo(() => {
@@ -378,25 +368,25 @@ const App = () => {
       console.log("No currentGameState available for grid");
       return { cells: [], animals: [], zookeepers: [], leaderBoard: {} };
     }
-    
+
     console.log("Current game state keys:", Object.keys(currentGameState));
     console.log("Current game state structure:", currentGameState);
-    
+
     const cells = currentGameState.cells || currentGameState.Cells || [];
     const animals = currentGameState.animals || currentGameState.Animals || [];
     const zookeepers = currentGameState.zookeepers || currentGameState.Zookeepers || [];
     // Ensure LeaderBoard is an object, even if missing or null in currentGameState
     const leaderBoard = currentGameState.LeaderBoard || currentGameState.leaderBoard || {};
-    
+
     console.log(`Grid data extracted - Cells: ${cells.length}, Animals: ${animals.length}, Zookeepers: ${zookeepers.length}`);
     console.log(`LeaderBoard data for Grid:`, leaderBoard);
-    
+
     if (cells.length === 0) {
       console.warn("No cells found in game state. Available properties:", Object.keys(currentGameState));
     } else {
       // Log a few sample cells to understand their structure
       console.log("Sample cells (first 5):", cells.slice(0, 5));
-      
+
       // Check for different content types
       const contentTypes = {};
       cells.slice(0, 100).forEach(cell => { // Check first 100 cells for performance
@@ -405,7 +395,7 @@ const App = () => {
       });
       console.log("Cell content types found:", contentTypes);
     }
-    
+
     return {
       cells,
       animals,
@@ -438,7 +428,7 @@ const App = () => {
     }
     setLeaderboardLoading(false);
   }, []);
-    
+
   useEffect(() => {
     fetchAggregateLeaderboardData();
   }, [fetchAggregateLeaderboardData]);
@@ -448,30 +438,29 @@ const App = () => {
     setError(null);
     try {
       const newGameState = typeof data === 'string' ? JSON.parse(data) : data;
-      
+
       if (!newGameState.tick && newGameState.tick !== 0) {
         throw new Error("Game state is missing tick number");
       }
-      
+
       if (!gameInitializedRef.current) {
         setGameInitialized(true);
       }
-      
+
       tickMetricsRef.current.receivedCount++;
-      
+
       setLiveTickQueue(prevQueue => {
-        if (prevQueue.length > 10) {
-          const newQueue = [...prevQueue.slice(-5), newGameState];
-          tickMetricsRef.current.droppedCount += (prevQueue.length - newQueue.length + 1);
-          return newQueue;
+        if (prevQueue.length > 100) { // Increased queue limit for robustness
+          // Simple truncation if queue gets too long, consider more sophisticated dropping
+          console.warn(`Live tick queue > 100 (${prevQueue.length}), dropping oldest ${prevQueue.length - 90} ticks.`);
+          tickMetricsRef.current.droppedCount += (prevQueue.length - 90);
+          return [...prevQueue.slice(-90), newGameState];
         }
         return [...prevQueue, newGameState];
       });
-      
-      if (tickProcessorRef.current && !isProcessingLiveTickRef.current) {
-        tickProcessorRef.current();
-      }
-      
+
+      // The useEffect watching liveTickQueue will handle processing initiation.
+
     } catch (e) {
       setError(`Failed to process game update: ${e.message}`);
     }
@@ -481,15 +470,18 @@ const App = () => {
   useEffect(() => {
     let connectionInstance = null;
 
+    console.log("Connection to hub URL:", HUB_URL);
+    console.log("Registered handlers: gametick, gamestate, tick, gameover");
+
     if (!showReplayMode && HUB_URL) {
       console.log("Attempting to establish SignalR connection for live mode...");
       connectionInstance = new HubConnectionBuilder()
         .withUrl(HUB_URL)
         .withAutomaticReconnect([
-          0, 
-          1000, 
-          5000, 
-          10000 
+          0,
+          1000,
+          5000,
+          10000
         ])
         .configureLogging(LogLevel.Information)
         .build();
@@ -562,101 +554,79 @@ const App = () => {
     };
   }, [HUB_URL, tickStateChangedHandler, showReplayMode]); // Added showReplayMode to dependencies
 
-  // Effect: Process live ticks at a controlled frame rate with advanced scheduling
+  // Effect to manage live tick processing using setTimeout and playbackSpeed
   useEffect(() => {
-    // Define the tick processor function that will be used in requestAnimationFrame
-    const processTick = () => {
-      if (liveTickQueue.length === 0 || showReplayMode) {
-        setIsProcessingLiveTick(false);
-        pendingAnimationFrameRef.current = null;
+    const processLiveTickInternal = () => {
+      if (showReplayMode || liveTickQueue.length === 0 || isProcessingLiveTickRef.current) {
         return;
       }
-      
+
+      isProcessingLiveTickRef.current = true;
       const processStart = performance.now();
-      setLiveTickQueue(prevQueue => {
-        if (prevQueue.length === 0) return prevQueue;
-        
-        // Track metrics
+
+      const tickToProcess = liveTickQueue[0];
+
+      setCurrentGameState(prevState => {
+        if (prevState && tickToProcess.tick < prevState.tick && tickToProcess.gameId === prevState.gameId) {
+          console.warn(`[LiveTick] Received older tick (${tickToProcess.tick}) than current (${prevState.tick}). Ignoring.`);
+          isProcessingLiveTickRef.current = false; // Release lock if ignoring
+          // Still remove from queue if it's an old tick we are skipping
+          setLiveTickQueue(prevQ => prevQ.slice(1)); 
+          return prevState;
+        }
         tickMetricsRef.current.processedCount++;
-        if (prevQueue.length > 1) {
-          tickMetricsRef.current.droppedCount += (prevQueue.length - 1);
-        }
-        
-        // Process the latest tick
-        const latestState = prevQueue[prevQueue.length - 1];
-        
-        // Update the game state with the latest tick
-        setAllGameStates(prev => [latestState]);
-        setCurrentDisplayIndex(0);
-        
-        // Update animal colors if needed
-        if (latestState.animals) {
-          const newColors = {};
-          latestState.animals.forEach(animal => {
-            const animalKey = animal.id || animal.Id;
-            if (!animalKey) {
-              console.warn('Animal in tick data is missing an ID', animal);
-              return; // Skip this animal if it has no ID
-            }
-            if (!animalColorMap[animalKey]) {
-              newColors[animalKey] = animalColors[Math.floor(Math.random() * animalColors.length)];
-            } else {
-              newColors[animalKey] = animalColorMap[animalKey];
-            }
-          });
-          console.log('[LiveTick] About to update animalColorMap. Current:', JSON.stringify(animalColorMap), 'Merging:', JSON.stringify(newColors));
-          setAnimalColorMap(prevColors => {
-            const updatedMap = { ...prevColors, ...newColors };
-            console.log('[LiveTick] animalColorMap updated. Prev:', JSON.stringify(prevColors), 'New partial:', JSON.stringify(newColors), 'Result:', JSON.stringify(updatedMap));
-            return updatedMap;
-          });
-        }
-        
-        // Clear the queue
-        return [];
+        return tickToProcess;
       });
+
+      const animalsInTick = tickToProcess.animals || tickToProcess.Animals || [];
+      if (animalsInTick.length > 0) {
+        const newColors = {};
+        animalsInTick.forEach(animal => {
+          const animalKey = animal.id || animal.Id;
+          if (!animalKey) {
+            console.warn('Animal in live tick data is missing an ID', animal);
+            return;
+          }
+          if (!animalColorMap[animalKey]) {
+            newColors[animalKey] = animalColors[Math.floor(Math.random() * animalColors.length)];
+          }
+        });
+        if (Object.keys(newColors).length > 0) {
+          setAnimalColorMap(prevColors => ({ ...prevColors, ...newColors }));
+        }
+      }
       
-      // Update timing metrics
+      // Remove the processed tick from the queue
+      // This will trigger the useEffect again if more ticks are present.
+      setLiveTickQueue(prevQ => prevQ.slice(1));
+
       const processEnd = performance.now();
       const processTime = processEnd - processStart;
       tickMetricsRef.current.lastProcessTime = processTime;
-      tickMetricsRef.current.averageProcessTime = 
-        (tickMetricsRef.current.averageProcessTime * 0.9) + (processTime * 0.1); // Weighted average
-      
+      tickMetricsRef.current.averageProcessTime =
+        (tickMetricsRef.current.averageProcessTime * 0.9) + (processTime * 0.1);
+
       lastTickTimeRef.current = Date.now();
-      setIsProcessingLiveTick(false);
-      pendingAnimationFrameRef.current = null;
-      
-      // If there are more ticks in the queue, schedule another frame
-      if (liveTickQueue.length > 0) {
-        scheduleNextFrame();
-      }
+      isProcessingLiveTickRef.current = false;
     };
-    
-    // Function to schedule the next animation frame for processing
-    const scheduleNextFrame = () => {
-      if (pendingAnimationFrameRef.current === null && !showReplayMode) {
-        pendingAnimationFrameRef.current = requestAnimationFrame(processTick);
-      }
-    };
-    
-    // Store the scheduler in a ref for cleanup
-    tickProcessorRef.current = scheduleNextFrame;
-    
-    // Schedule processing if there are ticks and we're not already processing
-    if (liveTickQueue.length > 0 && !isProcessingLiveTick && !showReplayMode && (activeTabIndex === 2 && showReplayMode && (pendingAnimationFrameRef.current === null))) {
-      setIsProcessingLiveTick(true);
-      scheduleNextFrame();
+
+    // Clear any existing timer
+    if (playbackTimerRef.current) {
+      clearTimeout(playbackTimerRef.current);
     }
-    
-    // Cleanup function
+
+    if (!showReplayMode && liveTickQueue.length > 0 && !isProcessingLiveTickRef.current) {
+      const timerInterval = 1000 / playbackSpeed; 
+      playbackTimerRef.current = setTimeout(processLiveTickInternal, timerInterval);
+    }
+
     return () => {
-      if (pendingAnimationFrameRef.current !== null) {
-        cancelAnimationFrame(pendingAnimationFrameRef.current);
-        pendingAnimationFrameRef.current = null;
+      if (playbackTimerRef.current) {
+        clearTimeout(playbackTimerRef.current);
+        playbackTimerRef.current = null;
       }
     };
-  }, [liveTickQueue, isProcessingLiveTick, showReplayMode, animalColorMap, animalColors, activeTabIndex]);
+  }, [liveTickQueue, showReplayMode, playbackSpeed, animalColorMap, animalColors, setCurrentGameState, setAnimalColorMap, setLiveTickQueue]);
 
   // Log performance metrics periodically
   useEffect(() => {
@@ -672,10 +642,10 @@ const App = () => {
         });
       }
     }, 5000); // Log every 5 seconds
-    
+
     return () => clearInterval(metricsInterval);
   }, [liveTickQueue.length]);
-  
+
   // Clean up any existing tick processing logic that's no longer needed
   useEffect(() => {
     return () => {
@@ -689,21 +659,21 @@ const App = () => {
   // Effect 5: Auto-play animation when isPlaying is true - optimized with useCallback
   useEffect(() => {
     clearTimeout(playbackTimerRef.current);
-    
+
     if (isPlaying && showReplayMode && replayGameId) {
       // Calculate the timer interval, faster at higher speeds
-      const timerInterval = 125 / playbackSpeed; // 125ms / speed = interval in ms
-      
+      const timerInterval = 1000 / playbackSpeed; // 1000ms / speed = interval in ms (1s at 1x)
+
       playbackTimerRef.current = setTimeout(async () => {
         // Calculate the next tick to fetch
         const nextTick = currentReplayTick + 1;
-        
+
         // If we reach the end, pause playback
         if (nextTick >= replayTickCount) {
           setIsPlaying(false);
           return;
         }
-        
+
         // Fetch the next tick
         try {
           await fetchAndDisplayReplayTick(replayGameId, nextTick);
@@ -714,7 +684,7 @@ const App = () => {
         }
       }, timerInterval);
     }
-    
+
     return () => clearTimeout(playbackTimerRef.current);
   }, [isPlaying, playbackSpeed, currentReplayTick, replayTickCount, replayGameId, showReplayMode, fetchAndDisplayReplayTick]);
 
@@ -732,11 +702,11 @@ const App = () => {
       setCurrentDisplayIndex(prev => Math.max(0, prev - 1));
     }
   }, [showReplayMode, replayGameId, currentReplayTick, fetchAndDisplayReplayTick]);
-  
+
   const handlePlayPause = useCallback(() => {
     setIsPlaying(prev => !prev);
   }, []);
-  
+
   const handleForward = useCallback(async () => {
     if (showReplayMode && replayGameId) {
       const nextTick = Math.min(replayTickCount - 1, currentReplayTick + 1);
@@ -750,7 +720,7 @@ const App = () => {
       setCurrentDisplayIndex(prev => Math.min(allGameStates.length - 1, prev + 1));
     }
   }, [showReplayMode, replayGameId, currentReplayTick, replayTickCount, fetchAndDisplayReplayTick, allGameStates.length]);
-  
+
   const handleSetFrame = useCallback(async (frameIndex) => {
     if (showReplayMode && replayGameId) {
       // In replay mode, frameIndex represents the tick number
@@ -768,11 +738,11 @@ const App = () => {
       }
     }
   }, [showReplayMode, replayGameId, replayTickCount, fetchAndDisplayReplayTick, allGameStates.length]);
-  
+
   const handleSpeedChange = useCallback((newSpeed) => {
     setPlaybackSpeed(newSpeed);
   }, []);
-  
+
   const handleRestart = useCallback(async () => {
     if (showReplayMode && replayGameId) {
       try {
@@ -787,7 +757,7 @@ const App = () => {
       setIsPlaying(true);
     }
   }, [showReplayMode, replayGameId, fetchAndDisplayReplayTick]);
-  
+
   const handleExitReplay = useCallback(() => {
     console.log('Exiting replay mode');
     setShowReplayMode(false);
@@ -798,18 +768,17 @@ const App = () => {
     setReplayGameId(null);
     setReplayingGameName('');
     setSelectedFile(null); // Clear selected file
-    setCurrentGameState(null);
     setAllGameStates([]);
     setError(null);
-    
+
     // Reset the active tab back to Live Feed when exiting replay
     setActiveTabIndex(0);
   }, []);
-  
+
   const handleEnterReplayMode = useCallback(() => {
     setShowReplayMode(true);
     setIsReplaying(true);
-    
+
     // Stop any existing SignalR connection when entering replay mode
     if (connection && connection.state === HubConnectionState.Connected) {
       connection.stop().then(() => {
@@ -819,7 +788,7 @@ const App = () => {
         console.error("Error stopping SignalR connection for replay mode:", err);
       });
     }
-    
+
     // Clear any existing game state
     setAllGameStates([]);
     setCurrentDisplayIndex(0);
@@ -832,20 +801,20 @@ const App = () => {
 
   const handleTestGameStateSelected = useCallback((gameState, displayName) => {
     console.log("Test game state selected:", displayName);
-    
+
     // Enter replay mode if not already
     if (!showReplayMode) {
       setShowReplayMode(true);
       setIsReplaying(true);
     }
-    
+
     // Set the game state
     setAllGameStates([gameState]);
     setCurrentDisplayIndex(0);
     setGameInitialized(true);
     setIsPlaying(false);
     setReplayingGameName(displayName);
-    
+
     // Update animal colors
     if (gameState.animals) {
       const newColors = {};
@@ -857,7 +826,7 @@ const App = () => {
       });
       setAnimalColorMap(newColors);
     }
-    
+
     setError(null);
   }, [showReplayMode, animalColors]);
 
@@ -925,9 +894,6 @@ const App = () => {
     gameInitializedRef.current = gameInitialized;
   }, [gameInitialized]);
 
-  useEffect(() => {
-    isProcessingLiveTickRef.current = isProcessingLiveTick;
-  }, [isProcessingLiveTick]);
 
   // Memoize current tick display
   const currentTick = useMemo(() => {
@@ -939,8 +905,8 @@ const App = () => {
   const perTickScoreboard = useMemo(() => {
     // Condition to show scores: Must have currentGameState AND (isReplaying OR (live mode AND connected AND game initialized))
     console.log('[Scoreboard] Recomputing. animalColorMap:', JSON.stringify(animalColorMap));
-    const showScores = currentGameState && 
-                         (isReplaying || (!showReplayMode && isConnected && gameInitialized));
+    const showScores = currentGameState &&
+      (isReplaying || (!showReplayMode && isConnected && gameInitialized));
 
     if (!showScores) {
       return null;
@@ -948,7 +914,7 @@ const App = () => {
 
     const animals = currentGameState.animals || currentGameState.Animals || [];
     const leaderBoard = currentGameState.LeaderBoard || currentGameState.leaderBoard || {};
-    
+
     let scoresData = [];
 
     // Try to get scores from leaderBoard first
@@ -1005,7 +971,7 @@ const App = () => {
             const colorToApply = animalColorMap[botIdForColor] || 'transparent';
             console.log(`[Scoreboard] Rendering bot ${entry.nickname} (ID: ${botIdForColor}), applying bgColor: ${colorToApply}`);
             return (
-              <li 
+              <li
                 key={botIdForColor || index}
                 style={{ backgroundColor: colorToApply, color: getTextColorForBackground(colorToApply) }}
               >
@@ -1024,7 +990,7 @@ const App = () => {
     switch (activeTabIndex) {
       case 0:
         return (
-          <Leaderboard 
+          <Leaderboard
             data={leaderboardData}
             loading={leaderboardLoading}
             statusMessage={leaderboardStatusMessage}
@@ -1038,7 +1004,7 @@ const App = () => {
       case 2: // Was Game Selector, now Connection if not showReplayMode, or Game Selector if showReplayMode
         if (showReplayMode) {
           return (
-            <GameSelector 
+            <GameSelector
               onGameSelected={handleReplayGame}
               apiBaseUrl={API_BASE_URL}
               setError={setError}
@@ -1046,7 +1012,7 @@ const App = () => {
           );
         } else { // Not showReplayMode, so this is Connection tab
           return (
-            <ConnectionDebugger 
+            <ConnectionDebugger
               connection={connection}
               isConnected={isConnected}
               error={error}
@@ -1056,14 +1022,14 @@ const App = () => {
       case 3: // Was Test Runner, now only if showReplayMode
         if (showReplayMode) {
           return (
-            <TestRunner 
+            <TestRunner
               onGameStateSelected={handleTestGameStateSelected}
               apiBaseUrl="http://localhost:5009/api"
               currentGameState={currentGameState}
-              currentGameStateName={selectedFile ? 
+              currentGameStateName={selectedFile ?
                 (typeof selectedFile === 'string' && (selectedFile.includes('/') || selectedFile.includes('\\'))
-                  ? selectedFile.split(/[\/\\]/).pop() 
-                  : selectedFile) : 
+                  ? selectedFile.split(/[\/\\]/).pop()
+                  : selectedFile) :
                 (replayingGameName || 'current-state.json')}
               shouldShowCreateModal={shouldShowCreateModal}
               onCreateModalChange={setShouldShowCreateModal}
@@ -1088,100 +1054,100 @@ const App = () => {
     // If connection is lost while on Connection tab (index 2) and NOT in replay mode, user stays on Connection tab to see status.
   }, [showReplayMode, activeTabIndex, connection]);
 
-// ...
+  // ...
 
-return (
-  <div className="app-container">
-    <div className="split-layout">
-      {/* Left Panel - Grid Only */}
-      <div className="left-panel">
-        <div className="grid-content">
-          <Grid 
-            cells={gridData.cells}
-            animals={gridData.animals}
-            zookeepers={gridData.zookeepers}
-            leaderBoard={gridData.leaderBoard}
-            colorMap={animalColorMap}
-            showDetails={isReplaying}
-          />
-        </div>
-      </div>
-      
-      {/* Right Panel - All Controls */}
-      <div className="right-panel">
-        {/* App Header */}
-        <div className="app-header">
-          <h1>Zooscape 2D Visualizer</h1>
-          <div className="mode-buttons">
-            {!showReplayMode ? (
-              <button 
-                onClick={handleEnterReplayMode}
-                className="mode-button replay-button"
-              >
-                📼 Replay Mode
-              </button>
-            ) : (
-              <button 
-                onClick={handleExitReplay}
-                className="mode-button live-button"
-              >
-                🔴 Live Mode
-              </button>
-            )}
-          </div>
-        </div>
-        
-        {/* Grid Header - Tick Info and Game Status */}
-        <div className="grid-header">
-          <div className="tick-info">
-            <span className="tick-label">Tick:</span>
-            <span className="tick-value">
-              {showReplayMode ? (
-                <>{currentReplayTick + 1} / {replayTickCount}</>
-              ) : (
-                currentTick
-              )}
-            </span>
-            {isGameOver && <span className="game-over-indicator">🏁 Game Over</span>}
-          </div>
-          {showReplayMode && replayingGameName && (
-            <div className="replay-game-name">
-              📼 Replaying: <strong>{replayingGameName}</strong>
-            </div>
-          )}
-        </div>
-        
-        {perTickScoreboard}
-        {/* Playback Controls - visible in replay mode or when game is initialized from pasted JSON */}
-        {(gameInitialized && currentGameState && (isReplaying || (!showReplayMode && isConnected))) && (
-          <div className="playback-controls-container">
-            <PlaybackControls
-              currentFrame={isReplaying ? currentReplayTick : 0} // For pasted JSON, currentFrame is 0
-              totalFrames={isReplaying ? replayTickCount : 1}    // For pasted JSON, totalFrames is 1
-              isPlaying={isPlaying} // Will be false for pasted JSON initially
-              onPlayPause={handlePlayPause} // Less relevant for single frame
-              onRewind={() => isReplaying ? handleRewind() : console.log("Rewind for pasted JSON (no-op)")}
-              onForward={() => isReplaying ? handleForward() : console.log("Forward for pasted JSON (no-op)")}
-              onSetFrame={(frame) => isReplaying ? handleSetFrame(frame) : console.log("SetFrame for pasted JSON to", frame, "(no-op)")}
-              onSpeedChange={handleSpeedChange} // Less relevant for single frame
-              onRestart={() => isReplaying ? handleRestart() : console.log("Restart for pasted JSON (no-op)")}
-              onExitReplay={showReplayMode ? handleExitReplay : null} // Relevant for replay mode
-              isFetchingTick={isFetchingTick}
-              isSingleFrameView={!isReplaying && gameInitialized && !connection && allGameStates.length === 1} // Indicate single frame mode
+  return (
+    <div className="app-container">
+      <div className="split-layout">
+        {/* Left Panel - Grid Only */}
+        <div className="left-panel">
+          <div className="grid-content">
+            <Grid
+              cells={gridData.cells}
+              animals={gridData.animals}
+              zookeepers={gridData.zookeepers}
+              leaderBoard={gridData.leaderBoard}
+              colorMap={animalColorMap}
+              showDetails={isReplaying}
             />
           </div>
-        )}
-        
-        {showReplayMode && selectedFile && (
+        </div>
+
+        {/* Right Panel - All Controls */}
+        <div className="right-panel">
+          {/* App Header */}
+          <div className="app-header">
+            <h1>Zooscape 2D Visualizer</h1>
+            <div className="mode-buttons">
+              {!showReplayMode ? (
+                <button
+                  onClick={handleEnterReplayMode}
+                  className="mode-button replay-button"
+                >
+                  📼 Replay Mode
+                </button>
+              ) : (
+                <button
+                  onClick={handleExitReplay}
+                  className="mode-button live-button"
+                >
+                  🔴 Live Mode
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Grid Header - Tick Info and Game Status */}
+          <div className="grid-header">
+            <div className="tick-info">
+              <span className="tick-label">Tick:</span>
+              <span className="tick-value">
+                {showReplayMode ? (
+                  <>{currentReplayTick + 1} / {replayTickCount}</>
+                ) : (
+                  currentTick
+                )}
+              </span>
+              {isGameOver && <span className="game-over-indicator">🏁 Game Over</span>}
+            </div>
+            {showReplayMode && replayingGameName && (
+              <div className="replay-game-name">
+                📼 Replaying: <strong>{replayingGameName}</strong>
+              </div>
+            )}
+          </div>
+
+          {perTickScoreboard}
+          {/* Playback Controls - visible in replay mode or when game is initialized from pasted JSON */}
+          {(gameInitialized && currentGameState && (isReplaying || (!showReplayMode && isConnected))) && (
+            <div className="playback-controls-container">
+              <PlaybackControls
+                currentFrame={isReplaying ? currentReplayTick : 0} // For pasted JSON, currentFrame is 0
+                totalFrames={isReplaying ? replayTickCount : 1}    // For pasted JSON, totalFrames is 1
+                isPlaying={isPlaying} // Will be false for pasted JSON initially
+                onPlayPause={handlePlayPause} // Less relevant for single frame
+                onRewind={() => isReplaying ? handleRewind() : console.log("Rewind for pasted JSON (no-op)")}
+                onForward={() => isReplaying ? handleForward() : console.log("Forward for pasted JSON (no-op)")}
+                onSetFrame={(frame) => isReplaying ? handleSetFrame(frame) : console.log("SetFrame for pasted JSON to", frame, "(no-op)")}
+                onSpeedChange={handleSpeedChange} // Less relevant for single frame
+                onRestart={() => isReplaying ? handleRestart() : console.log("Restart for pasted JSON (no-op)")}
+                onExitReplay={showReplayMode ? handleExitReplay : null} // Relevant for replay mode
+                isFetchingTick={isFetchingTick}
+                isSingleFrameView={!isReplaying && gameInitialized && !connection && allGameStates.length === 1} // Indicate single frame mode
+              />
+            </div>
+          )}
+
+          {showReplayMode && selectedFile && (
             <div className="current-file-display">
               <h4>Current Replay File</h4>
               <div className="file-info">
                 <span className="filename">
                   {typeof selectedFile === 'string' && (selectedFile.includes('/') || selectedFile.includes('\\'))
-                    ? selectedFile.split(/[/\\]/).pop() 
+                    ? selectedFile.split(/[/\\]/).pop()
                     : selectedFile}
                 </span>
-                <button 
+                <button
                   className="copy-path-button"
                   onClick={() => {
                     navigator.clipboard.writeText(selectedFile).then(() => {
@@ -1205,7 +1171,7 @@ return (
                 {selectedFile}
               </div>
               <div className="file-actions">
-                <button 
+                <button
                   className="create-test-button"
                   onClick={() => {
                     setActiveTabIndex(3); // Test Runner is tab index 3 in replay mode
@@ -1219,14 +1185,14 @@ return (
               </div>
             </div>
           )}
-          
+
           {/* Error Message */}
           {error && (
             <div className="error-message">
               <strong>Error:</strong> {error}
             </div>
           )}
-          
+
           {/* Connection Status - Only show in live mode */}
           {!showReplayMode && (
             <div className="connection-status">
@@ -1235,10 +1201,10 @@ return (
               </span>
             </div>
           )}
-          
+
           {/* Tabs Header */}
           <div className="tabs-header">
-            <TabsContainer 
+            <TabsContainer
               activeTabIndex={activeTabIndex}
               onTabChange={handleTabChange}
               showReplayMode={showReplayMode}
@@ -1247,13 +1213,13 @@ return (
 
           {/* Tab Content Area */}
           <div className="tab-content">
-            {renderActiveTabContent()} 
+            {renderActiveTabContent()}
           </div>
         </div>
       </div>
     </div>
   );
-// ...
+  // ...
 
 };
 

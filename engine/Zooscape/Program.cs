@@ -78,6 +78,26 @@ try
                     options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
                 });
 
+                // Add CORS for visualizer
+                services.AddCors(options =>
+                {
+                    options.AddPolicy(
+                        "VisualizerPolicy",
+                        builder =>
+                        {
+                            builder
+                                .WithOrigins(
+                                    "http://localhost:5252",
+                                    "http://localhost:5253",
+                                    "http://localhost:3000"
+                                )
+                                .AllowAnyHeader()
+                                .AllowAnyMethod()
+                                .AllowCredentials();
+                        }
+                    );
+                });
+
                 services.Configure<GameSettings>(context.Configuration.GetSection("GameSettings"));
 
                 services.Configure<GameLogsConfiguration>(
@@ -134,6 +154,7 @@ try
             webBuilder.UseUrls($"http://*:{port}");
             webBuilder.Configure(app =>
             {
+                app.UseCors("VisualizerPolicy");
                 app.UseRouting();
                 app.UseEndpoints(endpoints =>
                 {

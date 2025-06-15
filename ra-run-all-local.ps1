@@ -18,9 +18,27 @@
     ‑ This script purposefully avoids Docker for local debugging of network traffic and registration.
 #>
 
+function Test-PortAvailable {
+    param(
+        [int]$Port = 5000
+    )
+    
+    try {
+        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, $Port)
+        $listener.Start()
+        $listener.Stop()
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
 function Stop-DotnetProcesses {
     # Try stop any previously running dotnet instances of Zooscape or bots
     Write-Host "Stopping dotnet, AdvancedMCTSBot, DeepMCTS, ClingyHeuroBot, mctso4 processes..." -ForegroundColor Yellow
+    
+    # Stop processes by name
     Get-Process -Name "dotnet", "AdvancedMCTSBot", "DeepMCTS", "ClingyHeuroBot", "mctso4" -ErrorAction SilentlyContinue | ForEach-Object {
         try {
             Write-Host "Stopping process $($_.ProcessName) (ID: $($_.Id))" -ForegroundColor Gray
@@ -30,12 +48,44 @@ function Stop-DotnetProcesses {
             Write-Warning "Failed to stop process $($_.ProcessName) (ID: $($_.Id)): $($_.Exception.Message)"
         }
     }
+    
+    # Also check for processes using port 5000 (engine) and 5008 (API) and stop them
+    Write-Host "Checking for processes using port 5000..." -ForegroundColor Yellow
+    try {
+        # Check both ports 5000 and 5008
+        $portProcesses = netstat -ano | Select-String ":5000 " | ForEach-Object {
+            $line = $_.Line.Trim()
+            $parts = $line -split '\s+'
+            if ($parts.Length -ge 5) {
+                $processId = $parts[-1]
+                if ($processId -match '^\d+$') {
+                    try {
+                        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+                        if ($process) {
+                            Write-Host "Found process using port 5000: $($process.ProcessName) (ID: $($process.Id))" -ForegroundColor Gray
+                            $process | Stop-Process -Force -ErrorAction Stop
+                            Write-Host "Stopped process $($process.ProcessName) (ID: $($process.Id))" -ForegroundColor Gray
+                        }
+                    }
+                    catch {
+                        Write-Warning "Failed to stop process with PID ${processId}: $($_.Exception.Message)"
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        Write-Warning "Failed to check port usage: $($_.Exception.Message)"
+    }
+    
+    Write-Host "Process cleanup completed." -ForegroundColor Green
 }
 
 # Paths and Configuration
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $engineCsproj = Join-Path $scriptRoot "engine\Zooscape\Zooscape.csproj"
 $engineDir = Split-Path -Parent $engineCsproj
+# $visualizerApiDir = Join-Path $scriptRoot "visualizer-2d\api"
 
 $bots = @(
     @{ Name = "ClingyHeuroBot2"; Path = "Bots\ClingyHeuroBot2\ClingyHeuroBot2.csproj"; Language = "csharp" },
@@ -53,8 +103,14 @@ $botTabColors = @("#107C10", "#C50F1F", "#5C2D91", "#CA5100", "#008272", "#7A757
 Stop-DotnetProcesses
 
 $keepRunningScript = $true
+$isFirstRun = $true
 while ($keepRunningScript) {
-    Write-Host "========== Starting Applications ==========" -ForegroundColor Cyan
+    if ($isFirstRun) {
+        Write-Host "========== Starting Applications ==========" -ForegroundColor Cyan
+    }
+    else {
+        Write-Host "========== Restarting Applications ==========" -ForegroundColor Cyan
+    }
 
     # 1. Build engine
     Write-Host "[ENGINE] Building Zooscape…" -ForegroundColor Yellow
@@ -70,6 +126,7 @@ while ($keepRunningScript) {
         if (-not $keepRunningScript) { continue } # Exit outer loop
         else { continue } # Retry build by restarting outer loop
     }
+
 
     # 2. Build all bots before launching anything
     $builtBots = @()
@@ -103,27 +160,85 @@ while ($keepRunningScript) {
         if (-not $keepRunningScript) { break } else { continue }
     }
 
-    # 3. Construct a single Windows Terminal command
-    Write-Host "Constructing Windows Terminal command..." -ForegroundColor DarkGray
-    $wtCommand = "wt.exe -w 0 " # Open in the current window
+    # 3. Stop any existing processes before launching/restarting
+    if (-not $isFirstRun) {
+        Write-Host "[RESTART] Stopping existing processes before restart..." -ForegroundColor Yellow
+        Stop-DotnetProcesses
+        Start-Sleep -Seconds 2  # Give processes time to fully terminate
+    }
 
-    # Engine Tab
-    $engineCommand = "dotnet run --project `"$engineCsproj`" --configuration Release"
-    $encodedEngineCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($engineCommand))
-    $wtCommand += "new-tab --title Engine --tabColor $engineTabColor -d `"$engineDir`" -- pwsh -NoExit -NoLogo -EncodedCommand $encodedEngineCommand; "
-
-    # Give the engine a moment to start listening before bots connect
-    $wtCommand += "split-pane -p `"General`" -- pwsh -Command `"Write-Host 'Waiting for engine to initialize (10 seconds)...'; Start-Sleep -Seconds 10;`"; "
+    # 4. Check port availability before launching engine 
+    Write-Host "Checking if port 5000 is available..." -ForegroundColor DarkGray
+    $port5000Available = Test-PortAvailable -Port 5000
     
-    # Bot Tabs
+    if (-not $port5000Available) {
+        $busyPorts = @()
+        if (-not $port5000Available) { $busyPorts += "5000" }
+        Write-Warning "Port(s) $($busyPorts -join ', ') still in use. Attempting additional cleanup..."
+        Stop-DotnetProcesses
+        Start-Sleep -Seconds 3
+        
+        $port5000Available = Test-PortAvailable -Port 5000
+        if (-not $port5000Available) {
+            $stillBusyPorts = @()
+            if (-not $port5000Available) { $stillBusyPorts += "5000" }
+            Write-Error "Port(s) $($stillBusyPorts -join ', ') still not available after cleanup. Please manually stop any processes using these ports and try again."
+            Write-Host "You can check what's using these ports with: netstat -ano | findstr :500" -ForegroundColor Yellow
+            continue # Skip this iteration and try again
+        }
+    }
+    Write-Host "Port 5000 is available." -ForegroundColor Green
+
+    # 5. Launch or restart engine
+    if ($isFirstRun) {
+        Write-Host "[ENGINE] Launching Zooscape in new tab…" -ForegroundColor Yellow
+        $engineCommand = "dotnet run --project `"$engineCsproj`" --configuration Release"
+        $encodedEngineCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($engineCommand))
+        $wtArgsEngine = @("-w", "0", "new-tab", "--title", "Engine", "--tabColor", $engineTabColor, "-d", $engineDir, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedEngineCommand)
+        Start-Process wt -ArgumentList $wtArgsEngine -NoNewWindow
+    }
+    else {
+        Write-Host "[ENGINE] Restarting Zooscape in existing tab…" -ForegroundColor Yellow
+        $wtArgsEngineFocus = @("-w", "0", "focus-tab", "-t", "Engine")
+        Start-Process wt -ArgumentList $wtArgsEngineFocus -NoNewWindow
+        Start-Sleep -Milliseconds 500 # Wait for focus
+
+        # Send an empty command (like pressing Enter) to ensure prompt is active
+        $wtSendEmptyEnter = @("-w", "0", "send-text", '""', "--enter") # Send an empty string command
+        Start-Process wt -ArgumentList $wtSendEmptyEnter -NoNewWindow
+        Start-Sleep -Milliseconds 200
+
+        # Send Clear-Host
+        $wtSendClear = @("-w", "0", "send-text", "Clear-Host", "--enter")
+        Start-Process wt -ArgumentList $wtSendClear -NoNewWindow
+        Start-Sleep -Milliseconds 200
+        
+        # Send the actual command
+        $engineCommand = "dotnet run --project `"$engineCsproj`" --configuration Release"
+        $wtSendTextEngine = @("-w", "0", "send-text", $engineCommand, "--enter")
+        Start-Process wt -ArgumentList $wtSendTextEngine -NoNewWindow
+    }
+
+    # Give the engine a moment to start listening
+    Write-Host "Waiting for engine to initialize (5 seconds)..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 5
+
+    # 6. Launch or restart each bot
     $botColorIndex = 0
     foreach ($bot in $builtBots) {
+        if ($isFirstRun) {
+            Write-Host "[BOT] Launching $($bot.Name) in new tab…" -ForegroundColor Green
+        }
+        else {
+            Write-Host "[BOT] Restarting $($bot.Name) in existing tab…" -ForegroundColor Green
+        }
+            
         $tokenGuid = [guid]::NewGuid().ToString()
         $envVarSetup = (
             "`$env:BOT_NICKNAME = '$($bot.Name)';",
             "`$env:Token = '$tokenGuid';",
             "`$env:BOT_TOKEN = '$tokenGuid'"
-        ) -join " "
+        ) -join "; "
 
         $botProjectPath = Join-Path $scriptRoot $bot.Path
         $botRunCommand = ""
@@ -144,42 +259,75 @@ while ($keepRunningScript) {
         $encodedBotCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($fullCommandString))
         $tabTitle = $bot.Name
         $currentBotTabColor = $botTabColors[$botColorIndex % $botTabColors.Count]
-        
-        $wtCommand += "new-tab --title `"$tabTitle`" --tabColor `"$currentBotTabColor`" -d `"$botWorkingDirectory`" -- pwsh -NoExit -NoLogo -EncodedCommand $encodedBotCommand; "
+            
+        if ($isFirstRun) {
+            $wtArgsBot = @("-w", "0", "new-tab", "--title", $tabTitle, "--tabColor", $currentBotTabColor, "-d", $botWorkingDirectory, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedBotCommand)
+            Start-Process wt -ArgumentList $wtArgsBot -NoNewWindow
+        }
+        else {
+            $wtFocusBot = @("-w", "0", "focus-tab", "-t", $tabTitle)
+            Start-Process wt -ArgumentList $wtFocusBot -NoNewWindow
+            Start-Sleep -Milliseconds 500 # Wait for focus
+
+            # Send an empty command (like pressing Enter) to ensure prompt is active
+            $wtSendEmptyEnterBot = @("-w", "0", "send-text", '""', "--enter")
+            Start-Process wt -ArgumentList $wtSendEmptyEnterBot -NoNewWindow
+            Start-Sleep -Milliseconds 200
+
+            # Send Clear-Host
+            $wtSendClearBot = @("-w", "0", "send-text", "Clear-Host", "--enter")
+            Start-Process wt -ArgumentList $wtSendClearBot -NoNewWindow
+            Start-Sleep -Milliseconds 200
+
+            if ($bot.Language -eq "cpp") {
+                # For C++ bots, send env setup and command separately
+                $wtSendEnvBot = @("-w", "0", "send-text", $envVarSetup, "--enter")
+                Start-Process wt -ArgumentList $wtSendEnvBot -NoNewWindow
+                Start-Sleep -Milliseconds 200 # Give a moment for env vars to set
+                
+                $wtSendCommandBot = @("-w", "0", "send-text", $botRunCommand, "--enter")
+                Start-Process wt -ArgumentList $wtSendCommandBot -NoNewWindow
+            }
+            else {
+                # For other bots (e.g., C#), send the combined command
+                $wtSendTextBot = @("-w", "0", "send-text", $fullCommandString, "--enter")
+                Start-Process wt -ArgumentList $wtSendTextBot -NoNewWindow
+            }
+        }
         $botColorIndex++
+            
+        # Small delay between launching bots
+        Start-Sleep -Seconds 1
     }
 
-    # 4. Launch all tabs
-    Write-Host "[SYSTEM] Launching all components in Windows Terminal..." -ForegroundColor Yellow
-    Invoke-Expression $wtCommand
-}
-if (-not $keepRunningScript) { continue } # If a bot build failed and user chose to exit script
+    # Mark that we've completed the first run
+    $isFirstRun = $false
+        
+    Write-Host "All components launched. Monitor their respective tabs for logs." -ForegroundColor Cyan
+    Write-Host "Press 'q' in THIS window to STOP all application processes (tabs will remain open)." -ForegroundColor White
+    Write-Host "Press 'c' in THIS window to CLOSE this script and LEAVE applications running." -ForegroundColor White
 
-Write-Host "All components launched. Monitor their respective tabs for logs." -ForegroundColor Cyan
-Write-Host "Press 'q' in THIS window to STOP all application processes (tabs will remain open)." -ForegroundColor White
-Write-Host "Press 'c' in THIS window to CLOSE this script and LEAVE applications running." -ForegroundColor White
-
-$userAction = ''
-while ($true) {
-    if ([Console]::KeyAvailable) {
-        $keyInfo = [Console]::ReadKey($true)
-        if ($keyInfo.KeyChar -eq 'q') { $userAction = 'stop'; break }
-        if ($keyInfo.KeyChar -eq 'c') { $userAction = 'close_script'; $keepRunningScript = $false; break }
-    }
-    Start-Sleep -Milliseconds 200
-}
-
-if ($userAction -eq 'stop') {
-    Stop-DotnetProcesses
-    Write-Host "Applications stopped. Terminal tabs remain open." -ForegroundColor Yellow
-    Write-Host "Press Enter to RESTART applications, or 'x' to EXIT script." -ForegroundColor White
+    $userAction = ''
     while ($true) {
-        $keyInfo = [Console]::ReadKey($true)
-        if ($keyInfo.Key -eq 'Enter') { break } # Restart by continuing outer $keepRunningScript loop
-        if ($keyInfo.KeyChar -eq 'x') { $keepRunningScript = $false; break } # Exit script
+        if ([Console]::KeyAvailable) {
+            $keyInfo = [Console]::ReadKey($true)
+            if ($keyInfo.KeyChar -eq 'q') { $userAction = 'stop'; break }
+            if ($keyInfo.KeyChar -eq 'c') { $userAction = 'close_script'; $keepRunningScript = $false; break }
+        }
+        Start-Sleep -Milliseconds 200
     }
-}
-# If $userAction was 'close_script', $keepRunningScript is already false, loop will terminate.
+
+    if ($userAction -eq 'stop') {
+        Stop-DotnetProcesses
+        Write-Host "Applications stopped. Terminal tabs remain open." -ForegroundColor Yellow
+        Write-Host "Press Enter to RESTART applications, or 'x' to EXIT script." -ForegroundColor White
+        while ($true) {
+            $keyInfo = [Console]::ReadKey($true)
+            if ($keyInfo.Key -eq 'Enter') { break } # Restart by continuing outer $keepRunningScript loop
+            if ($keyInfo.KeyChar -eq 'x') { $keepRunningScript = $false; break } # Exit script
+        }
+    }
+    # If $userAction was 'close_script', $keepRunningScript is already false, loop will terminate.
 }
 
 Write-Host "Script finished." -ForegroundColor Cyan
