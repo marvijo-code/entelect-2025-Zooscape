@@ -1,56 +1,37 @@
-# Multi-stage build for Advanced MCTS Bot
-FROM ubuntu:22.04 AS builder
+# Stage 1 – builder
+FROM public.ecr.aws/docker/library/gcc:12-bookworm AS builder
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    cmake \
-    libcurl4-openssl-dev \
-    libjsoncpp-dev \
-    pkg-config \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cmake git curl unzip tar ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy source code
+# ──►  install ALL libs your CMakeLists.txt needs
+RUN git clone https://github.com/microsoft/vcpkg \
+    && ./vcpkg/bootstrap-vcpkg.sh \
+    && ./vcpkg/vcpkg install fmt cpprestsdk microsoft-signalr   # ← added
+
 COPY . .
+RUN rm -rf build && \
+    cmake -S . -B build -G Ninja \
+    -DCMAKE_TOOLCHAIN_FILE=/app/vcpkg/scripts/buildsystems/vcpkg.cmake \
+    -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build build --parallel $(nproc) --config Release
 
-# Build the bot
-RUN chmod +x build.sh && ./build.sh
+# Stage 2 – runtime
+FROM ubuntu:22.04
 
-# Runtime stage
-FROM ubuntu:22.04 AS runtime
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libcurl4 \
-    libjsoncpp25 \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcurl4 libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app user
-RUN useradd -m -s /bin/bash botuser
-
-# Set working directory
 WORKDIR /app
-
-# Copy built executable and config
 COPY --from=builder /app/build/AdvancedMCTSBot .
-COPY --from=builder /app/build/config.json .
 
-# Change ownership
-RUN chown -R botuser:botuser /app
+ENV BOT_NICKNAME=AdvancedMCTS \
+    RUNNER_IPV4=http://engine \
+    RUNNER_PORT=5000 \
+    HUB_NAME=bothub
 
-# Switch to app user
-USER botuser
-
-# Set environment variables
-ENV BOT_NICKNAME=AdvancedMCTSBot
-ENV RUNNER_IPV4=localhost
-ENV RUNNER_PORT=5000
-
-# Expose any necessary ports (if needed)
-# EXPOSE 8080
-
-# Run the bot
 CMD ["./AdvancedMCTSBot"]

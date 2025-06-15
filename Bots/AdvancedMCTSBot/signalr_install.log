@@ -1,0 +1,3 @@
+Computing installation plan...
+error: while looking for microsoft-signalr:x64-linux:
+/mnt/c/dev/2025-Zooscape/Bots/AdvancedMCTSBot/vcpkg/ports/microsoft-signalr: error: microsoft-signalr does not exist

@@ -1,0 +1,29 @@
+# .dockerignore for AdvancedMCTSBot
+
+# Git
+.git
+.gitignore
+
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.lib
+
+# IDE / Editor specific
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln.dotsettings
+
+# vcpkg (if not managed by the Dockerfile itself, or if local changes should be ignored)
+vcpkg_installed/
+downloads/ # vcpkg downloads cache
+
+# Other temporary files
+*.tmp
+*.bak

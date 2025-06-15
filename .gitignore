@@ -12,6 +12,7 @@ x86/
 [Ww][Ii][Nn]32/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
+vcpkg/
 bld/
 [Bb]in/
 [Oo]bj/
@@ -56,3 +57,4 @@ logs.bak/
 *-logs/
 .aider*
 .env*
+**/**/out/build

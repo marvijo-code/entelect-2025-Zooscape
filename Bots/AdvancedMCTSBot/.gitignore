@@ -28,7 +28,7 @@ Makefile
 Thumbs.db
 
 # Log files
-*.log
+#*.log
 logs/
 
 # Temporary files

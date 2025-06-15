@@ -63,3 +63,20 @@ services:
     environment:
       RUNNER_IPV4: http://engine
       BOT_NICKNAME: BasicBot
+
+  amcts:
+    build:
+      context: ./Bots/AdvancedMCTSBot
+      dockerfile: Dockerfile
+    container_name: advanced-mcts
+    environment:
+      RUNNER_IPV4: http://engine
+      BOT_NICKNAME: AdvancedMCTS
+
+  visualizer:
+    build:
+      context: .
+      dockerfile: visualizer-2d/Dockerfile
+    container_name: visualizer
+    ports:
+      - "8080:80"
