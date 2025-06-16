@@ -7,6 +7,7 @@
 #include <random>
 
 namespace {
+    GameState convertGameState(const std::vector<signalr::value>& args);
     std::string generateGuid() {
         std::random_device rd;
         std::mt19937 gen(rd());

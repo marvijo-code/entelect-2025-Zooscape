@@ -57,4 +57,5 @@ logs.bak/
 *-logs/
 .aider*
 .env*
-**/**/out/build
+**/**/out/build/
+**/**/build/

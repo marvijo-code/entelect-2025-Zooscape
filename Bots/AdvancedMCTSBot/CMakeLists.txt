@@ -15,6 +15,12 @@ add_executable(AdvancedMCTSBot
     main.cpp
     Bot.cpp  
     Bot.h
+    GameState.h
+    Heuristics.h
+    MCTSEngine.h
+    MCTSNode.h
+    MctsService.h
+    SignalRClient.h
 )
 
 find_package(fmt CONFIG REQUIRED)
