@@ -6,9 +6,15 @@ using Serilog;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog
-Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
+Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger(); // Use CreateBootstrapLogger for initial logging before host is built
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console());
 
 // Add services
+builder.Services.AddSerilog(); // Ensures Serilog.ILogger is available for direct injection
 builder.Services.AddControllers();
 builder.Services.AddCors(options =>
 {
@@ -21,6 +27,7 @@ builder.Services.AddCors(options =>
 // Add Swagger for API documentation
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSingleton<FunctionalTests.Services.CacheService>();
 
 var app = builder.Build();
 
@@ -37,4 +44,4 @@ app.MapControllers();
 // Default route for health check
 app.MapGet("/", () => "Functional Tests API is running!");
 
-app.Run("http://localhost:5009"); // Use a different port than the main API 
+app.Run("http://localhost:5008"); 

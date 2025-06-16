@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './TestRunner.css';
 
-const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/api', currentGameState = null, currentGameStateName = null, shouldShowCreateModal = false, onCreateModalChange = null }) => {
+const TestRunner = ({ onGameStateSelected, apiBaseUrl = import.meta.env.VITE_API_BASE_URL, currentGameState = null, currentGameStateName = null, shouldShowCreateModal = false, onCreateModalChange = null }) => {
   const [tests, setTests] = useState([]);
   const [testResults, setTestResults] = useState({});
   const [loading, setLoading] = useState(false);
@@ -33,7 +33,7 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/a
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${apiBaseUrl}/test/definitions`);
+      const response = await fetch(`${apiBaseUrl}/Test/definitions`);
       if (!response.ok) {
         throw new Error(`Failed to load tests: ${response.status} ${response.statusText}`);
       }
@@ -49,7 +49,7 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/a
 
   const loadAvailableBots = useCallback(async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/test/bots`);
+      const response = await fetch(`${apiBaseUrl}/Test/bots`);
       if (!response.ok) {
         throw new Error(`Failed to load bots: ${response.status} ${response.statusText}`);
       }
@@ -66,7 +66,7 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/a
     setError(null);
     
     try {
-      const response = await fetch(`${apiBaseUrl}/test/run/${encodeURIComponent(testName)}`, {
+      const response = await fetch(`${apiBaseUrl}/Test/run/${encodeURIComponent(testName)}`, {
         method: 'POST'
       });
       
@@ -105,7 +105,7 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/a
     setError(null);
     
     try {
-      const response = await fetch(`${apiBaseUrl}/test/run/all`, {
+      const response = await fetch(`${apiBaseUrl}/Test/run/all`, {
         method: 'POST'
       });
       
@@ -129,7 +129,7 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/a
 
   const viewGameState = useCallback(async (gameStateFile) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/test/gamestate/${encodeURIComponent(gameStateFile)}`);
+      const response = await fetch(`${apiBaseUrl}/Test/gamestate/${encodeURIComponent(gameStateFile)}`);
       if (!response.ok) {
         throw new Error(`Failed to load game state: ${response.status} ${response.statusText}`);
       }
@@ -150,7 +150,7 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = 'http://localhost:5009/a
     setError(null);
     
     try {
-      const response = await fetch(`${apiBaseUrl}/test/create`, {
+      const response = await fetch(`${apiBaseUrl}/Test/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

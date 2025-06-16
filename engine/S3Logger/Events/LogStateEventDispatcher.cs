@@ -13,17 +13,16 @@ public class LogStateEventDispatcher : IEventDispatcher
     private readonly IStreamingFileLogger _logger;
 
     private readonly string _matchDir;
+    private readonly string _baseLogDir = @"C:\dev\2025-Zooscape\logs";
 
     public LogStateEventDispatcher(IStreamingFileLogger logger)
     {
         _logger = logger;
-        var baseLogDir =
-            Environment.GetEnvironmentVariable("LOG_DIR")
-            ?? Path.Combine(AppContext.BaseDirectory, "logs");
 
+        Console.WriteLine($"Base log directory: {_baseLogDir}");
         // Create a unique directory for the current game session using date and time
         var gameSessionDirName = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        _matchDir = Path.Combine(baseLogDir, gameSessionDirName);
+        _matchDir = Path.Combine(_baseLogDir, gameSessionDirName);
 
         // Ensure the directory exists
         Directory.CreateDirectory(_matchDir);

@@ -64,7 +64,7 @@ public class JsonDrivenTests : BotTestsBase
         if (failedTests.Count > 0)
         {
             _logger.Error("Failed tests: {FailedTests}", string.Join("; ", failedTests));
-            Assert.True(false, $"Failed tests: {string.Join("; ", failedTests)}");
+            Assert.Fail($"Failed tests: {string.Join("; ", failedTests)}");
         }
     }
 

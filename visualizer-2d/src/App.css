@@ -1,4 +1,32 @@
 /* Import the tabs container styles */
+
+/* Scoreboard Table Styles */
+.replay-scoreboard .scores-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.replay-scoreboard .scores-table th,
+.replay-scoreboard .scores-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.replay-scoreboard .scores-table th {
+  font-weight: 600;
+  background-color: var(--background-tertiary);
+}
+
+.replay-scoreboard .scores-table .bot-name-cell {
+  font-weight: 500;
+}
+
+.replay-scoreboard .scores-table tr:last-child td {
+  border-bottom: none;
+}
+
 @import './styles/TabsContainer.css';
 
 /* Dark Mode Theme Colors */

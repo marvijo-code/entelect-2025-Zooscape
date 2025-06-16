@@ -37,47 +37,80 @@ function Test-PortAvailable {
 # Removed Test-WindowsTerminal function to avoid popups
 
 function Stop-DotnetProcesses {
-    # Try stop any previously running dotnet instances of Zooscape or bots
-    Write-Host "Stopping dotnet, AdvancedMCTSBot, DeepMCTS, ClingyHeuroBot, mctso4 processes..." -ForegroundColor Yellow
-    
-    # Stop processes by name
-    Get-Process -Name "dotnet", "AdvancedMCTSBot", "DeepMCTS", "ClingyHeuroBot", "mctso4" -ErrorAction SilentlyContinue | ForEach-Object {
+    Write-Host "Stopping processes managed by ra-run-all-local.ps1..." -ForegroundColor Yellow
+
+    # These global script variables $engineCsproj and $bots are expected to be defined and accessible here.
+    $managedProjectFiles = @((Split-Path $engineCsproj -Leaf))
+    foreach ($botDefinition in $bots) {
+        if ($botDefinition.Language -eq "csharp") {
+            $managedProjectFiles += (Split-Path $botDefinition.Path -Leaf)
+        }
+    }
+    $managedExecutableNames = @("AdvancedMCTSBot", "DeepMCTS", "ClingyHeuroBot", "mctso4", "ClingyHeuroBotExp") # Add other C++ bot exe names if any that are started by this script
+
+    Write-Host "Identifying dotnet processes for managed projects: $($managedProjectFiles -join ', ')" -ForegroundColor DarkGray
+
+    Get-Process -Name "dotnet" -ErrorAction SilentlyContinue | ForEach-Object {
+        $processToStop = $_
         try {
-            Write-Host "Stopping process $($_.ProcessName) (ID: $($_.Id))" -ForegroundColor Gray
-            $_ | Stop-Process -Force -ErrorAction Stop
+            $procInfo = Get-CimInstance Win32_Process -Filter "ProcessId = $($processToStop.Id)" -ErrorAction SilentlyContinue
+            $commandLine = $procInfo.CommandLine
+
+            if ($commandLine) {
+                foreach ($projectFile in $managedProjectFiles) {
+                    if ($commandLine -match [regex]::Escape($projectFile)) {
+                        Write-Host "Stopping managed dotnet process: $($processToStop.ProcessName) (ID: $($processToStop.Id)) for project $projectFile" -ForegroundColor Gray
+                        # For debugging: Write-Host "Full command line: $commandLine" -ForegroundColor DarkGray
+                        $processToStop | Stop-Process -Force -ErrorAction Stop
+                        break # Process identified and stopped, move to the next process from Get-Process
+                    }
+                }
+            }
         }
         catch {
-            Write-Warning "Failed to stop process $($_.ProcessName) (ID: $($_.Id)): $($_.Exception.Message)"
+            Write-Warning "Error processing or stopping dotnet process $($processToStop.ProcessName) (ID: $($processToStop.Id)): $($_.Exception.Message)"
+        }
+    }
+
+    # Stop C++ bots by name (if they are running as standalone executables listed in $managedExecutableNames)
+    if ($managedExecutableNames.Count -gt 0) {
+        Get-Process -Name $managedExecutableNames -ErrorAction SilentlyContinue | ForEach-Object {
+            try {
+                Write-Host "Stopping managed executable: $($_.ProcessName) (ID: $($_.Id))" -ForegroundColor Gray
+                $_ | Stop-Process -Force -ErrorAction Stop
+            }
+            catch {
+                Write-Warning "Failed to stop process $($_.ProcessName) (ID: $($_.Id)): $($_.Exception.Message)"
+            }
         }
     }
     
-    # Also check for processes using port 5000 (engine) and 5008 (API) and stop them
-    Write-Host "Checking for processes using port 5000..." -ForegroundColor Yellow
+    # The existing port 5000 check for the engine. The comment about port 5008 is misleading as it's not implemented here.
+    # This part specifically targets port 5000, which is used by the engine this script manages.
+    Write-Host "Checking for processes using port 5000 (engine port)..." -ForegroundColor Yellow
     try {
-        # Check both ports 5000 and 5008
-        $portProcesses = netstat -ano | Select-String ":5000 " | ForEach-Object {
+        netstat -ano | Select-String ":5000\s" | ForEach-Object {
             $line = $_.Line.Trim()
             $parts = $line -split '\s+'
             if ($parts.Length -ge 5) {
                 $processId = $parts[-1]
                 if ($processId -match '^\d+$') {
                     try {
-                        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
-                        if ($process) {
-                            Write-Host "Found process using port 5000: $($process.ProcessName) (ID: $($process.Id))" -ForegroundColor Gray
-                            $process | Stop-Process -Force -ErrorAction Stop
-                            Write-Host "Stopped process $($process.ProcessName) (ID: $($process.Id))" -ForegroundColor Gray
+                        $processOnPort = Get-Process -Id $processId -ErrorAction SilentlyContinue
+                        if ($processOnPort) {
+                            Write-Host "Found process $($processOnPort.ProcessName) (ID: $($processOnPort.Id)) using port 5000. Stopping it." -ForegroundColor Gray
+                            $processOnPort | Stop-Process -Force -ErrorAction Stop
                         }
                     }
                     catch {
-                        Write-Warning "Failed to stop process with PID ${processId}: $($_.Exception.Message)"
+                        Write-Warning "Failed to stop process with PID ${processId} using port 5000: $($_.Exception.Message)"
                     }
                 }
             }
         }
     }
     catch {
-        Write-Warning "Failed to check port usage: $($_.Exception.Message)"
+        Write-Warning "Failed to check port 5000 usage: $($_.Exception.Message)"
     }
     
     Write-Host "Process cleanup completed." -ForegroundColor Green
@@ -92,9 +125,10 @@ $engineDir = Split-Path -Parent $engineCsproj
 $bots = @(
     @{ Name = "ClingyHeuroBot2"; Path = "Bots\ClingyHeuroBot2\ClingyHeuroBot2.csproj"; Language = "csharp" },
     # @{ Name = "AdvancedMCTSBot"; Path = "Bots\AdvancedMCTSBot"; Language = "cpp" },
-    @{ Name = "DeepMCTS"; Path = "Bots\DeepMCTS\DeepMCTS.csproj"; Language = "csharp" },
+    # @{ Name = "DeepMCTS"; Path = "Bots\DeepMCTS\DeepMCTS.csproj"; Language = "csharp" },
     # @{ Name = "MCTSo4"; Path = "Bots\MCTSo4\MCTSo4.csproj"; Language = "csharp" },
     @{ Name = "ReferenceBot"; Path = "Bots\ReferenceBot\ReferenceBot.csproj"; Language = "csharp" },
+    @{ Name = "ClingyHeuroBotExp"; Path = "Bots\ClingyHeuroBotExp\ClingyHeuroBotExp.csproj"; Language = "csharp" },
     @{ Name = "ClingyHeuroBot"; Path = "Bots\ClingyHeuroBot\ClingyHeuroBot.csproj"; Language = "csharp" }
 )
 
@@ -202,7 +236,7 @@ while ($keepRunningScript) {
     
     $engineCommand = "dotnet run --project `"$engineCsproj`" --configuration Release"
     $encodedEngineCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($engineCommand))
-    $wtArgsEngine = @("-w", "0", "new-tab", "--title", "Engine", "--tabColor", $engineTabColor, "-d", $engineDir, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedEngineCommand)
+    $wtArgsEngine = @("-w", "0", "new-tab", "--unfocused", "--title", "Engine", "--tabColor", $engineTabColor, "-d", $engineDir, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedEngineCommand)
     Start-Process wt -ArgumentList $wtArgsEngine -NoNewWindow
 
     # Give the engine a moment to start listening
@@ -247,7 +281,7 @@ while ($keepRunningScript) {
         $currentBotTabColor = $botTabColors[$botColorIndex % $botTabColors.Count]
             
         # Always create new tab (simplified approach)
-        $wtArgsBot = @("-w", "0", "new-tab", "--title", $tabTitle, "--tabColor", $currentBotTabColor, "-d", $botWorkingDirectory, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedBotCommand)
+        $wtArgsBot = @("-w", "0", "new-tab", "--unfocused", "--title", $tabTitle, "--tabColor", $currentBotTabColor, "-d", $botWorkingDirectory, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedBotCommand)
         Start-Process wt -ArgumentList $wtArgsBot -NoNewWindow
         $botColorIndex++
             

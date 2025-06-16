@@ -23,7 +23,7 @@ function Stop-ProcessOnPort {
 }
 
 # Stop existing FunctionalTests API process
-Stop-ProcessOnPort -Port 5009 -ServiceName "FunctionalTests API"
+Stop-ProcessOnPort -Port 5008 -ServiceName "FunctionalTests API"
 
 Write-Host "Starting Zooscape FunctionalTests API..."
 
@@ -43,7 +43,7 @@ if (-not (Test-Path (Join-Path $FunctionalTestsDir "FunctionalTests.csproj"))) {
 }
 
 # Start FunctionalTests API in background job
-Write-Host "Starting FunctionalTests API server on port 5009..."
+Write-Host "Starting FunctionalTests API server on port 5008..."
 Push-Location $FunctionalTestsDir
 $functionalTestsJob = $null
 try {
@@ -53,14 +53,14 @@ try {
     # Start FunctionalTests API as a background job
     $functionalTestsJob = Start-Job -ScriptBlock {
         Set-Location $using:FunctionalTestsDir
-        dotnet run --urls "http://localhost:5009"
+        dotnet run --urls "http://localhost:5008"
     }
     Write-Host "FunctionalTests API started as job $($functionalTestsJob.Id)"
 } finally {
     Pop-Location
 }
 
-Write-Host "FunctionalTests API (Job $($functionalTestsJob.Id)) is running on http://localhost:5009"
+Write-Host "FunctionalTests API (Job $($functionalTestsJob.Id)) is running on http://localhost:5008"
 Write-Host "Press Ctrl+C to stop the service."
 
 # Display job output in real-time

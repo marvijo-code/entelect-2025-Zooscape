@@ -537,7 +537,7 @@ public class TestController : ControllerBase
                 var resultType = result.GetType();
 
                 // Try to get ChosenAction (either field or property)
-                object chosenAction = null;
+                object? chosenAction = null;
                 var chosenActionField = resultType.GetField("ChosenAction");
                 if (chosenActionField != null)
                 {
@@ -553,7 +553,7 @@ public class TestController : ControllerBase
                 }
 
                 // Try to get ActionScores (either field or property)
-                object actionScores = null;
+                object? actionScores = null;
                 var actionScoresField = resultType.GetField("ActionScores");
                 if (actionScoresField != null)
                 {

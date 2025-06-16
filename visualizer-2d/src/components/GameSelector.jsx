@@ -11,7 +11,7 @@ const GameSelector = React.memo(({ onGameSelected, apiBaseUrl }) => {
     setError(null);
     
     try {
-      const response = await fetch(`${apiBaseUrl}/games`);
+      const response = await fetch(`${apiBaseUrl}/Replay/games`);
       if (!response.ok) {
         throw new Error(`Failed to fetch games: ${response.status}`);
       }

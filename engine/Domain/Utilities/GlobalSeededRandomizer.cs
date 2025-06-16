@@ -155,7 +155,7 @@ public class GlobalSeededRandomizer
     /// Null if no valid element could be found within the allocated time.</returns>
     public T? GetRandomElement<T>(IEnumerable<T> source, Func<T, bool> predicate, int timeout)
     {
-        var stopwatch = new Stopwatch();
+        var stopwatch = Stopwatch.StartNew();
 
         do
         {

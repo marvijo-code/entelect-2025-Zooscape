@@ -11,7 +11,6 @@ namespace Marvijo.Zooscape.Bots.FunctionalTests.Controllers; // Or your preferre
 // [Route("api/[controller]")]
 public class TestManagementController // : ControllerBase (if using ASP.NET Core)
 {
-    private readonly Serilog.ILogger _logger; // Inject logger
 
     // public TestManagementController(ILogger logger)
     // {

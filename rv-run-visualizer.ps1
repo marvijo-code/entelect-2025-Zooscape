@@ -5,7 +5,7 @@ Set-Location 'c:\dev\2025-Zooscape\'
 # Function to stop processes on a specific port
 function Stop-ProcessOnPort {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [int]$Port,
         [string]$ServiceName
     )
@@ -43,7 +43,8 @@ function Stop-ProcessOnPort {
                     
                     if ($retryCount -eq $maxRetries) {
                         Write-Warning "Failed to terminate process $processId after $maxRetries retries"
-                    } else {
+                    }
+                    else {
                         Write-Host "Successfully stopped $ServiceName (PID: $processId) on port $Port." -ForegroundColor Green
                         $stoppedCount++
                     }
@@ -76,22 +77,17 @@ Stop-ProcessOnPort -Port 5008 -ServiceName "Visualizer API"
 Write-Host "Waiting for ports to be fully released..." -ForegroundColor Yellow
 Start-Sleep -Seconds 3
 
+Write-Host "DEBUG: Script proceeding after sleep."
+
 Write-Host "Starting Zooscape Visualizer API and Frontend..."
 
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$ApiDir = Join-Path $ScriptDirectory "visualizer-2d\api"
+$FunctionalTestsProject = Join-Path $ScriptDirectory "FunctionalTests\FunctionalTests.csproj"
 $FrontendDir = Join-Path $ScriptDirectory "visualizer-2d"
 
-
-# Check if API directory exists
-if (-not (Test-Path $ApiDir)) {
-    Write-Error "API directory not found: $ApiDir. Please ensure the script is in the root of the Zooscape project."
-    exit 1
-}
-
-# Check if server.js exists in API directory
-if (-not (Test-Path (Join-Path $ApiDir "server.js"))) {
-    Write-Error "server.js not found in $ApiDir."
+# Check if FunctionalTests project exists
+if (-not (Test-Path $FunctionalTestsProject)) {
+    Write-Error "FunctionalTests project not found: $FunctionalTestsProject. Please ensure the script is in the root of the Zooscape project."
     exit 1
 }
 
@@ -101,78 +97,82 @@ if (-not (Test-Path $FrontendDir)) {
     exit 1
 }
 
-# Check if package.json exists in Frontend directory (indicator for npm projects)
-if (-not (Test-Path (Join-Path $FrontendDir "package.json"))) {
-    Write-Error "package.json not found in $FrontendDir. Cannot start frontend."
+# Start API server in a background job
+Write-Host "Starting .NET API server..."
+$apiJob = Start-Job -ScriptBlock {
+    param($scriptDir, $project)
+    Set-Location $scriptDir
+    dotnet watch --project $project
+} -ArgumentList $ScriptDirectory, $FunctionalTestsProject
+
+# Start Frontend in background job
+Write-Host "Starting Frontend server..."
+$frontendJob = Start-Job -ScriptBlock {
+    param($dir)
+    Set-Location $dir
+    # Vite needs an interactive console to pick up on port changes, but this should work for default.
+    # We set the port via env var to be sure.
+    $env:PORT = "5252"
+    npm run dev
+} -ArgumentList $FrontendDir
+
+# Verify jobs started
+if (-not $apiJob) {
+    Write-Error "Failed to start the API server job."
+    exit 1
+}
+if (-not $frontendJob) {
+    Write-Error "Failed to start the frontend server job."
+    if ($apiJob) { Stop-Job $apiJob -Force } # Clean up the other job
     exit 1
 }
 
-# Start Visualizer API in background job
-Write-Host "Starting Visualizer API server on port 5008..."
-Push-Location $ApiDir
-try {
-    $apiJob = Start-Job -ScriptBlock {
-        Set-Location $using:ApiDir
-        & ".\node_modules\.bin\nodemon.cmd" --watch ./ server.js
-    }
-    Write-Host "Visualizer API server started as job $($apiJob.Id)"
-} finally {
-    Pop-Location
-}
-
-# Start Frontend in background job
-Write-Host "Starting Frontend on port 5252..."
-Push-Location $FrontendDir
-try {
-    $frontendJob = Start-Job -ScriptBlock {
-        Set-Location $using:FrontendDir
-        $env:PORT = "5252"
-        vite
-    }
-    Write-Host "Frontend started as job $($frontendJob.Id)"
-} finally {
-    Pop-Location
-}
-
-Write-Host "All services are now running in background jobs."
-Write-Host "Visualizer API (Job $($apiJob.Id)) is running on http://localhost:5008"
-Write-Host "Frontend (Job $($frontendJob.Id)) is running on http://localhost:5252"
+Write-Host "All services are now running in background jobs." -ForegroundColor Green
+Write-Host ".NET API (Job $($apiJob.Id)) is starting on http://localhost:5008"
+Write-Host "Frontend (Job $($frontendJob.Id)) is starting on http://localhost:5252"
 Write-Host "Press Ctrl+C to stop all services."
 
 # Display job output in real-time
 try {
     while ($true) {
-        $apiOutput = Receive-Job -Job $apiJob
-
-        $frontendOutput = Receive-Job -Job $frontendJob
-        
-        if ($apiOutput) {
-            Write-Host "[Visualizer API] $apiOutput" -ForegroundColor Cyan
+        $jobs = @($apiJob, $frontendJob)
+        $jobs | ForEach-Object {
+            if ($_.State -eq 'Failed') {
+                Write-Error "Job $($_.Id) - $($_.Name) has failed."
+                Receive-Job $_ # To get the error message
+            }
         }
-        
+
+        $apiOutput = Receive-Job -Job $apiJob -ErrorAction SilentlyContinue
+        if ($apiOutput) {
+            Write-Host "[API - .NET] $apiOutput" -ForegroundColor Cyan
+        }
+
+        $frontendOutput = Receive-Job -Job $frontendJob -ErrorAction SilentlyContinue
         if ($frontendOutput) {
             Write-Host "[Frontend] $frontendOutput" -ForegroundColor Green
         }
         
+        # If both jobs are completed/failed/stopped, exit the loop
+        if (($apiJob.State -ne 'Running') -and ($frontendJob.State -ne 'Running')) {
+            Write-Warning "Both jobs have stopped. Exiting monitoring loop."
+            break
+        }
+
         Start-Sleep -Milliseconds 500
     }
-} finally {
+}
+finally {
     Write-Host "Interrupt received or script ending. Cleaning up..." -ForegroundColor Magenta
 
-    # Attempt to stop processes by port first for quicker port release and service termination
-    Stop-ProcessOnPort -Port 5008 -ServiceName "Visualizer API"
-    Stop-ProcessOnPort -Port 5252 -ServiceName "Frontend"
-    
-    # Wait for ports to be fully released
-    Write-Host "Waiting for ports to be fully released..." -ForegroundColor Yellow
-    Start-Sleep -Seconds 2
+    # Stop and remove the PowerShell jobs
+    Write-Host "Stopping and removing PowerShell background jobs..."
+    Get-Job | Stop-Job -Force -ErrorAction SilentlyContinue
+    Get-Job | Remove-Job -Force -ErrorAction SilentlyContinue
 
-    # Then, stop and remove the PowerShell jobs
-    Write-Host "Stopping and removing PowerShell background jobs..." -ForegroundColor Gray
-    if ($apiJob) { Stop-Job -Job $apiJob -Force -ErrorAction SilentlyContinue }
-    if ($frontendJob) { Stop-Job -Job $frontendJob -Force -ErrorAction SilentlyContinue }
-    if ($apiJob) { Remove-Job -Job $apiJob -Force -ErrorAction SilentlyContinue }
-    if ($frontendJob) { Remove-Job -Job $frontendJob -Force -ErrorAction SilentlyContinue }
+    # Attempt to stop processes by port as a final cleanup
+    Stop-ProcessOnPort -Port 5008 -ServiceName "API"
+    Stop-ProcessOnPort -Port 5252 -ServiceName "Frontend"
 
     Write-Host "All services and jobs should now be stopped." -ForegroundColor Yellow
 } 

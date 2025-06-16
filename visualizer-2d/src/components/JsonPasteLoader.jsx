@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import './JsonPasteLoader.css';
 
 const JsonPasteLoader = ({ onLoadJson, onError }) => {
-  const API_BASE_URL = 'http://localhost:5008/api'; // Define API base URL, consistent with App.jsx
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const [jsonInput, setJsonInput] = useState('');
 
@@ -25,7 +25,7 @@ const JsonPasteLoader = ({ onLoadJson, onError }) => {
   const handleLoadJsonFromPath = async (filePath) => {
     if (onError) onError(null); // Clear previous errors
     try {
-      const response = await fetch(`${API_BASE_URL}/file/load-json?path=${encodeURIComponent(filePath)}`);
+      const response = await fetch(`${API_BASE_URL}/Replay/file/load-json?path=${encodeURIComponent(filePath)}`);
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`API Error (${response.status}): ${errorText || 'Failed to load file from path.'}`);

@@ -8,7 +8,7 @@ import TabsContainer from './components/TabsContainer.jsx';
 import ConnectionDebugger from './components/ConnectionDebugger.jsx';
 import TestRunner from './components/TestRunner.jsx';
 import Settings from './components/Settings.jsx';
-import { getAppConfig, getValidTabIndex } from './config/appConfig.js';
+import { getAppConfig, getValidTabIndex, saveUserPreferences } from './config/appConfig.js';
 import './App.css';
 import './styles/ConnectionDebugger.css';
 import './styles/Settings.css';
@@ -39,7 +39,19 @@ const App = () => {
   const [activeTabIndex, setActiveTabIndex] = useState(() =>
     getValidTabIndex(appConfig.defaultActiveTab, appConfig.defaultReplayMode)
   );
-  const [liveTickQueue, setLiveTickQueue] = useState([]);
+    const [liveTickQueue, setLiveTickQueue] = useState([]);
+  const processLiveTickQueue = () => {
+    setLiveTickQueue(prevQueue => {
+      if (prevQueue.length === 0) {
+        return prevQueue;
+      }
+      const latestTick = prevQueue[prevQueue.length - 1];
+      setCurrentGameState(latestTick);
+      // Keep the queue size manageable if it grows too large, e.g., keep last 10 ticks
+      return prevQueue.slice(-10);
+    });
+  };
+
   const [currentGameState, setCurrentGameState] = useState(null);
 
   useEffect(() => {
@@ -53,6 +65,16 @@ const App = () => {
       setCurrentGameState(null);
     }
   }, [allGameStates, currentDisplayIndex]);
+
+  useEffect(() => {
+    if (showReplayMode || !isConnected) return;
+
+    const interval = setInterval(() => {
+      processLiveTickQueue();
+    }, 250); // Process the queue every 250ms for smoother updates
+
+    return () => clearInterval(interval);
+  }, [isConnected, showReplayMode]);
   const [replayingGameName, setReplayingGameName] = useState(null);
   const [replayGameId, setReplayGameId] = useState(null);
   const [replayTickCount, setReplayTickCount] = useState(0);
@@ -66,6 +88,21 @@ const App = () => {
     averageProcessTime: 0
   });
   const animalColors = useMemo(() => ['blue', 'green', 'purple', 'cyan', 'magenta', 'yellow', 'lime', 'teal', 'red', 'orange', 'pink', 'brown', 'gray', 'olive'], []);
+
+  const assignAnimalColors = useCallback((animalsList, existingColorMap) => {
+    const newColors = { ...existingColorMap };
+    // Sort by ID to ensure color assignment is stable even if animal order changes
+    const sortedAnimalIds = animalsList.map(a => a.id || a.Id).filter(id => id).sort();
+
+    sortedAnimalIds.forEach(animalId => {
+      if (!newColors[animalId]) {
+        // Assign the next color in the sequence
+        const nextColorIndex = Object.keys(newColors).length % animalColors.length;
+        newColors[animalId] = animalColors[nextColorIndex];
+      }
+    });
+    return newColors;
+  }, [animalColors]);
 
   const namedColorsToHex = {
     blue: '#0000FF', green: '#008000', purple: '#800080', cyan: '#00FFFF',
@@ -133,16 +170,7 @@ const App = () => {
 
     if (processedJsonData.animals || processedJsonData.Animals) {
       const animalsList = processedJsonData.animals || processedJsonData.Animals;
-      setAnimalColorMap(prevColors => {
-        const newColors = { ...prevColors };
-        animalsList.forEach(animal => {
-          const animalId = animal.id || animal.Id;
-          if (animalId && !newColors[animalId]) {
-            newColors[animalId] = animalColors[Math.floor(Math.random() * animalColors.length)];
-          }
-        });
-        return newColors;
-      });
+      setAnimalColorMap(prevColors => assignAnimalColors(animalsList, prevColors));
     }
   }, [animalColors]);
 
@@ -217,15 +245,7 @@ const App = () => {
       // Update animal colors
       if (tickData.animals) {
         console.log(`Updating animal colors for ${tickData.animals.length} animals`);
-        const newColors = {};
-        tickData.animals.forEach(animal => {
-          if (!animalColorMap[animal.id]) {
-            newColors[animal.id] = animalColors[Math.floor(Math.random() * animalColors.length)];
-          } else {
-            newColors[animal.id] = animalColorMap[animal.id];
-          }
-        });
-        setAnimalColorMap(prevColors => ({ ...prevColors, ...newColors }));
+        setAnimalColorMap(prevColors => assignAnimalColors(tickData.animals, prevColors));
       }
       setError(null);
       console.log(`Successfully processed tick ${tickNumber} (API tick ${apiTickNumber})`);
@@ -375,6 +395,7 @@ const App = () => {
   // Handle settings changes
   const handleSettingsChange = useCallback((newConfig) => {
     setAppConfig(newConfig);
+    saveUserPreferences(newConfig);
 
     // Apply settings immediately if they affect current state
     if (newConfig.defaultReplayMode !== showReplayMode) {
@@ -444,7 +465,7 @@ const App = () => {
     setLeaderboardData([]); // Clear previous data
 
     try {
-      const response = await fetch(`${API_BASE_URL}/leaderboard_stats`);
+      const response = await fetch(`${API_BASE_URL}/Leaderboard/stats`);
       if (!response.ok) {
         const errorData = await response.text();
         console.error(`API Error! Status: ${response.status} - Failed to fetch leaderboard stats. Server says: ${errorData}`);
@@ -456,7 +477,7 @@ const App = () => {
         setLeaderboardStatusMessage(data.length > 0 ? 'Leaderboard loaded.' : 'No data for leaderboard.');
       }
     } catch (error) {
-      console.error('Network error or failed to parse response from /api/leaderboard_stats:', error);
+      console.error('Network error or failed to parse response from /api/leaderboard/stats:', error);
       setLeaderboardStatusMessage('Failed to load leaderboard stats. Network error or bad response.');
       setLeaderboardData([]);
     }
@@ -559,8 +580,15 @@ const App = () => {
 
       connectionInstance.start()
         .then(() => {
-          console.log("SignalR Connected for live mode");
+          console.log("SignalR connection established.");
           setIsConnected(true);
+
+          connectionInstance.on("ReceiveGameState", (gameState) => {
+            if (appConfig.debugLogs) {
+              console.log("Received game state", gameState);
+            }
+            setLiveTickQueue(prevQueue => [...prevQueue, gameState]);
+          });
           setError(null);
           // Optionally, register visualiser if needed by your hub
           // connectionInstance.invoke("RegisterVisualiser").catch(err => console.error("Error registering visualizer", err));
@@ -632,20 +660,7 @@ const App = () => {
 
       const animalsInTick = tickToProcess.animals || tickToProcess.Animals || [];
       if (animalsInTick.length > 0) {
-        const newColors = {};
-        animalsInTick.forEach(animal => {
-          const animalKey = animal.id || animal.Id;
-          if (!animalKey) {
-            console.warn('Animal in live tick data is missing an ID', animal);
-            return;
-          }
-          if (!animalColorMap[animalKey]) {
-            newColors[animalKey] = animalColors[Math.floor(Math.random() * animalColors.length)];
-          }
-        });
-        if (Object.keys(newColors).length > 0) {
-          setAnimalColorMap(prevColors => ({ ...prevColors, ...newColors }));
-        }
+        setAnimalColorMap(prevColors => assignAnimalColors(animalsInTick, prevColors));
       }
 
       // Remove the processed tick from the queue
@@ -955,61 +970,33 @@ const App = () => {
 
   // Memoize per-tick scoreboard for replay mode
   const perTickScoreboard = useMemo(() => {
-    // Condition to show scores: Must have currentGameState AND (isReplaying OR (live mode AND connected AND game initialized))
     console.log('[Scoreboard] Recomputing. animalColorMap:', JSON.stringify(animalColorMap));
-    const showScores = currentGameState &&
-      (isReplaying || (!showReplayMode && isConnected && gameInitialized));
+    const showScores = currentGameState && (isReplaying || (!showReplayMode && isConnected && gameInitialized));
 
     if (!showScores) {
       return null;
     }
 
     const animals = currentGameState.animals || currentGameState.Animals || [];
-    const leaderBoard = currentGameState.LeaderBoard || currentGameState.leaderBoard || {};
-
     let scoresData = [];
 
-    // Try to get scores from leaderBoard first
-    if (leaderBoard && Object.keys(leaderBoard).length > 0) {
-      // Create a mapping of animal IDs to nicknames for quick lookup
-      const animalIdToNickname = animals.reduce((acc, animal) => {
+    if (animals && animals.length > 0) {
+      scoresData = animals.map(animal => {
         const id = animal.id || animal.Id;
-        const nickname = animal.nickname || animal.Nickname || `Bot-${id}`;
-        if (id) {
-          acc[id] = nickname;
-        }
-        return acc;
-      }, {});
-
-      scoresData = Object.entries(leaderBoard)
-        .map(([id, score]) => ({
+        return {
           id,
-          nickname: animalIdToNickname[id] || `Bot-${id.substring(0, 6)}...`,
-          score
-        }))
-        .sort((a, b) => b.score - a.score);
-    } else if (animals && animals.length > 0) {
-      // Try to get scores directly from animals array
-      scoresData = animals
-        .map((animal) => {
-          const id = animal.id || animal.Id;
-          const nickname = animal.nickname || animal.Nickname || `Bot-${id}`;
-          const score = animal.score || animal.Score || 0;
-          return {
-            id,
-            nickname,
-            score
-          };
-        })
-        .filter(entry => entry.score !== undefined && entry.score !== null)
-        .sort((a, b) => b.score - a.score);
+          nickname: animal.nickname || animal.Nickname || `Bot-${id}`,
+          score: animal.score !== undefined ? animal.score : (animal.Score !== undefined ? animal.Score : 0),
+          captures: animal.capturedCounter !== undefined ? animal.capturedCounter : (animal.CapturedCounter !== undefined ? animal.CapturedCounter : 0),
+        };
+      }).sort((a, b) => b.score - a.score);
     }
 
     if (scoresData.length === 0) {
       return (
         <div className="replay-scoreboard">
           <h4>Current Scores</h4>
-          <p>No scores available</p>
+          <p>No scores available for this tick.</p>
         </div>
       );
     }
@@ -1017,25 +1004,32 @@ const App = () => {
     return (
       <div className="replay-scoreboard">
         <h4>Current Scores</h4>
-        <ul>
-          {scoresData.map((entry, index) => {
-            const botIdForColor = entry.id;
-            const colorToApply = animalColorMap[botIdForColor] || 'transparent';
-            console.log(`[Scoreboard] Rendering bot ${entry.nickname} (ID: ${botIdForColor}), applying bgColor: ${colorToApply}`);
-            return (
-              <li
-                key={botIdForColor || index}
-                style={{ backgroundColor: colorToApply, color: getTextColorForBackground(colorToApply) }}
-              >
-                <span>{index + 1}. {entry.nickname}:</span>
-                <span>{entry.score} / {finalScoresMap[entry.id] !== undefined ? finalScoresMap[entry.id] : 'N/A'}</span>
-              </li>
-            );
-          })}
-        </ul>
+        <table className="scores-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Bot</th>
+              <th>Score</th>
+              <th>Captures</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scoresData.map((entry, index) => {
+              const colorToApply = animalColorMap[entry.id] || 'transparent';
+              return (
+                <tr key={entry.id || index} style={{ backgroundColor: colorToApply, color: getTextColorForBackground(colorToApply) }}>
+                  <td>{index + 1}</td>
+                  <td className="bot-name-cell">{entry.nickname}</td>
+                  <td>{entry.score}</td>
+                  <td>{entry.captures}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     );
-  }, [isReplaying, currentGameState, finalScoresMap, showReplayMode, isConnected, gameInitialized, animalColorMap]);
+  }, [isReplaying, currentGameState, showReplayMode, isConnected, gameInitialized, animalColorMap, getTextColorForBackground]);
 
   // Render active tab content
   const renderActiveTabContent = useCallback(() => {
@@ -1076,7 +1070,7 @@ const App = () => {
           return (
             <TestRunner
               onGameStateSelected={handleTestGameStateSelected}
-              apiBaseUrl="http://localhost:5009/api"
+              apiBaseUrl={import.meta.env.VITE_API_BASE_URL}
               currentGameState={currentGameState}
               currentGameStateName={selectedFile ?
                 (typeof selectedFile === 'string' && (selectedFile.includes('/') || selectedFile.includes('\\'))
