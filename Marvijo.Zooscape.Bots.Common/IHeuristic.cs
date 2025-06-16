@@ -8,5 +8,5 @@ namespace Marvijo.Zooscape.Bots.Common;
 public interface IHeuristic
 {
     string Name { get; }
-    decimal CalculateRawScore(IHeuristicContext context);
+    decimal CalculateScore(IHeuristicContext context);
 }

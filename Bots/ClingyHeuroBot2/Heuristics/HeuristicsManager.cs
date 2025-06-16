@@ -1,23 +1,15 @@
-#pragma warning disable SKEXP0110
-using System.Collections.Concurrent;
-using System.Linq; // For OrderByDescending
-using System.Text;
-using ClingyHeuroBot2.Heuristics; // Added for individual heuristic classes
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
-namespace Marvijo.Zooscape.Bots.ClingyHeuroBot2.Heuristics;
+namespace ClingyHeuroBot2.Heuristics;
 
-// Helper record to store score details for sorting
-file record HeuristicScoreDetail(
-    string Name,
-    decimal RawScore,
-    decimal Weight,
-    decimal Contribution,
-    decimal AccumulatedScore
-);
+file record HeuristicScoreDetail(string Name, decimal Score, decimal AccumulatedScore);
 
 public class ScoreLog
 {
@@ -29,7 +21,7 @@ public class ScoreLog
     {
         Move = move;
         TotalScore = totalScore;
-        DetailedLogLines = detailedLogLines ?? new List<string>();
+        DetailedLogLines = detailedLogLines ?? [];
     }
 }
 
@@ -37,9 +29,9 @@ public class HeuristicsManager
 {
     private readonly ILogger _logger;
     private readonly List<IHeuristic> _heuristics;
-    private readonly Dictionary<string, decimal> _weights;
+    private readonly HeuristicWeights _weights;
 
-    public HeuristicsManager(ILogger logger, Dictionary<string, decimal> weights)
+    public HeuristicsManager(ILogger logger, HeuristicWeights weights)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _weights = weights ?? throw new ArgumentNullException(nameof(weights));
@@ -103,11 +95,7 @@ public class HeuristicsManager
             new UseItemHeuristic(),
         ];
 
-        _logger.Information(
-            "Heuristics instance created with {HeuristicCount} heuristics and {WeightCount} weights.",
-            _heuristics.Count,
-            _weights.Count
-        );
+        _logger.Information("Heuristics instance created with {HeuristicCount} heuristics.", _heuristics.Count);
     }
 
     public ScoreLog ScoreMove(
@@ -116,7 +104,7 @@ public class HeuristicsManager
         BotAction move,
         bool logHeuristicScores,
         IReadOnlyDictionary<(int X, int Y), int> visitCounts,
-        System.Collections.Generic.Queue<(int X, int Y)> animalRecentPositionsQueue,
+        Queue<(int X, int Y)> animalRecentPositionsQueue,
         BotAction? animalLastDirectionValue
     )
     {
@@ -125,116 +113,47 @@ public class HeuristicsManager
             me,
             move,
             _logger,
-            animalLastDirectionValue,
+            _weights,
+            null, // previousAction is not available here
             visitCounts,
-            animalRecentPositionsQueue
+            animalRecentPositionsQueue,
+            animalLastDirectionValue
         );
-        decimal totalScore = 0m;
-        var currentMoveLogLines = new List<string>();
-        var detailedScoreEntries = new List<HeuristicScoreDetail>(); // To store details for sorting
 
-        if (logHeuristicScores)
-        {
-            currentMoveLogLines.Add(
-                string.Format(
-                    "-------------------- Scoring Move: \"{0}\" for Animal: \"{1}\" at ({2},{3}) --------------------",
-                    move,
-                    me.Id,
-                    me.X,
-                    me.Y
-                )
-            );
-        }
+        decimal totalScore = 0m;
+        var detailedScoreEntries = new List<HeuristicScoreDetail>();
 
         foreach (var heuristic in _heuristics)
         {
-            if (!_weights.TryGetValue(heuristic.Name, out decimal weight))
-            {
-                // If weight is not found, default to 0, effectively disabling this heuristic
-                weight = 0m;
-                if (logHeuristicScores)
-                {
-                    currentMoveLogLines.Add(
-                        string.Format(
-                            "    WARN: Weight not found for heuristic '{0}'. Defaulting to 0.",
-                            heuristic.Name
-                        )
-                    );
-                }
-            }
+            decimal score = heuristic.CalculateScore(heuristicContext);
 
-            // Skip calculation if weight is zero
-            if (weight == 0m && logHeuristicScores)
-            {
-                currentMoveLogLines.Add(
-                    string.Format(
-                        "    Skipping heuristic '{0}' due to zero weight.",
-                        heuristic.Name
-                    )
-                );
-                continue;
-            }
-            if (weight == 0m)
-            {
-                continue;
-            }
+            if (score == 0m) continue;
 
-            decimal rawScore = heuristic.CalculateRawScore(heuristicContext);
-            decimal componentContribution = rawScore * weight;
-            totalScore += componentContribution;
+            totalScore += score;
 
-            if (logHeuristicScores && componentContribution != 0m)
+            if (logHeuristicScores)
             {
-                // Store details for later sorting and logging
-                detailedScoreEntries.Add(
-                    new HeuristicScoreDetail(
-                        heuristic.Name,
-                        rawScore,
-                        weight,
-                        componentContribution,
-                        totalScore // This is the score *after* this component
-                    )
-                );
+                detailedScoreEntries.Add(new HeuristicScoreDetail(heuristic.Name, score, totalScore));
             }
         }
 
-        // After processing all heuristics, sort and add detailed scores to log lines
+        var currentMoveLogLines = new List<string>();
         if (logHeuristicScores)
         {
-            // Sort by contribution, descending. Using a stable sort isn't strictly necessary here
-            // as the final order of same-contribution items doesn't have a specified tie-breaker rule yet.
-            var sortedDetailedScores = detailedScoreEntries
-                .OrderByDescending(s => s.Contribution)
-                .ToList();
-            foreach (var detail in sortedDetailedScores)
+            var logBuilder = new StringBuilder();
+            logBuilder.AppendLine($"-------------------- Scoring Move: \"{move}\" for Animal: \"{me.Id}\" at ({me.X},{me.Y}) --------------------");
+            logBuilder.AppendLine("| Heuristic Name                       | Score        | Accumulated Score |");
+            logBuilder.AppendLine("|--------------------------------------|--------------|-------------------|");
+
+            var sortedEntries = detailedScoreEntries.OrderByDescending(e => Math.Abs(e.Score));
+
+            foreach (var entry in sortedEntries)
             {
-                currentMoveLogLines.Add(
-                    string.Format(
-                        // Adjusted formatting to align with HeuristicLogHelper (-40 for name, 10 for contribution/newscore)
-                        "    {0,-40}: Raw={1,8:F4}, Weight={2,8:F4}, Contribution={3,10:F4}, NewScore={4,10:F4}",
-                        detail.Name,
-                        detail.RawScore,
-                        detail.Weight,
-                        detail.Contribution,
-                        detail.AccumulatedScore
-                    )
-                );
+                logBuilder.AppendLine($"| {entry.Name,-36} | {entry.Score,12:N2} | {entry.AccumulatedScore,17:N2} |");
             }
 
-            // Add total score and end of move logging
-            currentMoveLogLines.Add(
-                string.Format(
-                    "  >>> Total Score for Move \"{0}\": {1}",
-                    move,
-                    Math.Round(totalScore, 4)
-                )
-            );
-            currentMoveLogLines.Add(
-                string.Format(
-                    "-------------------- End Scoring Move: \"{0}\" --------------------\n",
-                    move
-                )
-            );
+            logBuilder.AppendLine($"-------------------- Final Score: {totalScore:N4} --------------------");
+            currentMoveLogLines.Add(logBuilder.ToString());
         }
 
         return new ScoreLog(move, totalScore, currentMoveLogLines);

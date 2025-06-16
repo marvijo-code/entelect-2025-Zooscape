@@ -12,7 +12,7 @@ public class AnticipateCompetitionHeuristic : IHeuristic
 {
     public string Name => "AnticipateCompetition";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
         var nearbyPellets = heuristicContext.CurrentGameState.Cells.Where(c =>

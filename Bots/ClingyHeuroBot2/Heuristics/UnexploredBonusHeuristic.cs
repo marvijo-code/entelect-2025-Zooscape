@@ -16,10 +16,10 @@ public class UnexploredBonusHeuristic : IHeuristic
 
         if (visits == 0)
         {
-            // WEIGHTS.UnexploredBonus is the raw score value for finding an unexplored cell.
-            // The actual weight multiplier for this heuristic will be defined in WEIGHTS.cs
-            // and applied by the HeuristicsManager.
-            return WEIGHTS.UnexploredBonus;
+            // Return a raw score of 1. The actual influence is determined by the
+            // "UnexploredBonus" weight in heuristic-weights.json, which is applied
+            // by the HeuristicsManager.
+            return 1m;
         }
 
         return 0m;

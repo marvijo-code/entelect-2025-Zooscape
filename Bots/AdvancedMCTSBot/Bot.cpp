@@ -180,7 +180,8 @@ Bot::Bot() {
         connection->on("ReceiveBotState", [this](const std::vector<signalr::value>& args) {
         fmt::print("Received bot state. ");
         GameState gameState = convertGameState(args);
-        BotAction command = mctsService->GetBestAction(gameState);
+        MCTSResult result = mctsService->GetBestAction(gameState);
+        BotAction command = result.bestAction;
         fmt::println("Responding with action: {}", static_cast<int>(command));
         
         signalr::value convertedCommand = convertBotAction(command);

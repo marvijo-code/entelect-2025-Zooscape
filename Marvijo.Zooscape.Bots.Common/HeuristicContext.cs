@@ -15,6 +15,7 @@ namespace Marvijo.Zooscape.Bots.Common
         public BotAction? PreviousAction { get; } // Can be expanded later
         public System.Collections.Generic.Queue<(int X, int Y)> AnimalRecentPositions { get; } // Added
         public BotAction? AnimalLastDirection { get; } // Added
+        public HeuristicWeights Weights { get; }
         private readonly IReadOnlyDictionary<(int X, int Y), int> _visitCountsData;
 
         public HeuristicContext(
@@ -22,6 +23,7 @@ namespace Marvijo.Zooscape.Bots.Common
             Animal currentAnimal,
             BotAction currentMove,
             ILogger logger, // Made non-nullable
+            HeuristicWeights weights,
             BotAction? previousAction = null,
             IReadOnlyDictionary<(int X, int Y), int>? visitCounts = null,
             System.Collections.Generic.Queue<(int X, int Y)>? animalRecentPositions = null, // Added
@@ -32,6 +34,7 @@ namespace Marvijo.Zooscape.Bots.Common
             CurrentAnimal = currentAnimal;
             CurrentMove = currentMove;
             Logger = logger ?? throw new System.ArgumentNullException(nameof(logger)); // Added null check for non-nullable
+            Weights = weights ?? throw new System.ArgumentNullException(nameof(weights));
             PreviousAction = previousAction;
             AnimalRecentPositions =
                 animalRecentPositions ?? new System.Collections.Generic.Queue<(int X, int Y)>(); // Added

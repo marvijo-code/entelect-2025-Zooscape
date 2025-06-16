@@ -10,9 +10,9 @@ public class AdaptivePathfindingHeuristic : IHeuristic
 {
     public string Name => "AdaptivePathfinding";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext context)
     {
-        heuristicContext.Logger?.Verbose("{Heuristic} not implemented", Name);
+        context.Logger?.Verbose("{Heuristic} not implemented", Name);
         return 0m;
     }
 }

@@ -11,7 +11,7 @@ public class CaptureRecoveryStrategyHeuristic : IHeuristic
 {
     public string Name => "CaptureRecoveryStrategy";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         heuristicContext.Logger?.Verbose("{Heuristic} not implemented", Name);
         return 0m;

@@ -26,7 +26,7 @@ MCTSEngine::~MCTSEngine() {
     shouldStop = true;
 }
 
-BotAction MCTSEngine::findBestAction(const GameState& state, const std::string& playerId) {
+MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string& playerId) {
     resetStatistics();
     shouldStop = false;
     
@@ -83,36 +83,32 @@ BotAction MCTSEngine::findBestAction(const GameState& state, const std::string& 
         }
     }
     
-    // Select best action
-    MCTSNode* bestChild = root->getBestChild(0.0); // Use exploitation only
-    if (!bestChild) {
-        // Fallback: use heuristics
-        auto legalActions = state.getLegalActions(playerId);
-        if (!legalActions.empty()) {
-            auto actionScores = heuristics->evaluateAllActions(state, playerId);
-            
-            BotAction bestAction = legalActions[0];
-            double bestScore = actionScores[bestAction];
-            
-            for (const auto& action : legalActions) {
-                if (actionScores[action] > bestScore) {
-                    bestScore = actionScores[action];
-                    bestAction = action;
-                }
-            }
-            
-            return bestAction;
+    MCTSResult result;
+    result.bestAction = BotAction::None;
+
+    MCTSNode* bestChild = nullptr;
+    int maxVisits = -1;
+
+    for (const auto& child : root->getChildren()) {
+        if (child->getVisits() > maxVisits) {
+            maxVisits = child->getVisits();
+            bestChild = child.get();
         }
-        return BotAction::Up; // Ultimate fallback
+        double avgScore = child->getAverageReward();
+        result.allActionStats.push_back({child->getAction(), child->getVisits(), avgScore});
     }
-    
-    std::cout << "MCTS completed: " << totalSimulations.load() << " simulations, " 
-              << totalExpansions.load() << " expansions" << std::endl;
-    std::cout << "Best action: " << static_cast<int>(bestChild->getAction()) 
-              << " (visits: " << bestChild->getVisits() 
-              << ", avg reward: " << bestChild->getAverageReward() << ")" << std::endl;
-    
-    return bestChild->getAction();
+
+    if (bestChild) {
+        result.bestAction = bestChild->getAction();
+    } else {
+        // Fallback if no children were explored
+        auto possibleMoves = state.getLegalActions(playerId);
+        if (!possibleMoves.empty()) {
+            result.bestAction = possibleMoves[0]; // Or some other default
+        }
+    }
+
+    return result;
 }
 
 MCTSNode* MCTSEngine::select(MCTSNode* root) {

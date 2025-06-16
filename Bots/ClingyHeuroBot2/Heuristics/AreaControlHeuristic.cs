@@ -12,7 +12,7 @@ namespace ClingyHeuroBot2.Heuristics
     {
         public string Name => "AreaControl";
 
-        public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+        public decimal CalculateScore(IHeuristicContext heuristicContext)
         {
             var (nx, ny) = heuristicContext.MyNewPosition; // Updated
             decimal value = 0;

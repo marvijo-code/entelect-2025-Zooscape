@@ -12,7 +12,7 @@ public class DensityMappingHeuristic : IHeuristic
 {
     public string Name => "DensityMapping";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition; // Updated
         var density = heuristicContext.CurrentGameState.Cells.Count(c =>

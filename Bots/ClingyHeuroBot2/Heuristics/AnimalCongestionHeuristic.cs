@@ -12,7 +12,7 @@ namespace ClingyHeuroBot2.Heuristics
     {
         public string Name => "AnimalCongestion";
 
-        public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+        public decimal CalculateScore(IHeuristicContext heuristicContext)
         {
             var (nx, ny) = heuristicContext.MyNewPosition; // Updated
             var congestion = heuristicContext.CurrentGameState.Animals.Count(a =>
@@ -20,7 +20,7 @@ namespace ClingyHeuroBot2.Heuristics
                 && a.Id != heuristicContext.CurrentAnimal.Id
                 && BotUtils.ManhattanDistance(nx, ny, a.X, a.Y) <= 2 // Updated
             );
-            return -congestion * 0.5m;
+            return -congestion * heuristicContext.Weights.AnimalCongestion;
         }
     }
 }

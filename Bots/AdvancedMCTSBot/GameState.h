@@ -79,7 +79,9 @@ struct Animal {
 
 struct Zookeeper {
     std::string id;
+    std::string nickname;
     Position position;
+    Position spawnPosition;
     std::string targetAnimalId;
     int ticksSinceTargetUpdate;
     

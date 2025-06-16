@@ -12,7 +12,7 @@ namespace ClingyHeuroBot2.Heuristics
     {
         public string Name => "CenterDistanceBonus";
 
-        public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+        public decimal CalculateScore(IHeuristicContext heuristicContext)
         {
             var (nx, ny) = heuristicContext.MyNewPosition; // Updated
             var cx = heuristicContext.CurrentGameState.Cells.Max(c => c.X) / 2;

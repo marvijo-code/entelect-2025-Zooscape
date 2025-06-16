@@ -1,7 +1,7 @@
 #pragma warning disable SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 using System.Linq;
-using ClingyHeuroBot2;
 using Marvijo.Zooscape.Bots.Common;
+using Marvijo.Zooscape.Bots.Common.Utils;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
@@ -12,7 +12,7 @@ public class OpponentProximityHeuristic : IHeuristic
 {
     public string Name => "OpponentProximity";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
@@ -23,7 +23,7 @@ public class OpponentProximityHeuristic : IHeuristic
             return 0m;
 
         var dists = heuristicContext.CurrentGameState.Zookeepers.Select(z =>
-            Heuristics.ManhattanDistance(z.X, z.Y, nx, ny)
+            BotUtils.ManhattanDistance(z.X, z.Y, nx, ny)
         );
 
         if (!dists.Any())
@@ -34,6 +34,6 @@ public class OpponentProximityHeuristic : IHeuristic
         if (minDist < 0)
             return 0m;
 
-        return 1m / (minDist + 1.0m);
+        return -heuristicContext.Weights.OpponentProximity / (minDist + 1.0m);
     }
 }

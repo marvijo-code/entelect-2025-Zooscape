@@ -60,6 +60,11 @@ namespace Marvijo.Zooscape.Bots.Common
         System.Collections.Generic.Queue<(int X, int Y)> AnimalRecentPositions { get; }
 
         /// <summary>
+        /// Gets the configured heuristic weights.
+        /// </summary>
+        HeuristicWeights Weights { get; }
+
+        /// <summary>
         /// Gets the last committed direction of the current animal.
         /// Null if no direction has been committed yet or not tracked.
         /// </summary>

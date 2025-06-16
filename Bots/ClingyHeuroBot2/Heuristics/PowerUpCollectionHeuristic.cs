@@ -8,7 +8,7 @@ public class PowerUpCollectionHeuristic : IHeuristic
 {
     public string Name => "PowerUpCollection";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (newX, newY) = heuristicContext.MyNewPosition;
         var targetCell = heuristicContext.CurrentGameState.Cells.FirstOrDefault(c => c.X == newX && c.Y == newY);
@@ -26,7 +26,7 @@ public class PowerUpCollectionHeuristic : IHeuristic
             case CellContent.BigMooseJuice:
                 // Return a positive score to incentivize picking up any power-up.
                 // This can be refined later to value different power-ups differently.
-                return 1.0m;
+                return heuristicContext.Weights.PowerUpCollection;
             default:
                 return 0m;
         }

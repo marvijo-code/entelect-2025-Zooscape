@@ -1,14 +1,10 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.11)
+cmake_policy(VERSION 3.11)
 project(AdvancedMCTSBot LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-# CMakeList.txt : Top-level CMake project file, do global configuration
-# and include sub-projects here.
-#
-cmake_minimum_required (VERSION 3.8)
 
 # Enable Hot Reload for MSVC compilers if supported.
 if (POLICY CMP0141)
@@ -16,7 +12,7 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
-project ("AdvancedMCTSBot")
+
 
 add_executable(AdvancedMCTSBot
     main.cpp
@@ -34,3 +30,29 @@ find_package(microsoft-signalr CONFIG REQUIRED)
 target_link_libraries(AdvancedMCTSBot PRIVATE
     fmt::fmt                      # or fmt::fmt-header-only
     microsoft-signalr::microsoft-signalr)
+
+# ----------------------------
+# Unit tests
+# ----------------------------
+enable_testing()
+
+add_executable(AdvancedMCTSBotTest162
+    tests/Test162.cpp
+    tests/JsonGameStateLoader.cpp
+    GameState.cpp
+    MCTSEngine.cpp
+    MctsService.cpp
+    MCTSNode.cpp
+    Heuristics.cpp
+)
+
+# Link the same libraries the main bot uses (except signalr, which the test doesn't require)
+# fmt is transitively used by some engine files for logging
+find_package(fmt CONFIG REQUIRED)
+
+# Include directories to access headers
+target_include_directories(AdvancedMCTSBotTest162 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+target_link_libraries(AdvancedMCTSBotTest162 PRIVATE fmt::fmt)
+
+add_test(NAME AdvancedMCTSBot_SmokeTest162 COMMAND AdvancedMCTSBotTest162)

@@ -12,7 +12,7 @@ public class DistanceToGoalHeuristic : IHeuristic
 {
     public string Name => "DistanceToGoal";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
         var pellets = heuristicContext.CurrentGameState.Cells.Where(c =>

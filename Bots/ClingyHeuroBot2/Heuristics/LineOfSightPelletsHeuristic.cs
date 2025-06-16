@@ -11,7 +11,7 @@ public class LineOfSightPelletsHeuristic : IHeuristic
 {
     public string Name => "LineOfSightPellets";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
         int pelletsInSight = 0;
@@ -60,6 +60,6 @@ public class LineOfSightPelletsHeuristic : IHeuristic
                 pelletsInSight++;
         }
 
-        return pelletsInSight * 0.3m;
+        return pelletsInSight * heuristicContext.Weights.LineOfSightPellets;
     }
 }

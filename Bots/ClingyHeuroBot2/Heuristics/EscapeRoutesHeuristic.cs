@@ -13,7 +13,7 @@ public class EscapeRoutesHeuristic : IHeuristic
 {
     public string Name => "EscapeRoutes";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition; // Updated
 
@@ -43,6 +43,6 @@ public class EscapeRoutesHeuristic : IHeuristic
             }
         }
 
-        return escapeCount * 0.3m;
+        return escapeCount * heuristicContext.Weights.EscapeRoutes;
     }
 }

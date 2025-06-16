@@ -11,7 +11,7 @@ public class CommandQueueOptimizationHeuristic : IHeuristic
 {
     public string Name => "CommandQueueOptimization";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         // This is a complex heuristic that would require analyzing a sequence of moves.
         // For now, it returns 0.

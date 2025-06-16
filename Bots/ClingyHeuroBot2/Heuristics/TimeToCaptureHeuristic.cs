@@ -3,6 +3,7 @@ using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Utils;
 using Serilog;
 
 namespace ClingyHeuroBot2.Heuristics;
@@ -11,7 +12,7 @@ public class TimeToCaptureHeuristic : IHeuristic
 {
     public string Name => "TimeToCapture";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
@@ -21,13 +22,13 @@ public class TimeToCaptureHeuristic : IHeuristic
         }
 
         int distToZookeeper = heuristicContext.CurrentGameState.Zookeepers
-            .Min(z => Heuristics.ManhattanDistance(z.X, z.Y, nx, ny));
+            .Min(z => BotUtils.ManhattanDistance(z.X, z.Y, nx, ny));
 
         if (distToZookeeper <= 2)
         {
-            return -5.0m * (3 - distToZookeeper);
+            return -heuristicContext.Weights.TimeToCaptureDanger * (3 - distToZookeeper);
         }
 
-        return (decimal)distToZookeeper * 0.5m;
+        return distToZookeeper * heuristicContext.Weights.TimeToCaptureSafety;
     }
 }

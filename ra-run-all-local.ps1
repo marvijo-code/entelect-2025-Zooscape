@@ -46,7 +46,7 @@ function Stop-DotnetProcesses {
             $managedProjectFiles += (Split-Path $botDefinition.Path -Leaf)
         }
     }
-    $managedExecutableNames = @("AdvancedMCTSBot", "DeepMCTS", "ClingyHeuroBot", "mctso4", "ClingyHeuroBotExp") # Add other C++ bot exe names if any that are started by this script
+    $managedExecutableNames = @("Zooscape", "AdvancedMCTSBot", "DeepMCTS", "ClingyHeuroBot", "mctso4", "ClingyHeuroBotExp") # Add other bot/engine executable names as needed
 
     Write-Host "Identifying dotnet processes for managed projects: $($managedProjectFiles -join ', ')" -ForegroundColor DarkGray
 
@@ -149,20 +149,8 @@ while ($keepRunningScript) {
         Write-Host "========== Restarting Applications ==========" -ForegroundColor Cyan
     }
 
-    # 1. Build engine
-    Write-Host "[ENGINE] Building Zooscape..." -ForegroundColor Yellow
-    $env:HUSKY = "0"
-    dotnet build $engineCsproj -c Release
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Engine build failed. Press Enter to retry, or 'x' to exit script."
-        while ($true) {
-            $inputKey = [Console]::ReadKey($true)
-            if ($inputKey.Key -eq 'Enter') { break } # Retry build
-            if ($inputKey.KeyChar -eq 'x') { $keepRunningScript = $false; break } # Exit script
-        }
-        if (-not $keepRunningScript) { continue } # Exit outer loop
-        else { continue } # Retry build by restarting outer loop
-    }
+    # 1. Skip engine build (assumes engine binaries are already built)
+    Write-Host "[ENGINE] Skipping build for Zooscape." -ForegroundColor Yellow
 
 
     # 2. Build all bots before launching anything

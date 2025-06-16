@@ -11,7 +11,7 @@ public class CycleDetectionHeuristic : IHeuristic
 {
     public string Name => "CycleDetection";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
         var positions = heuristicContext.AnimalRecentPositions;

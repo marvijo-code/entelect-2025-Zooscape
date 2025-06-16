@@ -11,7 +11,7 @@ public class ChangeDirectionWhenStuckHeuristic : IHeuristic
 {
     public string Name => "ChangeDirectionWhenStuck";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         // This heuristic requires state about the last few moves, which is managed in HeuristicsManager.
         // For now, we return 0, assuming the core logic will be in the manager.

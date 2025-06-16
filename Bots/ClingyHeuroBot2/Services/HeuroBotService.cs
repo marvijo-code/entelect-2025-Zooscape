@@ -17,8 +17,7 @@ public class HeuroBotService : IBot<HeuroBotService>
     public HeuroBotService(ILogger? logger = null)
     {
         _logger = logger ?? Logger.None;
-        var weights = WEIGHTS.GetWeights();
-        _heuristics = new HeuristicsManager(_logger, weights);
+        _heuristics = new HeuristicsManager(_logger, WeightManager.Instance);
     }
 
     public Guid BotId { get; set; }
@@ -168,7 +167,7 @@ public class HeuroBotService : IBot<HeuroBotService>
             // Penalty for reversing the previous move
             if (_previousAction.HasValue && IsOpposite(_previousAction.Value, action))
             {
-                decimal reverseMovePenaltyValue = WEIGHTS.ReverseMovePenalty;
+                decimal reverseMovePenaltyValue = WeightManager.Instance.ReverseMovePenalty;
                 if (LogHeuristicScores)
                 {
                     currentDetailedLog.Insert(
@@ -206,7 +205,7 @@ public class HeuroBotService : IBot<HeuroBotService>
             }
             int visits = _visitCounts.TryGetValue((nx, ny), out var vc) ? vc : 0;
             decimal rawVisitFactor = visits;
-            decimal visitWeight = WEIGHTS.VisitPenalty;
+            decimal visitWeight = WeightManager.Instance.VisitPenalty;
             decimal visitPenaltyContribution = rawVisitFactor * visitWeight;
             if (LogHeuristicScores)
             {
@@ -227,7 +226,7 @@ public class HeuroBotService : IBot<HeuroBotService>
             int quad = GetQuadrant(nx, ny, gameState);
             if (!_visitedQuadrants.Contains(quad))
             {
-                decimal unexploredQuadrantBonusValue = WEIGHTS.UnexploredQuadrantBonus;
+                decimal unexploredQuadrantBonusValue = WeightManager.Instance.UnexploredQuadrantBonus;
                 if (LogHeuristicScores)
                 {
                     currentDetailedLog.Insert(

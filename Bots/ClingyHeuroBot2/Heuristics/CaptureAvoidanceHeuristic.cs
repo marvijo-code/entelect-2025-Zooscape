@@ -12,7 +12,7 @@ public class CaptureAvoidanceHeuristic : IHeuristic
 {
     public string Name => "CaptureAvoidance";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
         bool amITarget = false;

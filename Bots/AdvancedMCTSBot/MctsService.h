@@ -7,9 +7,9 @@
 
 class MctsService {
 public:
-    MctsService(int maxIterations, int timeLimit);
+    MctsService(int maxIterations, int timeLimit, int numThreads = 0, int maxDepth = 200);
     void SetBotId(std::string botId);
-    BotAction GetBestAction(const GameState& gameState);
+    MCTSResult GetBestAction(const GameState& gameState);
 
 private:
     std::unique_ptr<MCTSEngine> mctsEngine;

@@ -3,6 +3,18 @@
 #include "GameState.h"
 #include "MCTSNode.h"
 #include "Heuristics.h"
+
+struct ActionStats {
+    BotAction action;
+    int visits;
+    double avgScore;
+};
+
+struct MCTSResult {
+    BotAction bestAction;
+    std::vector<ActionStats> allActionStats;
+};
+
 #include <memory>
 #include <random>
 #include <chrono>
@@ -61,7 +73,7 @@ public:
     ~MCTSEngine();
     
     // Main MCTS interface
-    BotAction findBestAction(const GameState& state, const std::string& playerId);
+    MCTSResult findBestAction(const GameState& state, const std::string& playerId);
     
     // Configuration
     void setExplorationConstant(double c) { explorationConstant = c; }

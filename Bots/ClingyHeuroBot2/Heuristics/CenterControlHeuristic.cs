@@ -12,7 +12,7 @@ public class CenterControlHeuristic : IHeuristic
 {
     public string Name => "CenterControl";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext) // Updated signature
+    public decimal CalculateScore(IHeuristicContext heuristicContext) // Updated signature
     {
         int cx =
             (

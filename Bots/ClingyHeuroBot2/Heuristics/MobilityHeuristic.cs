@@ -13,16 +13,18 @@ public class MobilityHeuristic : IHeuristic
 {
     public string Name => "Mobility";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
-        return Enum.GetValues<BotAction>()
+        var mobilityCount = Enum.GetValues<BotAction>()
             .Cast<BotAction>()
             .Count(nextAction =>
             {
                 var (x2, y2) = BotUtils.ApplyMove(nx, ny, nextAction);
                 return BotUtils.IsTraversable(heuristicContext.CurrentGameState, x2, y2);
             });
+
+        return mobilityCount * heuristicContext.Weights.Mobility;
     }
 }
