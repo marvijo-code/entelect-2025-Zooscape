@@ -13,7 +13,7 @@ public class MovementConsistencyHeuristic : IHeuristic
     public string Name => "MovementConsistency";
 
     /// <summary>Encourage consistent movement direction to avoid oscillation - inspired by GatherNear's consistency</summary>
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         BotAction? previousDirection = heuristicContext.AnimalLastDirection;
 
@@ -46,7 +46,7 @@ public class MovementConsistencyHeuristic : IHeuristic
             // Bonus for continuing in the same direction
             if (heuristicContext.CurrentMove == previousDirection.Value)
             {
-                return 0.6m;
+                return heuristicContext.Weights.MovementConsistencyBonus;
             }
 
             // Penalty for reversing direction
@@ -63,7 +63,7 @@ public class MovementConsistencyHeuristic : IHeuristic
                 && opposites[previousDirection.Value] == heuristicContext.CurrentMove
             )
             {
-                return -1.2m;
+                return -heuristicContext.Weights.MovementConsistencyPenalty;
             }
         }
 

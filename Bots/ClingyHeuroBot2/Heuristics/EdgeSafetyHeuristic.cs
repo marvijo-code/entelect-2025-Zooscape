@@ -13,7 +13,7 @@ public class EdgeSafetyHeuristic : IHeuristic
 {
     public string Name => "EdgeSafety";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition; // Updated
 
@@ -32,11 +32,11 @@ public class EdgeSafetyHeuristic : IHeuristic
         );
 
         if (distToClosestEdge == 0)
-            return -2.0m; // Directly on an edge
+            return -heuristicContext.Weights.EdgeSafetyPenalty_0; // Directly on an edge
         else if (distToClosestEdge == 1)
-            return -0.8m; // One step away from an edge
+            return -heuristicContext.Weights.EdgeSafetyPenalty_1; // One step away from an edge
         else if (distToClosestEdge == 2)
-            return -0.2m; // Two steps away from an edge
+            return -heuristicContext.Weights.EdgeSafetyPenalty_2; // Two steps away from an edge
 
         return 0m; // Safe distance from edges
     }

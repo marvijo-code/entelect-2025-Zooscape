@@ -9,13 +9,13 @@ public class SpawnTimeMinimizerHeuristic : IHeuristic
 {
     public string Name => "SpawnTimeMinimizer";
 
-    public decimal CalculateRawScore(IHeuristicContext context)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
-        context.Logger?.Verbose("{Heuristic} not implemented", Name);
+        heuristicContext.Logger?.Verbose("{Heuristic} not implemented", Name);
         // Access GameState, Animal, BotAction via context if needed for actual logic
-        // var state = context.CurrentGameState;
-        // var me = context.CurrentAnimal;
-        // var move = context.CurrentMove;
+        // var state = heuristicContext.CurrentGameState;
+        // var me = heuristicContext.CurrentAnimal;
+        // var move = heuristicContext.CurrentMove;
         return 0m;
     }
 }

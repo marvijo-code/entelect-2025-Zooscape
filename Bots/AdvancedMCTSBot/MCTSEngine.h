@@ -64,11 +64,11 @@ private:
     void runParallelMCTS(MCTSNode* root, const std::string& playerId, int threadId);
     
 public:
-    MCTSEngine(double explorationConstant = 1.414, 
-               int maxIterations = 10000,
-               int maxSimulationDepth = 200,
-               int timeLimit = 950, // milliseconds
-               int numThreads = std::thread::hardware_concurrency());
+    MCTSEngine(double explorationConstant, 
+               int maxIterations,
+               int maxSimulationDepth,
+               int timeLimit, 
+               int numThreads);
     
     ~MCTSEngine();
     

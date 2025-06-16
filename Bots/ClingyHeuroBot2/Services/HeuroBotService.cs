@@ -1,12 +1,12 @@
 using ClingyHeuroBot2.Heuristics;
-using Marvijo.Zooscape.Bots.ClingyHeuroBot2.Heuristics; // For ScoreLog
+
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 using Serilog.Core; // For Logger.None
 
-namespace HeuroBot.Services;
+namespace ClingyHeuroBot2.Services;
 
 public class HeuroBotService : IBot<HeuroBotService>
 {

@@ -9,7 +9,7 @@ public class PelletAreaControlHeuristic : IHeuristic
 {
     public string Name => "PelletAreaControl";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         return 0m;
     }

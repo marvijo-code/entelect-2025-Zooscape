@@ -8,7 +8,7 @@ public class UseItemHeuristic : IHeuristic
 {
     public string Name => "UseItem";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         // This heuristic only applies if the move being considered is UseItem.
         if (heuristicContext.CurrentMove != BotAction.UseItem)
@@ -28,7 +28,7 @@ public class UseItemHeuristic : IHeuristic
             case PowerUpType.ChameleonCloak:
             case PowerUpType.Scavenger:
             case PowerUpType.BigMooseJuice:
-                return 1.0m; // Encourage using these items
+                return heuristicContext.Weights.UseItemBonus; // Encourage using these items
 
             case PowerUpType.PowerPellet: // PowerPellets are not "used", they are consumed on pickup
             default:

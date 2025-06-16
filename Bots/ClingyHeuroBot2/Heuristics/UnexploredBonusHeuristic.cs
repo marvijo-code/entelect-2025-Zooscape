@@ -9,18 +9,16 @@ public class UnexploredBonusHeuristic : IHeuristic
 {
     public string Name => "UnexploredBonus";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
-        var newPosition = heuristicContext.MyNewPosition;
-        int visits = heuristicContext.GetVisitCount(newPosition);
-
-        if (visits == 0)
-        {
-            // Return a raw score of 1. The actual influence is determined by the
-            // "UnexploredBonus" weight in heuristic-weights.json, which is applied
-            // by the HeuristicsManager.
-            return 1m;
-        }
+        // TODO: Re-implement this heuristic after adding visit count to IHeuristicContext
+        // var newPosition = heuristicContext.MyNewPosition;
+        // int visits = heuristicContext.GetVisitCount(newPosition);
+        //
+        // if (visits == 0)
+        // {
+        //     return heuristicContext.Weights.UnexploredBonus;
+        // }
 
         return 0m;
     }

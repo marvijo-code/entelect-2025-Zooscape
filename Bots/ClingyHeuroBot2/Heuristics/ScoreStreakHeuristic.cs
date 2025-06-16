@@ -8,7 +8,7 @@ public class ScoreStreakHeuristic : IHeuristic
 {
     public string Name => "ScoreStreak";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (newX, newY) = heuristicContext.MyNewPosition;
         var targetCell = heuristicContext.CurrentGameState.Cells.FirstOrDefault(c => c.X == newX && c.Y == newY);
@@ -18,7 +18,7 @@ public class ScoreStreakHeuristic : IHeuristic
         {
             // The raw score is the current score streak.
             // The weight for this heuristic will determine how valuable the streak is.
-            return heuristicContext.CurrentAnimal.ScoreStreak;
+            return heuristicContext.CurrentAnimal.ScoreStreak * heuristicContext.Weights.ScoreStreakBonus;
         }
 
         return 0m;

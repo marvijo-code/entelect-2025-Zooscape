@@ -3,6 +3,7 @@ using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Utils;
 using Serilog;
 
 namespace ClingyHeuroBot2.Heuristics;
@@ -11,7 +12,7 @@ public class ZookeeperPredictionHeuristic : IHeuristic
 {
     public string Name => "ZookeeperPrediction";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
@@ -25,7 +26,7 @@ public class ZookeeperPredictionHeuristic : IHeuristic
             // Simple prediction: zookeeper moves toward closest animal
             var closestAnimal = heuristicContext
                 .CurrentGameState.Animals.OrderBy(a =>
-                    Heuristics.ManhattanDistance(a.X, a.Y, zookeeper.X, zookeeper.Y)
+                    BotUtils.ManhattanDistance(a.X, a.Y, zookeeper.X, zookeeper.Y)
                 )
                 .FirstOrDefault();
             if (closestAnimal != null)
@@ -39,11 +40,11 @@ public class ZookeeperPredictionHeuristic : IHeuristic
                 int predictedY = zookeeper.Y + dy;
 
                 if (predictedX == nx && predictedY == ny)
-                    return -3.0m; // Strong penalty for moving into predicted zookeeper position
+                    return heuristicContext.Weights.ZookeeperPredictedPositionPenalty; // Strong penalty for moving into predicted zookeeper position
 
-                int distToPredicted = Heuristics.ManhattanDistance(predictedX, predictedY, nx, ny);
-                if (distToPredicted <= 2)
-                    return -1.5m / ((decimal)distToPredicted + 0.5m);
+                int distToPredicted = BotUtils.ManhattanDistance(predictedX, predictedY, nx, ny);
+                if (distToPredicted <= heuristicContext.Weights.ZookeeperNearPredictedPositionDistance)
+                    return heuristicContext.Weights.ZookeeperNearPredictedPositionPenalty / ((decimal)distToPredicted + heuristicContext.Weights.ZookeeperNearPredictedPositionDivisor);
             }
         }
 

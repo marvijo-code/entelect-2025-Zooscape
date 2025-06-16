@@ -11,7 +11,7 @@ public class ZookeeperCooldownHeuristic : IHeuristic
 {
     public string Name => "ZookeeperCooldown";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var state = heuristicContext.CurrentGameState;
         var me = heuristicContext.CurrentAnimal;

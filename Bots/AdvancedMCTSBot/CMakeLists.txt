@@ -51,8 +51,34 @@ add_executable(AdvancedMCTSBotTest162
 find_package(fmt CONFIG REQUIRED)
 
 # Include directories to access headers
-target_include_directories(AdvancedMCTSBotTest162 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(AdvancedMCTSBotTest162 PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR} 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../Marvijo.Zooscape.Bots.Common/cpp
+)
 
 target_link_libraries(AdvancedMCTSBotTest162 PRIVATE fmt::fmt)
 
 add_test(NAME AdvancedMCTSBot_SmokeTest162 COMMAND AdvancedMCTSBotTest162)
+set_tests_properties(AdvancedMCTSBot_SmokeTest162 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+
+add_executable(AdvancedMCTSBotTest34
+    tests/Test34.cpp
+    tests/JsonGameStateLoader.cpp
+    GameState.cpp
+    MCTSEngine.cpp
+    MctsService.cpp
+    MCTSNode.cpp
+    Heuristics.cpp
+)
+
+target_include_directories(AdvancedMCTSBotTest34 PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR} 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../Marvijo.Zooscape.Bots.Common/cpp
+)
+
+target_link_libraries(AdvancedMCTSBotTest34 PRIVATE fmt::fmt)
+
+add_test(NAME AdvancedMCTSBot_SmokeTest34 COMMAND AdvancedMCTSBotTest34)
+set_tests_properties(AdvancedMCTSBot_SmokeTest34 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)

@@ -2,6 +2,7 @@ using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Utils;
 using Serilog;
 
 namespace ClingyHeuroBot2.Heuristics;
@@ -13,14 +14,14 @@ public class ScoreLossMinimizerHeuristic : IHeuristic
     /// <summary>
     /// Calculates risk/reward considering score loss from capture
     /// </summary>
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
-        // Assume capture penalty is 50% of score (adjust based on actual game settings)
-        float capturePenaltyPercent = 0.5f;
+        // Assume capture penalty is based on game settings
+        var capturePenaltyPercent = heuristicContext.Weights.CapturePenaltyPercent;
 
         // Calculate potential score loss if captured
         decimal potentialLoss =
-            heuristicContext.CurrentAnimal.Score * (decimal)capturePenaltyPercent;
+            heuristicContext.CurrentAnimal.Score * capturePenaltyPercent;
 
         var (nx, ny) = heuristicContext.MyNewPosition;
 
@@ -29,25 +30,27 @@ public class ScoreLossMinimizerHeuristic : IHeuristic
         if (heuristicContext.CurrentGameState.Zookeepers.Count > 0)
         {
             int minDist = heuristicContext.CurrentGameState.Zookeepers.Min(z =>
-                Heuristics.ManhattanDistance(z.X, z.Y, nx, ny)
+                BotUtils.ManhattanDistance(z.X, z.Y, nx, ny)
             );
 
             // Risk increases as zookeeper gets closer
-            if (minDist <= 3)
-                captureRisk = 0.8m / (minDist + 0.5m);
-            else if (minDist <= 6)
-                captureRisk = 0.3m / (minDist + 0.5m);
+            if (minDist <= heuristicContext.Weights.ScoreLossMinimizerHighRiskDistance)
+                captureRisk = heuristicContext.Weights.ScoreLossMinimizerHighRiskFactor / 
+                              (minDist + heuristicContext.Weights.ScoreLossMinimizerRiskDistanceDivisor);
+            else if (minDist <= heuristicContext.Weights.ScoreLossMinimizerMediumRiskDistance)
+                captureRisk = heuristicContext.Weights.ScoreLossMinimizerMediumRiskFactor / 
+                              (minDist + heuristicContext.Weights.ScoreLossMinimizerRiskDistanceDivisor);
         }
 
         // Calculate risk-adjusted value
-        decimal scoreThreshold = 20m; // Significant score worth protecting
+        var scoreThreshold = heuristicContext.Weights.ScoreLossMinimizerSignificantScoreThreshold;
 
         if (potentialLoss > scoreThreshold)
         {
             // Increase caution as potential loss increases
-            return -captureRisk * (potentialLoss / 10m);
+            return -captureRisk * (potentialLoss / heuristicContext.Weights.ScoreLossMinimizerCautionFactor);
         }
 
-        return -captureRisk * 0.5m; // Lower caution for small scores
+        return -captureRisk * heuristicContext.Weights.ScoreLossMinimizerLowScoreCautionFactor;
     }
 }

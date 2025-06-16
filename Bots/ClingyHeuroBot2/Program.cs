@@ -1,4 +1,4 @@
-using HeuroBot.Services;
+using ClingyHeuroBot2.Services;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Microsoft.AspNetCore.SignalR.Client;

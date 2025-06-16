@@ -2,6 +2,7 @@
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Utils;
 using Serilog;
 
 namespace ClingyHeuroBot2.Heuristics;
@@ -10,22 +11,22 @@ public class SpawnProximityHeuristic : IHeuristic
 {
     public string Name => "SpawnProximity";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
-        int spawnDist = Heuristics.ManhattanDistance(
+        int spawnDist = BotUtils.ManhattanDistance(
             heuristicContext.CurrentAnimal.SpawnX,
             heuristicContext.CurrentAnimal.SpawnY,
             nx,
             ny
         );
 
-        if (spawnDist < 3 && heuristicContext.CurrentGameState.Tick < 50)
+        if (spawnDist < heuristicContext.Weights.SpawnProximityEarlyGameDistanceThreshold && heuristicContext.CurrentGameState.Tick < heuristicContext.Weights.SpawnProximityEarlyGameTickThreshold)
         {
-            return -1.0m * (3 - spawnDist);
+            return heuristicContext.Weights.SpawnProximityEarlyGamePenalty * (heuristicContext.Weights.SpawnProximityEarlyGameDistanceThreshold - spawnDist);
         }
 
-        return (decimal)spawnDist / 10.0m;
+        return (decimal)spawnDist / heuristicContext.Weights.SpawnProximityDistanceBonusDivisor;
     }
 }

@@ -10,7 +10,7 @@ public class EmptyCellAvoidanceHeuristic : IHeuristic
 {
     public string Name => "EmptyCellAvoidance";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         heuristicContext.Logger?.Verbose("{Heuristic} not implemented", Name);
         return 0m;

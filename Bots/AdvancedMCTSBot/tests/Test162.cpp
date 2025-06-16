@@ -21,7 +21,7 @@ std::string actionToString(BotAction action) {
 
 int main()
 {
-    const std::string jsonPath = "../../../FunctionalTests/GameStates/162.json";
+    const std::string jsonPath = "FunctionalTests/GameStates/162.json";
     const std::string botNickname = "MarvijoClingyBot"; // The bot's name in 162.json
 
     auto gameStateOpt = TestUtils::JsonGameStateLoader::loadStateFromFile(jsonPath, botNickname);
@@ -39,7 +39,7 @@ int main()
     }
 
     // Instantiate MCTS service with parameters suitable for a functional test
-    MctsService mcts(/*maxIterations*/1000000, /*timeLimitMs*/500, /*numThreads*/1);
+    MctsService mcts(/*maxIterations*/1000000, /*timeLimitMs*/200, /*numThreads*/1, /*maxDepth*/10);
     mcts.SetBotId(gs.myAnimalId);
 
     MCTSResult result = mcts.GetBestAction(gs);

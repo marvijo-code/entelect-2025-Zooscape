@@ -2,6 +2,7 @@
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Utils;
 using Serilog;
 
 namespace ClingyHeuroBot2.Heuristics;
@@ -10,27 +11,27 @@ public class WallCollisionRiskHeuristic : IHeuristic
 {
     public string Name => "WallCollisionRisk";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
-        var (x, y) = Heuristics.ApplyMove(
+        var (x, y) = BotUtils.ApplyMove(
             heuristicContext.CurrentAnimal.X,
             heuristicContext.CurrentAnimal.Y,
             heuristicContext.CurrentMove
         );
         int steps = 0;
-        while (steps < 3 && Heuristics.IsTraversable(heuristicContext.CurrentGameState, x, y))
+        while (steps < 3 && BotUtils.IsTraversable(heuristicContext.CurrentGameState, x, y))
         {
-            (x, y) = Heuristics.ApplyMove(x, y, heuristicContext.CurrentMove);
+            (x, y) = BotUtils.ApplyMove(x, y, heuristicContext.CurrentMove);
             steps++;
         }
-        if (!Heuristics.IsTraversable(heuristicContext.CurrentGameState, x, y))
+        if (!BotUtils.IsTraversable(heuristicContext.CurrentGameState, x, y))
             steps--;
 
         return steps switch
         {
-            0 => -2.0m, // would hit wall next tick
-            1 => -0.8m,
-            2 => -0.3m,
+            0 => heuristicContext.Weights.WallCollisionPenaltyImmediate, // would hit wall next tick
+            1 => heuristicContext.Weights.WallCollisionPenaltyNear,
+            2 => heuristicContext.Weights.WallCollisionPenaltyMidRange,
             _ => 0m,
         };
     }

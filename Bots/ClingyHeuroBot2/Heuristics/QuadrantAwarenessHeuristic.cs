@@ -11,7 +11,7 @@ public class QuadrantAwarenessHeuristic : IHeuristic
 {
     public string Name => "QuadrantAwareness";
 
-    public decimal CalculateRawScore(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
@@ -57,10 +57,10 @@ public class QuadrantAwarenessHeuristic : IHeuristic
             animalsByQuadrant[q]++;
         }
 
-        decimal quadrantValue = pelletsByQuadrant[targetQuadrant] * 0.2m;
+        decimal quadrantValue = pelletsByQuadrant[targetQuadrant] * heuristicContext.Weights.QuadrantPelletBonus;
         if (animalsByQuadrant[targetQuadrant] > 0)
         {
-            quadrantValue -= animalsByQuadrant[targetQuadrant] * 0.1m;
+            quadrantValue -= animalsByQuadrant[targetQuadrant] * heuristicContext.Weights.QuadrantAnimalPenalty;
         }
 
         return quadrantValue;
