@@ -215,7 +215,7 @@ public class StandardBotTests : BotTestsBase
         {
             TestGameStateJsonPath = "162.json",
             BotNicknameToTest = "ClingyHeuroBot2",
-            ExpectedAction = BotAction.Up, // Allow either Left or Down action
+            ExpectedAction = BotAction.Up,
             BotsArray = new object[] { _clingyHeuroBot2 },
         };
 

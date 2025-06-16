@@ -41,6 +41,18 @@ const App = () => {
   );
   const [liveTickQueue, setLiveTickQueue] = useState([]);
   const [currentGameState, setCurrentGameState] = useState(null);
+
+  useEffect(() => {
+    // This effect ensures currentGameState is updated whenever
+    // allGameStates or currentDisplayIndex changes, for example,
+    // after loading a game state from a pasted JSON or file path.
+    if (allGameStates && allGameStates.length > 0 && currentDisplayIndex >= 0 && currentDisplayIndex < allGameStates.length) {
+      setCurrentGameState(allGameStates[currentDisplayIndex]);
+    } else if (allGameStates && allGameStates.length === 0 && currentDisplayIndex === 0) {
+      // Handles cases like exiting replay mode where states are cleared.
+      setCurrentGameState(null);
+    }
+  }, [allGameStates, currentDisplayIndex]);
   const [replayingGameName, setReplayingGameName] = useState(null);
   const [replayGameId, setReplayGameId] = useState(null);
   const [replayTickCount, setReplayTickCount] = useState(0);
