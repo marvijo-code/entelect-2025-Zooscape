@@ -85,7 +85,11 @@ void MCTSNode::update(double reward) {
     atomicAddReward(reward);
     
     // Update squared reward for variance calculation
-    totalSquaredReward += reward * reward;
+    double currentSquaredReward = totalSquaredReward.load(std::memory_order_relaxed);
+    double newSquaredReward;
+    do {
+        newSquaredReward = currentSquaredReward + (reward * reward);
+    } while (!totalSquaredReward.compare_exchange_weak(currentSquaredReward, newSquaredReward, std::memory_order_release, std::memory_order_relaxed));
     
     // Invalidate cached UCB value
     cachedUCBVisits = -1;
@@ -200,8 +204,12 @@ MCTSNode* MCTSNode::getMostVisitedChild() const {
 
 void MCTSNode::updateRAVE(BotAction action, double reward) {
     auto& [totalReward, visits] = raveStats[action];
-    totalReward += reward;
-    visits++;
+    double currentRaveReward = totalReward.load(std::memory_order_relaxed);
+    double newRaveReward;
+    do {
+        newRaveReward = currentRaveReward + reward;
+    } while (!totalReward.compare_exchange_weak(currentRaveReward, newRaveReward, std::memory_order_release, std::memory_order_relaxed));
+    visits.fetch_add(1, std::memory_order_relaxed); // fetch_add for int is fine
 }
 
 double MCTSNode::getRAVEValue(BotAction action) const {

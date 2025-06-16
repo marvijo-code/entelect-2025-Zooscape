@@ -4,9 +4,23 @@
 #include "fmt/core.h"
 #include <iostream>
 #include <cstdlib>
+#include <optional>
+#include <string>
 #include <random>
 
 namespace {
+    // Helper function to safely get environment variables
+    std::optional<std::string> getEnvVar(const char* varName) {
+        char* buffer = nullptr;
+        size_t size = 0;
+        if (_dupenv_s(&buffer, &size, varName) == 0 && buffer != nullptr) {
+            std::string value(buffer);
+            free(buffer);
+            return value;
+        }
+        return std::nullopt;
+    }
+
     GameState convertGameState(const std::vector<signalr::value>& args);
     std::string generateGuid() {
         std::random_device rd;
@@ -112,16 +126,16 @@ namespace {
         state.gameMode = try_get_string(map, "gameMode");
 
         if (state.gridWidth > 0 && state.gridHeight > 0) {
-            if (map.count("walls")) state.walls = convertBitBoard(map.at("walls"), state.gridWidth, state.gridHeight);
-            if (map.count("pellets")) state.pellets = convertBitBoard(map.at("pellets"), state.gridWidth, state.gridHeight);
-            if (map.count("powerPellets")) state.powerPellets = convertBitBoard(map.at("powerPellets"), state.gridWidth, state.gridHeight);
+            if (map.count("walls")) state.wallBoard = convertBitBoard(map.at("walls"), state.gridWidth, state.gridHeight);
+            if (map.count("pellets")) state.pelletBoard = convertBitBoard(map.at("pellets"), state.gridWidth, state.gridHeight);
+            if (map.count("powerPellets")) state.powerUpBoard = convertBitBoard(map.at("powerPellets"), state.gridWidth, state.gridHeight);
         }
 
         if (map.count("animals") && map.at("animals").is_array()) {
             for (const auto& val : map.at("animals").as_array()) {
                 Animal animal = convertAnimal(val);
                 if (!animal.id.empty()) {
-                    state.animals[animal.id] = animal;
+                    state.animals.push_back(animal);
                 }
             }
         }
@@ -130,7 +144,7 @@ namespace {
             for (const auto& val : map.at("zookeepers").as_array()) {
                 Zookeeper zookeeper = convertZookeeper(val);
                 if (!zookeeper.id.empty()) {
-                    state.zookeepers[zookeeper.id] = zookeeper;
+                    state.zookeepers.push_back(zookeeper);
                 }
             }
         }
@@ -150,56 +164,67 @@ Bot::Bot() {
     mctsService = std::make_unique<MctsService>(config.maxIterations, config.timeLimit);
 
     std::string hubUrl = fmt::format("{}:{}/{}", config.runnerIP, config.runnerPort, config.hubName);
-    connection = signalr::hub_connection_builder::create(hubUrl).build();
+    connection.emplace(signalr::hub_connection_builder::create(hubUrl).build());
 
-    connection.on("Registered", [this](const std::vector<signalr::value>& args) {
+    if (connection) {
+        connection->on("Registered", [this](const std::vector<signalr::value>& args) {
         if (!args.empty()) {
             std::string botId = args[0].as_string();
             mctsService->SetBotId(botId);
             fmt::println("Bot registered successfully with ID: {}", botId);
         }
     });
+    }
 
-    connection.on("ReceiveBotState", [this](const std::vector<signalr::value>& args) {
+    if (connection) {
+        connection->on("ReceiveBotState", [this](const std::vector<signalr::value>& args) {
         fmt::print("Received bot state. ");
         GameState gameState = convertGameState(args);
         BotAction command = mctsService->GetBestAction(gameState);
         fmt::println("Responding with action: {}", static_cast<int>(command));
         
         signalr::value convertedCommand = convertBotAction(command);
-        connection.send("SendPlayerCommand", std::vector<signalr::value>{convertedCommand}, [](std::exception_ptr exc) {
+        connection->send("SendPlayerCommand", std::vector<signalr::value>{convertedCommand}, [](std::exception_ptr exc) {
             handleExceptionPtr("SendPlayerCommand", exc);
         });
     });
+    }
 
-    connection.on("Disconnect", [this](const std::vector<signalr::value>&) {
+    if (connection) {
+        connection->on("Disconnect", [this](const std::vector<signalr::value>&) {
         fmt::println("Disconnect message received. Shutting down.");
         stop_task.set_value();
     });
+    }
 
-    connection.set_disconnected([this](std::exception_ptr exc) {
+    if (connection) {
+        connection->set_disconnected([this](std::exception_ptr exc) {
         fmt::println("Connection disconnected.");
         handleExceptionPtr("Disconnection", exc);
         stop_task.set_value();
     });
+    }
 }
 
 void Bot::loadConfiguration() {
-    const char* runnerIpEnv = std::getenv("RUNNER_IPV4_OR_URL");
-    if (runnerIpEnv) config.runnerIP = runnerIpEnv;
+    if (auto runnerIpEnv = getEnvVar("RUNNER_IPV4_OR_URL")) {
+        config.runnerIP = *runnerIpEnv;
+    }
 
-    const char* runnerPortEnv = std::getenv("RUNNER_PORT");
-    if (runnerPortEnv) config.runnerPort = std::stoi(runnerPortEnv);
+    if (auto runnerPortEnv = getEnvVar("RUNNER_PORT")) {
+        config.runnerPort = std::stoi(*runnerPortEnv);
+    }
 
-    const char* hubNameEnv = std::getenv("HUB_NAME");
-    if (hubNameEnv) config.hubName = hubNameEnv;
+    if (auto hubNameEnv = getEnvVar("HUB_NAME")) {
+        config.hubName = *hubNameEnv;
+    }
 
-    const char* botNicknameEnv = std::getenv("BOT_NICKNAME");
-    if (botNicknameEnv) config.botNickname = botNicknameEnv;
+    if (auto botNicknameEnv = getEnvVar("BOT_NICKNAME")) {
+        config.botNickname = *botNicknameEnv;
+    }
 
-    const char* botTokenEnv = std::getenv("BOT_TOKEN");
-    if (botTokenEnv) {
-        config.botToken = botTokenEnv;
+    if (auto botTokenEnv = getEnvVar("BOT_TOKEN")) {
+        config.botToken = *botTokenEnv;
     } else {
         config.botToken = generateGuid();
     }
@@ -208,8 +233,12 @@ void Bot::loadConfiguration() {
 }
 
 void Bot::run() {
+    if (!connection) {
+        fmt::println("Error: Connection not initialized in Bot::run().");
+        return;
+    }
     std::promise<void> start_task;
-    connection.start([&start_task](std::exception_ptr exc) {
+    connection->start([&start_task](std::exception_ptr exc) {
         handleExceptionPtr("Connection Start", exc);
         start_task.set_value();
     });
@@ -217,7 +246,7 @@ void Bot::run() {
 
     std::promise<void> register_task;
     std::vector<signalr::value> registerArgs{config.botToken, config.botNickname};
-    connection.send("Register", registerArgs, [&register_task](std::exception_ptr exc) {
+    connection->send("Register", registerArgs, [&register_task](std::exception_ptr exc) {
         handleExceptionPtr("Registration", exc);
         register_task.set_value();
     });
@@ -226,9 +255,11 @@ void Bot::run() {
     fmt::println("Bot is running. Waiting for game to complete...");
     stop_task.get_future().get();
 
-    connection.stop([](std::exception_ptr exc) {
+    if (connection) {
+        connection->stop([](std::exception_ptr exc) {
         handleExceptionPtr("Connection Stop", exc);
     });
+    }
 }
 
 void Bot::requestShutdown() {

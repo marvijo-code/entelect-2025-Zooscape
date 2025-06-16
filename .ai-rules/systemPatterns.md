@@ -3,7 +3,7 @@
 ## System Build
 
 - The system consists of a central game engine (likely Dockerized) and multiple bot processes.
-- Bots are .NET applications.
+- Bots can be .NET or C++ applications (and potentially other languages if they can communicate with the engine).
 
 ## Key Decisions
 

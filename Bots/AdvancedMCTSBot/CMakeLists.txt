@@ -1,4 +1,11 @@
-﻿# CMakeList.txt : Top-level CMake project file, do global configuration
+cmake_minimum_required(VERSION 3.8)
+project(AdvancedMCTSBot LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# CMakeList.txt : Top-level CMake project file, do global configuration
 # and include sub-projects here.
 #
 cmake_minimum_required (VERSION 3.8)
@@ -13,14 +20,12 @@ project ("AdvancedMCTSBot")
 
 add_executable(AdvancedMCTSBot
     main.cpp
-    Bot.cpp  
-    Bot.h
-    GameState.h
-    Heuristics.h
-    MCTSEngine.h
-    MCTSNode.h
-    MctsService.h
-    SignalRClient.h
+    Bot.cpp
+    GameState.cpp
+    MCTSEngine.cpp
+    MctsService.cpp
+    Heuristics.cpp
+    MCTSNode.cpp
 )
 
 find_package(fmt CONFIG REQUIRED)

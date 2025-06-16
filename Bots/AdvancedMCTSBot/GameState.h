@@ -8,6 +8,7 @@
 #include <cstdint>
 
 enum class BotAction : int {
+    None = 0,
     Up = 1,
     Down = 2,
     Left = 3,
@@ -127,15 +128,21 @@ class GameState {
 private:
     int width, height;
     std::vector<std::vector<CellContent>> grid;
-    BitBoard pelletBoard;
-    BitBoard powerUpBoard;
-    BitBoard wallBoard;
+    // BitBoard members moved to public
     
 public:
     int tick;
     std::vector<Animal> animals;
     std::vector<Zookeeper> zookeepers;
     std::string myAnimalId;
+    BitBoard pelletBoard;
+    BitBoard powerUpBoard;
+    BitBoard wallBoard;
+
+    int gridWidth = 0;
+    int gridHeight = 0;
+    int remainingTicks = 0;
+    std::string gameMode;
     
     GameState(int w = 0, int h = 0);
     

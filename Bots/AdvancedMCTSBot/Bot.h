@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <future>
+#include <optional>
 
 class Bot {
 public:
@@ -27,7 +28,7 @@ private:
     void loadConfiguration();
 
     std::unique_ptr<MctsService> mctsService;
-    signalr::hub_connection connection;
+    std::optional<signalr::hub_connection> connection;
     std::promise<void> stop_task;
 };
 
