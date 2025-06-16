@@ -169,7 +169,7 @@ while ($keepRunningScript) {
     $builtBots = @()
     $buildFailed = $false
     foreach ($bot in $bots) {
-        Write-Host "[BOT] Building $($bot.Name)…" -ForegroundColor Green
+        Write-Host "[BOT] Building $($bot.Name)..." -ForegroundColor Green
         $env:HUSKY = "0"
         $botProjectPath = Join-Path $scriptRoot $bot.Path
         
@@ -228,31 +228,25 @@ while ($keepRunningScript) {
 
     # 5. Launch engine (always in new tab)
     if ($isFirstRun) {
-        Write-Host "[ENGINE] Launching Zooscape in new tab…" -ForegroundColor Yellow
+        Write-Host "[ENGINE] Launching Zooscape in new tab..." -ForegroundColor Yellow
     }
     else {
-        Write-Host "[ENGINE] Launching Zooscape in new tab…" -ForegroundColor Yellow
+        Write-Host "[ENGINE] Launching Zooscape in new tab..." -ForegroundColor Yellow
     }
     
     $engineCommand = "dotnet run --project `"$engineCsproj`" --configuration Release"
     $encodedEngineCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($engineCommand))
-    $wtArgsEngine = @("-w", "0", "new-tab", "--unfocused", "--title", "Engine", "--tabColor", $engineTabColor, "-d", $engineDir, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedEngineCommand)
+    $wtArgsEngine = @("-w", "0", "new-tab", "--title", "Engine", "--tabColor", $engineTabColor, "-d", $engineDir, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedEngineCommand)
     Start-Process wt -ArgumentList $wtArgsEngine -NoNewWindow
 
     # Give the engine a moment to start listening
     Write-Host "Waiting for engine to initialize (5 seconds)..." -ForegroundColor DarkGray
     Start-Sleep -Seconds 5
 
-    # 6. Launch or restart each bot
+    # 6. Launch all bots in a single command to avoid focus stealing
+    $botCommands = @()
     $botColorIndex = 0
     foreach ($bot in $builtBots) {
-        if ($isFirstRun) {
-            Write-Host "[BOT] Launching $($bot.Name) in new tab…" -ForegroundColor Green
-        }
-        else {
-            Write-Host "[BOT] Restarting $($bot.Name) in existing tab…" -ForegroundColor Green
-        }
-            
         $tokenGuid = [guid]::NewGuid().ToString()
         $envVarSetup = (
             "`$env:BOT_NICKNAME = '$($bot.Name)';",
@@ -279,40 +273,66 @@ while ($keepRunningScript) {
         $encodedBotCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($fullCommandString))
         $tabTitle = $bot.Name
         $currentBotTabColor = $botTabColors[$botColorIndex % $botTabColors.Count]
-            
-        # Always create new tab (simplified approach)
-        $wtArgsBot = @("-w", "0", "new-tab", "--unfocused", "--title", $tabTitle, "--tabColor", $currentBotTabColor, "-d", $botWorkingDirectory, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedBotCommand)
-        Start-Process wt -ArgumentList $wtArgsBot -NoNewWindow
+
+        # Note: The semicolon is crucial for chaining commands in wt.exe
+        $botCommands += @(";", "new-tab", "--title", $tabTitle, "--tabColor", $currentBotTabColor, "-d", $botWorkingDirectory, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedBotCommand)
         $botColorIndex++
-            
-        # Small delay between launching bots
-        Start-Sleep -Seconds 1
+    }
+
+    if ($botCommands.Count -gt 0) {
+        Write-Host "[BOTS] Launching all bots in new tabs..." -ForegroundColor Green
+        # The first command doesn't need the leading semicolon, so we skip it.
+        $allBotWtArgs = @("-w", "0") + $botCommands[1..($botCommands.Count - 1)]
+        Start-Process wt -ArgumentList $allBotWtArgs -NoNewWindow
     }
 
     # Mark that we've completed the first run
     $isFirstRun = $false
+    $Host.UI.RawUI.WindowTitle = "Zooscape Bot Manager (Running)"
         
     Write-Host "All components launched. Monitor their respective tabs for logs." -ForegroundColor Cyan
+    Write-Host "Games will automatically restart every 3 minutes." -ForegroundColor Cyan
     Write-Host "Press 'q' in THIS window to STOP all application processes (tabs will remain open)." -ForegroundColor White
     Write-Host "Press 'c' in THIS window to CLOSE this script and LEAVE applications running." -ForegroundColor White
 
     $userAction = ''
+    $gameStartTime = Get-Date
+    $gameDurationMinutes = 3
+    
     while ($true) {
+        # Check for user input
         if ([Console]::KeyAvailable) {
             $keyInfo = [Console]::ReadKey($true)
             if ($keyInfo.KeyChar -eq 'q') { $userAction = 'stop'; break }
             if ($keyInfo.KeyChar -eq 'c') { $userAction = 'close_script'; $keepRunningScript = $false; break }
         }
-        Start-Sleep -Milliseconds 200
+        
+        # Check if 3 minutes have passed
+        $elapsedMinutes = ((Get-Date) - $gameStartTime).TotalMinutes
+        if ($elapsedMinutes -ge $gameDurationMinutes) {
+            Write-Host "`n$gameDurationMinutes minutes have elapsed. Restarting games..." -ForegroundColor Yellow
+            $userAction = 'restart'
+            break
+        }
+        
+        # Show time remaining in the console title
+        $timeRemaining = [math]::Ceiling($gameDurationMinutes - $elapsedMinutes)
+        $Host.UI.RawUI.WindowTitle = "Next restart in: $timeRemaining minute(s) - Press 'q' to stop or 'c' to close"
+        
+        Start-Sleep -Milliseconds 500
     }
 
     if ($userAction -eq 'stop') {
         Stop-DotnetProcesses
+        $Host.UI.RawUI.WindowTitle = "Zooscape Bot Manager (Stopped)"
         Write-Host "Applications stopped. Terminal tabs remain open." -ForegroundColor Yellow
         Write-Host "Press Enter to RESTART applications, or 'x' to EXIT script." -ForegroundColor White
         while ($true) {
             $keyInfo = [Console]::ReadKey($true)
-            if ($keyInfo.Key -eq 'Enter') { break } # Restart by continuing outer $keepRunningScript loop
+            if ($keyInfo.Key -eq 'Enter') { 
+                $Host.UI.RawUI.WindowTitle = "Zooscape Bot Manager (Running)"
+                break 
+            } # Restart by continuing outer $keepRunningScript loop
             if ($keyInfo.KeyChar -eq 'x') { $keepRunningScript = $false; break } # Exit script
         }
     }

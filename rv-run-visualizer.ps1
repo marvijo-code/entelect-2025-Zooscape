@@ -2,6 +2,18 @@
 
 Set-Location 'c:\dev\2025-Zooscape\'
 
+# Prevent line wrapping by extending the buffer width
+try {
+    $newWidth = 500
+    $bufferSize = $Host.UI.RawUI.BufferSize
+    if ($bufferSize.Width -lt $newWidth) {
+        $Host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.Size($newWidth, $bufferSize.Height)
+        Write-Host "Set terminal buffer width to $newWidth to prevent line wrapping." -ForegroundColor DarkCyan
+    }
+} catch {
+    Write-Warning "Could not set terminal buffer width. Output might wrap. Error: $_"
+}
+
 # Function to stop processes on a specific port
 function Stop-ProcessOnPort {
     param(
