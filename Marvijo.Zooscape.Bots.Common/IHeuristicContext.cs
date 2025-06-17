@@ -50,17 +50,26 @@ namespace Marvijo.Zooscape.Bots.Common
         BotAction CurrentMove { get; }
 
         /// <summary>
-        /// Gets the logger instance for heuristic logging.
+        /// Gets the logger for heuristic-specific logging.
         /// </summary>
         ILogger Logger { get; }
 
         /// <summary>
-        /// Gets the queue of recently visited positions by the current animal.
+        /// Gets the configured weights for all heuristics.
+        /// </summary>
+        HeuristicWeights Weights { get; }
+
+        /// <summary>
+        /// Gets the queue of recent positions for the current animal.
         /// </summary>
         System.Collections.Generic.Queue<(int X, int Y)> AnimalRecentPositions { get; }
 
         /// <summary>
-        /// Gets the configured heuristic weights.
+        /// Gets the last committed direction for the current animal.
+        /// </summary>
+        BotAction? AnimalLastDirection { get; }
+
+        /// <summary>
         /// </summary>
         HeuristicWeights Weights { get; }
 

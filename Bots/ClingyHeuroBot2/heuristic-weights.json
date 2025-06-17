@@ -56,5 +56,20 @@
   "AdaptivePathfinding": 1.1,
   "PowerUpCollection": 2.5,
   "UseItem": 2.0,
-  "ScoreStreak": 0.2
+  "ScoreStreak": 0.2,
+  "RecalcWindowSize": 20,
+  "RecalcWindowSafetyTickThreshold": 3,
+  "RecalcWindowSafetyDistanceThreshold": 4,
+  "RecalcWindowSafetyPenalty": -1.5,
+  "RecalcWindowSafetyBonus": 0.4,
+  "ZookeeperCooldownRecalcInterval": 20,
+  "ZookeeperCooldownBonus": 1.0,
+  "SpawnProximityDistanceThreshold": 3,
+  "SpawnProximityPenalty": -2.0,
+  "SpawnProximityBonus": 0.5,
+  "UseItemBonus": 3.0,
+  "OpponentTrailChasingMinDistance": 2,
+  "OpponentTrailChasingMaxDistance": 8,
+  "OpponentTrailChasingBonus": 1.5,
+  "ZookeeperPredictionPenalty": -2.0
 }

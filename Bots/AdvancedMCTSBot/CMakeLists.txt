@@ -62,6 +62,8 @@ target_link_libraries(AdvancedMCTSBotTest162 PRIVATE fmt::fmt)
 add_test(NAME AdvancedMCTSBot_SmokeTest162 COMMAND AdvancedMCTSBotTest162)
 set_tests_properties(AdvancedMCTSBot_SmokeTest162 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
+find_package(fmt CONFIG REQUIRED)
+
 add_executable(AdvancedMCTSBotTest34
     tests/Test34.cpp
     tests/JsonGameStateLoader.cpp

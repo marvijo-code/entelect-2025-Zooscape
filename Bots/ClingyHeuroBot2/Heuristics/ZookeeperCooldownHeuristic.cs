@@ -13,6 +13,7 @@ public class ZookeeperCooldownHeuristic : IHeuristic
 
     public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
+        var weights = heuristicContext.Weights;
         var state = heuristicContext.CurrentGameState;
         var me = heuristicContext.CurrentAnimal;
 
@@ -22,7 +23,7 @@ public class ZookeeperCooldownHeuristic : IHeuristic
         }
 
         decimal score = 0m;
-        const int recalculateInterval = 20;
+        var recalculateInterval = weights.ZookeeperCooldownRecalcInterval;
         int ticksUntilRecalculate = recalculateInterval - (state.Tick % recalculateInterval);
 
         foreach (var zookeeper in state.Zookeepers)
@@ -38,7 +39,7 @@ public class ZookeeperCooldownHeuristic : IHeuristic
             {
                 // The bonus is higher if the recalculation is further away.
                 // This encourages taking advantage of the "cooldown" period.
-                score += (decimal)ticksUntilRecalculate / recalculateInterval;
+                score += weights.ZookeeperCooldownBonus * ((decimal)ticksUntilRecalculate / recalculateInterval);
             }
         }
 

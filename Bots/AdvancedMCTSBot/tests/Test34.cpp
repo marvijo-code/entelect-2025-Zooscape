@@ -23,7 +23,7 @@ std::string actionToString(BotAction action) {
 }
 
 int main() {
-    auto gs_optional = TestUtils::JsonGameStateLoader::loadStateFromFile("FunctionalTests/GameStates/34.json", "AdvancedMCTSBot");
+        auto gs_optional = TestUtils::JsonGameStateLoader::loadStateFromFile("FunctionalTests/GameStates/34.json", "ClingyHeuroBot2");
     if (!gs_optional) {
         std::cerr << "Failed to load game state from file." << std::endl;
         return 1;

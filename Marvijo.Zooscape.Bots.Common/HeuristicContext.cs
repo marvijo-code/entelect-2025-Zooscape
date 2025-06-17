@@ -2,6 +2,8 @@ using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Marvijo.Zooscape.Bots.Common.Utils;
 using Serilog;
+using System;
+using System.Collections.Generic;
 
 namespace Marvijo.Zooscape.Bots.Common
 {
@@ -10,41 +12,42 @@ namespace Marvijo.Zooscape.Bots.Common
         public GameState CurrentGameState { get; }
         public Animal CurrentAnimal { get; }
         public BotAction CurrentMove { get; }
-        public ILogger Logger { get; } // Made non-nullable
+        public ILogger Logger { get; }
         public (int X, int Y) MyNewPosition { get; }
-        public BotAction? PreviousAction { get; } // Can be expanded later
-        public System.Collections.Generic.Queue<(int X, int Y)> AnimalRecentPositions { get; } // Added
-        public BotAction? AnimalLastDirection { get; } // Added
+        public BotAction? PreviousAction { get; }
+        public Queue<(int X, int Y)> AnimalRecentPositions { get; }
+        public BotAction? AnimalLastDirection { get; }
         public HeuristicWeights Weights { get; }
         private readonly IReadOnlyDictionary<(int X, int Y), int> _visitCountsData;
+        private readonly ISet<int> _visitedQuadrantsData;
 
         public HeuristicContext(
             GameState currentGameState,
             Animal currentAnimal,
             BotAction currentMove,
-            ILogger logger, // Made non-nullable
+            ILogger logger,
             HeuristicWeights weights,
             BotAction? previousAction = null,
             IReadOnlyDictionary<(int X, int Y), int>? visitCounts = null,
-            System.Collections.Generic.Queue<(int X, int Y)>? animalRecentPositions = null, // Added
-            BotAction? animalLastDirection = null // Added
+            ISet<int>? visitedQuadrants = null,
+            Queue<(int X, int Y)>? animalRecentPositions = null,
+            BotAction? animalLastDirection = null
         )
         {
             CurrentGameState = currentGameState;
             CurrentAnimal = currentAnimal;
             CurrentMove = currentMove;
-            Logger = logger ?? throw new System.ArgumentNullException(nameof(logger)); // Added null check for non-nullable
-            Weights = weights ?? throw new System.ArgumentNullException(nameof(weights));
+            Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            Weights = weights ?? throw new ArgumentNullException(nameof(weights));
             PreviousAction = previousAction;
-            AnimalRecentPositions =
-                animalRecentPositions ?? new System.Collections.Generic.Queue<(int X, int Y)>(); // Added
-            AnimalLastDirection = animalLastDirection; // Added
+            AnimalRecentPositions = animalRecentPositions ?? new Queue<(int X, int Y)>();
+            AnimalLastDirection = animalLastDirection;
 
             MyNewPosition = BotUtils.ApplyMove(CurrentAnimal.X, CurrentAnimal.Y, CurrentMove);
             _visitCountsData = visitCounts ?? new Dictionary<(int X, int Y), int>();
+            _visitedQuadrantsData = visitedQuadrants ?? new HashSet<int>();
         }
 
-        // Stubbed implementations for other interface members
         public int GetVisitCount((int X, int Y) position)
         {
             return _visitCountsData.TryGetValue(position, out var count) ? count : 0;
@@ -52,8 +55,7 @@ namespace Marvijo.Zooscape.Bots.Common
 
         public bool IsQuadrantVisited(int quadrant)
         {
-            // TODO: Implement actual quadrant visit tracking if needed
-            return false;
+            return _visitedQuadrantsData.Contains(quadrant);
         }
     }
 }

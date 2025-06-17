@@ -60,4 +60,31 @@ public class HeuristicWeights
     public decimal PowerUpCollection { get; set; }
     public decimal UseItem { get; set; }
     public decimal ScoreStreak { get; set; }
+
+    // RecalcWindowSafetyHeuristic
+    public int RecalcWindowSize { get; set; }
+    public int RecalcWindowSafetyTickThreshold { get; set; }
+    public int RecalcWindowSafetyDistanceThreshold { get; set; }
+    public decimal RecalcWindowSafetyPenalty { get; set; }
+    public decimal RecalcWindowSafetyBonus { get; set; }
+
+    // ZookeeperCooldownHeuristic
+    public int ZookeeperCooldownRecalcInterval { get; set; }
+    public decimal ZookeeperCooldownBonus { get; set; }
+
+    // SpawnProximityHeuristic
+    public int SpawnProximityDistanceThreshold { get; set; }
+    public decimal SpawnProximityPenalty { get; set; }
+    public decimal SpawnProximityBonus { get; set; }
+
+    // UseItemHeuristic
+    public decimal UseItemBonus { get; set; }
+
+    // OpponentTrailChasingHeuristic
+    public int OpponentTrailChasingMinDistance { get; set; }
+    public int OpponentTrailChasingMaxDistance { get; set; }
+    public decimal OpponentTrailChasingBonus { get; set; }
+
+    // ZookeeperPredictionHeuristic
+    public decimal ZookeeperPredictionPenalty { get; set; }
 }

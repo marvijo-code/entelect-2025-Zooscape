@@ -89,7 +89,7 @@ public class HeuristicsManager
             new WallCollisionRiskHeuristic(),
             new ZookeeperCooldownHeuristic(),
             new ZookeeperPredictionHeuristic(),
-            new UnexploredBonusHeuristic(),
+            // new UnexploredBonusHeuristic(), // Temporarily disabled
             new PowerUpCollectionHeuristic(),
             new ScoreStreakHeuristic(),
             new UseItemHeuristic(),
@@ -102,10 +102,7 @@ public class HeuristicsManager
         GameState state,
         Animal me,
         BotAction move,
-        bool logHeuristicScores,
-        IReadOnlyDictionary<(int X, int Y), int> visitCounts,
-        Queue<(int X, int Y)> animalRecentPositionsQueue,
-        BotAction? animalLastDirectionValue
+        bool logHeuristicScores
     )
     {
         var heuristicContext = new HeuristicContext(
@@ -113,11 +110,7 @@ public class HeuristicsManager
             me,
             move,
             _logger,
-            _weights,
-            null, // previousAction is not available here
-            visitCounts,
-            animalRecentPositionsQueue,
-            animalLastDirectionValue
+            _weights
         );
 
         decimal totalScore = 0m;

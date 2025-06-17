@@ -12,7 +12,7 @@ public class RecalcWindowSafetyHeuristic : IHeuristic
 {
     public string Name => "RecalcWindowSafety";
 
-    public decimal EvaluateRecalcWindowSafety(IHeuristicContext heuristicContext)
+    public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var weights = heuristicContext.Weights;
         int ticksToRecalc = (weights.RecalcWindowSize - (heuristicContext.CurrentGameState.Tick % weights.RecalcWindowSize)) % weights.RecalcWindowSize;
