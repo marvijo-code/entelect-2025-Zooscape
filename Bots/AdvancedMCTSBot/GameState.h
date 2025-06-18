@@ -168,7 +168,7 @@ public:
     
     // Game logic
     std::vector<BotAction> getLegalActions(const std::string& animalId) const;
-    GameState applyAction(const std::string& animalId, BotAction action) const;
+    void applyAction(const std::string& animalId, BotAction action);
     bool isTerminal() const;
     double evaluate(const std::string& animalId) const;
     

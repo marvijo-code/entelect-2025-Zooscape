@@ -66,12 +66,10 @@ MCTSNode* MCTSNode::expand() {
     std::uniform_int_distribution<size_t> distribution(0, untriedActions.size() - 1);
     BotAction actionToExpand = untriedActions[distribution(generator)];
     
-    // Create new game state by applying the action
-    auto newState = gameState->applyAction(playerId, actionToExpand);
-    auto newStatePtr = std::make_unique<GameState>(std::move(newState));
-    
-    // Create new child node
-    auto child = std::make_unique<MCTSNode>(std::move(newStatePtr), this, actionToExpand, playerId);
+    // Create a new state by cloning the current state and then applying the action
+    auto newState = gameState->clone();
+    newState->applyAction(this->playerId, actionToExpand);
+    auto child = std::make_unique<MCTSNode>(std::move(newState), this, actionToExpand, playerId);
     MCTSNode* childPtr = child.get();
     
     children.push_back(std::move(child));

@@ -9,7 +9,7 @@ The primary focus is the development of `AdvancedMCTSBot`, a C++ bot designed to
 This effort addresses the complexities of real-time game AI, including:
 - Robust communication with a game server (SignalR).
 - Correctly parsing and interpreting complex, dynamically changing game state from JSON.
-- Implementing a performant MCTS engine that can make decisions under a tight time constraint (150ms).
+- Implementing a performant MCTS engine that can make decisions under a tight time constraint (currently 200ms, previously 150ms).
 - Debugging subtle logic errors in game state representation (e.g., bitboards) and AI algorithms.
 
 ## How it Works

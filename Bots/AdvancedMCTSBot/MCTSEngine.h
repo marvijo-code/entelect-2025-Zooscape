@@ -52,7 +52,7 @@ private:
     void backpropagate(MCTSNode* node, double reward);
     
     // Advanced MCTS techniques
-    double calculateUCB1Tuned(const MCTSNode* node, const MCTSNode* parent) const;
+    double calculateUCB1(const MCTSNode* node, const MCTSNode* parent) const;
     double calculateRAVE(const MCTSNode* node) const;
     bool shouldExpandNode(const MCTSNode* node) const;
     

@@ -66,7 +66,7 @@ namespace {
         if (map.count(key)) {
             const auto& val = map.at(key);
             if (val.is_null()) {
-                fmt::println("DEBUG: Field '{}' is present but null, expected int/double.", key);
+            
             } else if (val.is_double() || val.type() == signalr::value_type::boolean) {
                 return static_cast<int>(val.as_double());
             } else {
@@ -260,19 +260,13 @@ Bot::Bot() {
             commandToSend.targetX = 0; // Placeholder, will need logic if moves require specific targets
             commandToSend.targetY = 0; // Placeholder
 
-            // Log the chosen command
-            fmt::println("DEBUG: MCTS best action type: {}", static_cast<int>(chosenActionType));
-
-            fmt::println("DEBUG: Attempting to send BotCommand: ActionType={}, TargetX={}, TargetY={}", 
-                static_cast<int>(commandToSend.actionType), commandToSend.targetX, commandToSend.targetY);
-
             std::map<std::string, signalr::value> commandMap;
             commandMap["Action"] = signalr::value(static_cast<double>(commandToSend.actionType));
 
             connection->send("BotCommand", std::vector<signalr::value>{commandMap}, [](std::exception_ptr exc) {
                 handleExceptionPtr("BotCommand", exc);
             });
-            fmt::println("DEBUG: BotCommand sent successfully (or at least the send call didn't throw immediately).");
+
         } catch (const std::exception& e) {
             fmt::println("ERROR in GameState handler: {}", e.what());
             // Optionally, rethrow or handle to ensure stop_task is set if it's a fatal error for the bot's loop

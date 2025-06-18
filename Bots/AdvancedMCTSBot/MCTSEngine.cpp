@@ -89,14 +89,14 @@ MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string&
     fmt::println("\n--- MCTS Final Stats ---");
     fmt::println("Total Simulations: {}", totalSimulations.load());
     fmt::println("Root Node Children: {}", root->getChildren().size());
-    fmt::println("{:<12} | {:>10} | {:>15} | {:>15}", "Action", "Visits", "Avg Reward", "UCB1-Tuned");
+    fmt::println("{:<12} | {:>10} | {:>15} | {:>15}", "Action", "Visits", "Avg Reward", "UCB1");
     fmt::println("----------------------------------------------------------------");
     for (const auto& child : root->getChildren()) {
         fmt::println("{:<12} | {:>10} | {:>15.4f} | {:>15.4f}", 
                      static_cast<int>(child->getAction()), // Temporarily cast to int
                      child->getVisits(), 
                      child->getAverageReward(),
-                     calculateUCB1Tuned(child.get(), root.get()));
+                     calculateUCB1(child.get(), root.get()));
     }
     fmt::println("----------------------------------------------------------------\n");
 
@@ -136,7 +136,7 @@ MCTSNode* MCTSEngine::select(MCTSNode* root) {
         MCTSNode* bestChild = nullptr;
         
         for (const auto& child : current->getChildren()) {
-            double ucb = calculateUCB1Tuned(child.get(), current);
+            double ucb = calculateUCB1(child.get(), current);
             if (ucb > bestUCB) {
                 bestUCB = ucb;
                 bestChild = child.get();
@@ -179,7 +179,7 @@ double MCTSEngine::simulate(const GameState& state, const std::string& playerId)
         }
         
         BotAction action = selectSimulationAction(simState, playerId);
-        simState = simState.applyAction(playerId, action);
+        simState.applyAction(playerId, action);
         depth++;
     }
     
@@ -198,19 +198,15 @@ void MCTSEngine::backpropagate(MCTSNode* node, double reward) {
     }
 }
 
-double MCTSEngine::calculateUCB1Tuned(const MCTSNode* node, const MCTSNode* parent) const {
+double MCTSEngine::calculateUCB1(const MCTSNode* node, const MCTSNode* parent) const {
     if (node->getVisits() == 0) {
-        return std::numeric_limits<double>::infinity();
+        return std::numeric_limits<double>::infinity(); // Prioritize unvisited nodes
     }
-    
+
+    // Standard UCB1 formula
     double exploitation = node->getAverageReward();
-    double exploration = explorationConstant * std::sqrt(std::log(parent->getVisits()) / node->getVisits());
-    
-    // UCB1-Tuned variance term
-    double variance = node->getRewardVariance();
-    double varianceTerm = std::min(0.25, variance + std::sqrt(2 * std::log(parent->getVisits()) / node->getVisits()));
-    exploration *= std::sqrt(varianceTerm);
-    
+    double exploration = explorationConstant * std::sqrt(std::log(static_cast<double>(parent->getVisits())) / node->getVisits());
+
     return exploitation + exploration;
 }
 

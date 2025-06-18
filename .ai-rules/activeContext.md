@@ -1,19 +1,26 @@
 # Active Context
 
-**Primary Goal:** Fix the `AdvancedMCTSBot`'s core logic to enable MCTS expansion and intelligent action selection.
+**Primary Goal:** Ensure the `AdvancedMCTSBot` is a fully functional and effective game-playing agent.
 
 **Recent Work Summary:**
 
-The bot was consistently choosing action 0 because its MCTS engine never expanded the root node. This was traced back to a series of critical bugs in connection handling, JSON parsing, and game state logic, which have now been resolved.
+The bot was previously unable to send valid commands to the server due to a complex serialization issue between the C++ client and the C# server. Prior to that, MCTS expansion was blocked by issues in game state parsing and logic.
 
-1.  **Connection Stability:** Implemented a connection retry loop in `Bot::run()` to handle race conditions where the bot starts before the game server is ready.
-2.  **JSON Game State Parsing:**
-    - **Key Casing:** Discovered the SignalR C++ client converts all incoming JSON keys to `lowercase`. Corrected all parsing logic in `Bot.cpp` to use lowercase keys (e.g., `"cells"`, `"animals"`), which fixed the bot's inability to find itself in the `animals` list.
-    - **Grid Dimensions:** The server does not send `gridWidth` or `gridHeight`. Implemented a two-pass system in `Bot.cpp`: the first pass calculates the grid dimensions by finding the max X/Y from the `cells` array, and the second pass populates the bitboards. This fixed the empty `pelletBoard` issue.
-3.  **Game Logic Correction:**
-    - **Obstacle Detection:** The `GameState::isTraversable` method was checking against an uninitialized `grid` member instead of the populated `wallBoard`. Corrected the function to check `!wallBoard.get(x, y)`, which finally allowed the bot to find legal moves.
-4.  **Diagnostics:** Added and subsequently cleaned up extensive `fmt::println` logging to trace the flow of data from JSON to the MCTS engine, which was crucial for identifying the root causes.
+1.  **Command Sending Fix (SignalR C++/C# Serialization):**
+    *   **Problem:** The server consistently received "Invalid command (0)" or no command at all.
+    *   **Investigation:** Compared the C++ bot's payload with the working C# `ClingyHeuroBot2`.
+    *   **Solution:** The C# server expects a single JSON object with a key named `"Action"` (PascalCase). The value for this key is the integer representation of the `BotAction` enum, cast to a `double` in C++ when creating the `signalr::value`.
+    *   **Implementation:** Modified `Bot.cpp` to send `std::map<std::string, signalr::value> cmdMap; cmdMap["Action"] = signalr::value(static_cast<double>(action_enum_value));` as the sole argument to `connection->send("BotCommand", ...)`. This resolved the command sending issue, and the bot is now moving.
+
+2.  **MCTS Expansion Fixes (Prerequisite to Command Sending):**
+    *   **Connection Stability:** Implemented a connection retry loop in `Bot::run()`.
+    *   **JSON Game State Parsing:**
+        *   **Key Casing:** Corrected parsing logic in `Bot.cpp` to use lowercase keys (e.g., `"cells"`, `"animals"`) due to SignalR C++ client behavior.
+        *   **Grid Dimensions:** Implemented a two-pass system to calculate grid dimensions from `cells` data.
+    *   **Game Logic Correction:**
+        *   **Obstacle Detection:** Corrected `GameState::isTraversable` to use the populated `wallBoard`.
 
 **Next Immediate Step:**
 
-- Run the bot to verify that all fixes work together, resulting in a fully functional MCTS bot that expands the game tree and chooses varied, intelligent actions.
+- Thoroughly test and observe the `AdvancedMCTSBot`'s gameplay to ensure it makes reasonable moves, operates within the 200ms time limit per move, and plays effectively.
+- Identify and address any remaining bugs or performance issues in its decision-making process.

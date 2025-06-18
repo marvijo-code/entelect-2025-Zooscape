@@ -86,16 +86,15 @@ std::vector<BotAction> GameState::getLegalActions(const std::string& animalId) c
     return actions;
 }
 
-GameState GameState::applyAction(const std::string& animalId, BotAction action) const {
-    GameState newState = *this;
-    newState.tick++;
-    
-    Animal* animal = newState.getAnimal(animalId);
-    if (!animal) return newState;
-    
+void GameState::applyAction(const std::string& animalId, BotAction action) {
+    tick++;
+
+    Animal* animal = this->getAnimal(animalId);
+    if (!animal) return;
+
     Position oldPos = animal->position;
     Position newPos = oldPos;
-    
+
     // Apply movement
     switch (action) {
         case BotAction::Up:
@@ -124,9 +123,9 @@ GameState GameState::applyAction(const std::string& animalId, BotAction action) 
                             for (int dy = -5; dy <= 5; dy++) {
                                 int px = animal->position.x + dx;
                                 int py = animal->position.y + dy;
-                                if (newState.isValidPosition(px, py) && 
-                                    newState.getCell(px, py) == CellContent::Pellet) {
-                                    newState.setCell(px, py, CellContent::Empty);
+                                if (this->isValidPosition(px, py) && 
+                                    this->getCell(px, py) == CellContent::Pellet) {
+                                    this->setCell(px, py, CellContent::Empty);
                                     animal->score += animal->scoreStreak;
                                     animal->ticksSinceLastPellet = 0;
                                 }
@@ -139,12 +138,12 @@ GameState GameState::applyAction(const std::string& animalId, BotAction action) 
                 }
                 animal->heldPowerUp = PowerUpType::None;
             }
-            return newState;
+            return;
     }
     
     // Validate movement
-    if (!newState.isTraversable(newPos.x, newPos.y)) {
-        return newState; // Invalid move, no change
+    if (!this->isTraversable(newPos.x, newPos.y)) {
+        return; // Invalid move, no change
     }
     
     // Update position
@@ -152,7 +151,7 @@ GameState GameState::applyAction(const std::string& animalId, BotAction action) 
     animal->distanceCovered++;
     
     // Handle cell content at new position
-    CellContent cellContent = newState.getCell(newPos.x, newPos.y);
+    CellContent cellContent = this->getCell(newPos.x, newPos.y);
     switch (cellContent) {
         case CellContent::Pellet:
             {
@@ -163,7 +162,7 @@ GameState GameState::applyAction(const std::string& animalId, BotAction action) 
                 animal->score += pelletValue;
                 animal->ticksSinceLastPellet = 0;
                 animal->scoreStreak = std::min(4, animal->scoreStreak + 1);
-                newState.setCell(newPos.x, newPos.y, CellContent::Empty);
+                this->setCell(newPos.x, newPos.y, CellContent::Empty);
             }
             break;
             
@@ -176,23 +175,23 @@ GameState GameState::applyAction(const std::string& animalId, BotAction action) 
                 animal->score += pelletValue;
                 animal->ticksSinceLastPellet = 0;
                 animal->scoreStreak = std::min(4, animal->scoreStreak + 1);
-                newState.setCell(newPos.x, newPos.y, CellContent::Empty);
+                this->setCell(newPos.x, newPos.y, CellContent::Empty);
             }
             break;
             
         case CellContent::ChameleonCloak:
             animal->heldPowerUp = PowerUpType::ChameleonCloak;
-            newState.setCell(newPos.x, newPos.y, CellContent::Empty);
+            this->setCell(newPos.x, newPos.y, CellContent::Empty);
             break;
             
         case CellContent::Scavenger:
             animal->heldPowerUp = PowerUpType::Scavenger;
-            newState.setCell(newPos.x, newPos.y, CellContent::Empty);
+            this->setCell(newPos.x, newPos.y, CellContent::Empty);
             break;
             
         case CellContent::BigMooseJuice:
             animal->heldPowerUp = PowerUpType::BigMooseJuice;
-            newState.setCell(newPos.x, newPos.y, CellContent::Empty);
+            this->setCell(newPos.x, newPos.y, CellContent::Empty);
             break;
     }
     
@@ -208,28 +207,28 @@ GameState GameState::applyAction(const std::string& animalId, BotAction action) 
     }
     
     // Simulate zookeeper movement and capture logic
-    for (auto& zookeeper : newState.zookeepers) {
+    for (auto& zookeeper : this->zookeepers) {
         // Simple zookeeper AI - move towards target
         if (!zookeeper.targetAnimalId.empty()) {
-            const Animal* target = newState.getAnimal(zookeeper.targetAnimalId);
+            const Animal* target = this->getAnimal(zookeeper.targetAnimalId);
             if (target) {
                 Position zkPos = zookeeper.position;
                 Position targetPos = target->position;
                 
                 // Move one step towards target
-                if (targetPos.x > zkPos.x && newState.isTraversable(zkPos.x + 1, zkPos.y)) {
+                if (targetPos.x > zkPos.x && this->isTraversable(zkPos.x + 1, zkPos.y)) {
                     zookeeper.position.x++;
-                } else if (targetPos.x < zkPos.x && newState.isTraversable(zkPos.x - 1, zkPos.y)) {
+                } else if (targetPos.x < zkPos.x && this->isTraversable(zkPos.x - 1, zkPos.y)) {
                     zookeeper.position.x--;
-                } else if (targetPos.y > zkPos.y && newState.isTraversable(zkPos.x, zkPos.y + 1)) {
+                } else if (targetPos.y > zkPos.y && this->isTraversable(zkPos.x, zkPos.y + 1)) {
                     zookeeper.position.y++;
-                } else if (targetPos.y < zkPos.y && newState.isTraversable(zkPos.x, zkPos.y - 1)) {
+                } else if (targetPos.y < zkPos.y && this->isTraversable(zkPos.x, zkPos.y - 1)) {
                     zookeeper.position.y--;
                 }
                 
                 // Check for capture
                 if (zookeeper.position == target->position) {
-                    Animal* capturedAnimal = newState.getAnimal(zookeeper.targetAnimalId);
+                    Animal* capturedAnimal = this->getAnimal(zookeeper.targetAnimalId);
                     if (capturedAnimal && capturedAnimal->powerUpDuration == 0) { // Not invisible
                         capturedAnimal->position = capturedAnimal->spawnPosition;
                         capturedAnimal->capturedCounter++;
@@ -250,7 +249,7 @@ GameState GameState::applyAction(const std::string& animalId, BotAction action) 
             double minDistance = std::numeric_limits<double>::max();
             std::string nearestAnimalId;
             
-            for (const auto& a : newState.animals) {
+            for (const auto& a : this->animals) {
                 if (a.isViable && a.position != a.spawnPosition) {
                     double distance = zookeeper.position.manhattanDistance(a.position);
                     if (distance < minDistance) {
@@ -263,8 +262,6 @@ GameState GameState::applyAction(const std::string& animalId, BotAction action) 
             zookeeper.targetAnimalId = nearestAnimalId;
         }
     }
-    
-    return newState;
 }
 
 bool GameState::isTerminal() const {

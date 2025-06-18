@@ -10,16 +10,19 @@
 - **Core Game Logic:**
   - The bot can locate itself in the list of animals.
   - The `isTraversable` check correctly uses the `wallBoard`, allowing the bot to identify valid moves.
+- **MCTS Engine:** The MCTS engine is expanding nodes and selecting actions.
+- **Command Sending:** The bot successfully sends commands to the server, which are now correctly interpreted. The C++/C# SignalR serialization issue has been resolved.
 - **Build System:** The `CMakeLists.txt` is correctly configured, and the project builds successfully.
 
 ## What's Left
 
-- **Final Verification:** Run the bot and analyze the logs to confirm that the MCTS engine is now expanding nodes and selecting diverse, intelligent actions.
-- **Address Minor Warnings:** The `heldPowerUp` null value warning should be investigated and resolved if it proves to be problematic.
-- **Logging Cleanup:** All temporary diagnostic logs should be removed or commented out for a clean production build.
+- **Gameplay Verification:** Thoroughly test and observe the `AdvancedMCTSBot`'s gameplay to ensure it makes reasonable moves, operates within the 200ms time limit per move, and plays effectively.
+- **Identify & Fix Gameplay Bugs:** Address any remaining bugs or performance issues in its decision-making process.
+- **Address Minor Warnings:** The `heldPowerUp` null value warning should be investigated and resolved if it proves to be problematic. (Lower priority)
+- **Logging Cleanup:** Review and remove or comment out any remaining temporary diagnostic logs for a clean production build. (Lower priority)
 
 ## Status
 
-- **Current Phase:** Final Verification.
-- **Immediate Next Action:** Run the bot and observe its behavior.
-- **Confidence:** High. The root causes of the previous failures have been identified and fixed.
+- **Current Phase:** Gameplay Verification and Refinement.
+- **Immediate Next Action:** Observe the `AdvancedMCTSBot` playing in the game.
+- **Confidence:** High. Major blockers (MCTS expansion, command sending) have been resolved.
