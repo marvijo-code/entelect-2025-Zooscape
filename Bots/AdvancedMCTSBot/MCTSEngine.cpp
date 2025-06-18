@@ -49,9 +49,10 @@ MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string&
             
             // Expansion
             MCTSNode* nodeToSimulate = selectedNode;
-            if (!selectedNode->isTerminalNode() && selectedNode->getVisits() > 0) {
-                nodeToSimulate = expand(selectedNode);
-                if (nodeToSimulate) {
+            if (!selectedNode->isTerminalNode()) {
+                MCTSNode* expandedNode = expand(selectedNode);
+                if (expandedNode != selectedNode) { // Check if a new node was created
+                    nodeToSimulate = expandedNode;
                     totalExpansions++;
                 }
             }
@@ -291,11 +292,12 @@ void MCTSEngine::runParallelMCTS(MCTSNode* root, const std::string& playerId, in
         
         // Expansion
         MCTSNode* nodeToSimulate = selectedNode;
-        if (!selectedNode->isTerminalNode() && selectedNode->getVisits() > 0) {
+        if (!selectedNode->isTerminalNode()) {
             if (selectedNode->tryLockExpansion()) {
-                if (!selectedNode->isFullyExpandedNode()) {
-                    nodeToSimulate = selectedNode->expand();
-                    if (nodeToSimulate) {
+                if (!selectedNode->isFullyExpandedNode()) { // Double check after lock
+                    MCTSNode* expandedNode = selectedNode->expand();
+                    if (expandedNode != selectedNode) { // Check if a *new* node was created
+                        nodeToSimulate = expandedNode;
                         totalExpansions++;
                     }
                 }

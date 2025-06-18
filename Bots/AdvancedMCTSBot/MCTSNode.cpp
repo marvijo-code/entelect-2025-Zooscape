@@ -1,4 +1,5 @@
 #include "MCTSNode.h"
+#include "fmt/core.h" // Added for fmt::println
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
@@ -21,8 +22,9 @@ MCTSNode::MCTSNode(std::unique_ptr<GameState> state, MCTSNode* parent,
     , cachedUCBValue(0.0)
     , cachedUCBVisits(-1) {
     
-    if (gameState && gameState->isTerminal()) {
-        isTerminal = true;
+    isTerminal = gameState->isTerminal();
+    fmt::println("DEBUG_MCTSNode: Node created. isTerminal set to: {}. Pellet count: {}", isTerminal.load(), gameState->getPelletBoard().count());
+    if (isTerminal.load()) {
         isFullyExpanded = true;
     }
 }
@@ -49,6 +51,7 @@ MCTSNode* MCTSNode::select(double explorationConstant) {
 }
 
 MCTSNode* MCTSNode::expand() {
+    fmt::println("DEBUG_MCTSNode: expand() called for node. Player ID: '{}'", this->playerId);
     if (isTerminalNode() || isFullyExpandedNode()) {
         return this;
     }

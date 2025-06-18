@@ -2,7 +2,9 @@
 #include "signalrclient/hub_connection_builder.h"
 #include "signalrclient/signalr_value.h"
 #include "fmt/core.h"
-#include <iostream>
+#include <objbase.h>
+#include <thread>
+#include <chrono>
 #include <cstdlib>
 #include <optional>
 #include <string>
@@ -102,20 +104,14 @@ namespace {
         return default_value;
     }
 
-    Position convertPosition(const signalr::value& val) {
-        if (!val.is_map()) return {};
-        auto map = val.as_map();
-        return {try_get_int(map, "x"), try_get_int(map, "y")};
-    }
-
     Animal convertAnimal(const signalr::value& val) {
         if (!val.is_map()) return {};
         auto map = val.as_map();
         Animal animal;
         animal.id = try_get_string(map, "id");
         animal.nickname = try_get_string(map, "nickname");
-        animal.position = map.count("position") ? convertPosition(map.at("position")) : Position{};
-        animal.spawnPosition = map.count("spawnPosition") ? convertPosition(map.at("spawnPosition")) : Position{};
+        animal.position = {try_get_int(map, "x"), try_get_int(map, "y")};
+        animal.spawnPosition = {try_get_int(map, "spawnX"), try_get_int(map, "spawnY")};
         animal.score = try_get_int(map, "score");
         animal.capturedCounter = try_get_int(map, "capturedCounter");
         animal.distanceCovered = try_get_int(map, "distanceCovered");
@@ -132,7 +128,7 @@ namespace {
         auto map = val.as_map();
         Zookeeper zookeeper;
         zookeeper.id = try_get_string(map, "id");
-        zookeeper.position = map.count("position") ? convertPosition(map.at("position")) : Position{};
+        zookeeper.position = {try_get_int(map, "x"), try_get_int(map, "y")};
         zookeeper.targetAnimalId = try_get_string(map, "targetAnimalId");
         zookeeper.ticksSinceTargetUpdate = try_get_int(map, "ticksSinceTargetUpdate");
         return zookeeper;
@@ -161,17 +157,57 @@ namespace {
         }
         const auto& map = args[0].as_map();
 
+        fmt::print("DEBUG_GameStateConversion: Received map keys: [");
+        for (auto const& [key, val] : map) {
+            fmt::print("'{}', ", key);
+        }
+        fmt::println("]");
+
         GameState state;
         state.tick = try_get_int(map, "tick");
-        state.gridWidth = try_get_int(map, "gridWidth");
-        state.gridHeight = try_get_int(map, "gridHeight");
         state.remainingTicks = try_get_int(map, "remainingTicks");
         state.gameMode = try_get_string(map, "gameMode");
 
-        if (state.gridWidth > 0 && state.gridHeight > 0) {
-            if (map.count("walls")) state.wallBoard = convertBitBoard(map.at("walls"), state.gridWidth, state.gridHeight);
-            if (map.count("pellets")) state.pelletBoard = convertBitBoard(map.at("pellets"), state.gridWidth, state.gridHeight);
-            if (map.count("powerPellets")) state.powerUpBoard = convertBitBoard(map.at("powerPellets"), state.gridWidth, state.gridHeight);
+        if (map.count("cells") && map.at("cells").is_array()) {
+            const auto& cells = map.at("cells").as_array();
+            
+            // First pass: determine grid dimensions
+            int max_x = 0;
+            int max_y = 0;
+            for (const auto& cell_val : cells) {
+                if (!cell_val.is_map()) continue;
+                const auto& cell_map = cell_val.as_map();
+                int x = try_get_int(cell_map, "x", -1);
+                int y = try_get_int(cell_map, "y", -1);
+                if (x > max_x) max_x = x;
+                if (y > max_y) max_y = y;
+            }
+            state.gridWidth = max_x + 1;
+            state.gridHeight = max_y + 1;
+
+            // Second pass: populate bitboards
+            if (state.gridWidth > 0 && state.gridHeight > 0) {
+                state.wallBoard = BitBoard(state.gridWidth, state.gridHeight);
+                state.pelletBoard = BitBoard(state.gridWidth, state.gridHeight);
+                state.powerUpBoard = BitBoard(state.gridWidth, state.gridHeight);
+
+                for (const auto& cell_val : cells) {
+                    if (!cell_val.is_map()) continue;
+                    const auto& cell_map = cell_val.as_map();
+                    
+                    int x = try_get_int(cell_map, "x", -1);
+                    int y = try_get_int(cell_map, "y", -1);
+                    int content = try_get_int(cell_map, "content", -1);
+
+                    if (x >= 0 && x < state.gridWidth && y >= 0 && y < state.gridHeight) {
+                        switch (content) {
+                            case 1: state.wallBoard.set(x, y); break;
+                            case 2: state.pelletBoard.set(x, y); break;
+                            case 3: state.powerUpBoard.set(x, y); break;
+                        }
+                    }
+                }
+            }
         }
 
         if (map.count("animals") && map.at("animals").is_array()) {
@@ -272,27 +308,38 @@ Bot::Bot() {
 }
 
 void Bot::loadConfiguration() {
-    if (auto runnerIpEnv = getEnvVar("RUNNER_IPV4_OR_URL")) {
-        config.runnerIP = *runnerIpEnv;
-    }
+    auto runnerIpEnv = getEnvVar("RUNNER_IPV4_OR_URL");
+    auto runnerPortEnv = getEnvVar("RUNNER_PORT");
+    auto hubNameEnv = getEnvVar("HUB_NAME");
+    auto botNicknameEnv = getEnvVar("BOT_NICKNAME");
 
-    if (auto runnerPortEnv = getEnvVar("RUNNER_PORT")) {
-        config.runnerPort = std::stoi(*runnerPortEnv);
+    if (!runnerIpEnv || runnerIpEnv->empty()) {
+        runnerIpEnv = "http://localhost";
     }
+    config.runnerIP = *runnerIpEnv;
 
-    if (auto hubNameEnv = getEnvVar("HUB_NAME")) {
-        config.hubName = *hubNameEnv;
+    if (!runnerPortEnv || runnerPortEnv->empty()) {
+        runnerPortEnv = "5000";
     }
+    config.runnerPort = std::stoi(*runnerPortEnv);
 
-    if (auto botNicknameEnv = getEnvVar("BOT_NICKNAME")) {
-        config.botNickname = *botNicknameEnv;
+    if (!hubNameEnv || hubNameEnv->empty()) {
+        hubNameEnv = "bothub";
     }
+    config.hubName = *hubNameEnv;
 
-    if (auto botTokenEnv = getEnvVar("BOT_TOKEN")) {
+    if (!botNicknameEnv || botNicknameEnv->empty()) {
+        botNicknameEnv = "AdvancedMCTSBot";
+    }
+    config.botNickname = *botNicknameEnv;
+
+    if (auto botTokenEnv = getEnvVar("Token")) {
         config.botToken = *botTokenEnv;
     } else {
         config.botToken = generateGuid();
+        fmt::println("Info: Token not set, generated a new GUID: {}", config.botToken);
     }
+
     fmt::println("Configuration loaded for bot '{}' connecting to {}:{}/{}", 
         config.botNickname, config.runnerIP, config.runnerPort, config.hubName);
 }
@@ -302,12 +349,35 @@ void Bot::run() {
         fmt::println("Error: Connection not initialized in Bot::run().");
         return;
     }
-    std::promise<void> start_task;
-    connection->start([&start_task](std::exception_ptr exc) {
-        handleExceptionPtr("Connection Start", exc);
-        start_task.set_value();
-    });
-    start_task.get_future().get();
+
+    bool connected = false;
+    const int max_retries = 5;
+    const auto retry_delay = std::chrono::seconds(5);
+
+    for (int i = 0; i < max_retries; ++i) {
+        fmt::println("Attempting to connect (Attempt {}/{})", i + 1, max_retries);
+        std::promise<bool> start_promise;
+        connection->start([&start_promise](std::exception_ptr exc) {
+            handleExceptionPtr("Connection Start", exc);
+            start_promise.set_value(!exc); // true if exc is null (success), false otherwise
+        });
+
+        if (start_promise.get_future().get()) {
+            connected = true;
+            fmt::println("Connection successful.");
+            break;
+        }
+
+        if (i < max_retries - 1) {
+            fmt::println("Connection failed. Retrying in {} seconds...", retry_delay.count());
+            std::this_thread::sleep_for(retry_delay);
+        }
+    }
+
+    if (!connected) {
+        fmt::println("FATAL: Could not connect to the server after {} attempts. Shutting down.", max_retries);
+        return;
+    }
 
     std::promise<void> register_task;
     std::vector<signalr::value> registerArgs{config.botToken, config.botNickname};

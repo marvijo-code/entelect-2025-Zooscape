@@ -1,4 +1,5 @@
 #include "GameState.h"
+#include "fmt/core.h" // Added for fmt::println
 #include <algorithm>
 #include <cmath>
 #include <random>
@@ -48,14 +49,19 @@ bool GameState::isValidPosition(int x, int y) const {
 
 bool GameState::isTraversable(int x, int y) const {
     if (!isValidPosition(x, y)) return false;
-    return grid[y][x] != CellContent::Wall;
+    return !wallBoard.get(x, y);
 }
 
 std::vector<BotAction> GameState::getLegalActions(const std::string& animalId) const {
     std::vector<BotAction> actions;
     
     const Animal* animal = getAnimal(animalId);
-    if (!animal) return actions;
+    if (!animal) {
+        // fmt::println("DEBUG_GameState: getLegalActions called for animalId '{}', but animal was NOT FOUND.", animalId);
+        return actions;
+    }
+    // fmt::println("DEBUG_GameState: getLegalActions called for animalId '{}', animal FOUND. Position: ({}, {}). Held PowerUp: {}", 
+    //              animalId, animal->position.x, animal->position.y, static_cast<int>(animal->heldPowerUp));
     
     // Check movement actions
     Position pos = animal->position;
@@ -70,6 +76,11 @@ std::vector<BotAction> GameState::getLegalActions(const std::string& animalId) c
         actions.push_back(BotAction::UseItem);
     }
     
+    // fmt::print("DEBUG_GameState: Generated {} legal actions for animalId '{}': [", actions.size(), animalId);
+    // for(size_t i = 0; i < actions.size(); ++i) {
+    //     fmt::print("{}{}", static_cast<int>(actions[i]), (i == actions.size() - 1) ? "" : ", ");
+    // }
+    // fmt::println("]");
     return actions;
 }
 
