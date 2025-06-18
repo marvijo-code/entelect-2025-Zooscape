@@ -220,11 +220,7 @@ namespace {
         return state;
     }
 
-    signalr::value convertBotAction(BotAction action) {
-        std::map<std::string, signalr::value> map;
-        map.emplace("action", signalr::value(static_cast<double>(action)));
-        return signalr::value(map);
-    }
+
 } // End of anonymous namespace
 
 Bot::Bot() {
@@ -256,17 +252,27 @@ Bot::Bot() {
 
             GameState gameState = convertGameState(args);
 
+            MCTSResult mctsResult = mctsService->GetBestAction(gameState);
+            BotAction chosenActionType = mctsResult.bestAction;
 
+            BotActionCommand commandToSend;
+            commandToSend.actionType = chosenActionType;
+            commandToSend.targetX = 0; // Placeholder, will need logic if moves require specific targets
+            commandToSend.targetY = 0; // Placeholder
 
-            MCTSResult result = mctsService->GetBestAction(gameState);
-            BotAction command = result.bestAction;
+            // Log the chosen command
+            fmt::println("DEBUG: MCTS best action type: {}", static_cast<int>(chosenActionType));
 
-            
-            signalr::value convertedCommand = convertBotAction(command);
-            // connection->send("SendPlayerCommand", std::vector<signalr::value>{convertedCommand}, [](std::exception_ptr exc) {
-            //     handleExceptionPtr("SendPlayerCommand", exc);
-            // });
-            // fmt::println("DEBUG: SendPlayerCommand was skipped."); // Kept as comment if needed later
+            fmt::println("DEBUG: Attempting to send BotCommand: ActionType={}, TargetX={}, TargetY={}", 
+                static_cast<int>(commandToSend.actionType), commandToSend.targetX, commandToSend.targetY);
+
+            std::map<std::string, signalr::value> commandMap;
+            commandMap["Action"] = signalr::value(static_cast<double>(commandToSend.actionType));
+
+            connection->send("BotCommand", std::vector<signalr::value>{commandMap}, [](std::exception_ptr exc) {
+                handleExceptionPtr("BotCommand", exc);
+            });
+            fmt::println("DEBUG: BotCommand sent successfully (or at least the send call didn't throw immediately).");
         } catch (const std::exception& e) {
             fmt::println("ERROR in GameState handler: {}", e.what());
             // Optionally, rethrow or handle to ensure stop_task is set if it's a fatal error for the bot's loop
@@ -324,6 +330,17 @@ void Bot::loadConfiguration() {
     } else {
         config.botToken = generateGuid();
         fmt::println("Info: Token not set, generated a new GUID: {}", config.botToken);
+    }
+
+    if (auto timeLimitEnv = getEnvVar("MCTS_TIME_LIMIT_MS")) {
+        try {
+            config.timeLimit = std::stoi(*timeLimitEnv);
+            fmt::println("Info: MCTS_TIME_LIMIT_MS environment variable set to: {}", config.timeLimit);
+        } catch (const std::invalid_argument& e) {
+            fmt::println("Warning: Invalid MCTS_TIME_LIMIT_MS value '{}'. Using default {}.", *timeLimitEnv, config.timeLimit);
+        } catch (const std::out_of_range& e) {
+            fmt::println("Warning: MCTS_TIME_LIMIT_MS value '{}' is out of range. Using default {}.", *timeLimitEnv, config.timeLimit);
+        }
     }
 
     fmt::println("Configuration loaded for bot '{}' connecting to {}:{}/{}", 

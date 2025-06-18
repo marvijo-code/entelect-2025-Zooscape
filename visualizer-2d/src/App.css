@@ -88,6 +88,7 @@ body {
   overflow: hidden;
   background-color: var(--surface-primary);
   box-shadow: var(--shadow-large);
+  position: relative; /* Establish stacking context for right panel children */
   border-left: 1px solid var(--border-primary);
 }
 
@@ -221,6 +222,8 @@ body {
   justify-content: center;
   gap: var(--spacing-sm);
   min-height: 56px;
+  position: relative; /* Ensure stacking context for the whole controls bar */
+  z-index: 100;     /* Significantly higher z-index */
 }
 
 .playback-controls-container button {

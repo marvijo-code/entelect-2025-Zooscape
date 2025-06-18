@@ -16,6 +16,12 @@ enum class BotAction : int {
     UseItem = 5
 };
 
+struct BotActionCommand {
+    BotAction actionType;
+    int targetX = 0;
+    int targetY = 0;
+};
+
 enum class CellContent : int {
     Empty = 0,
     Wall = 1,
