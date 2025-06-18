@@ -1,0 +1,6 @@
+--- MCTS Action-Score Breakdown --- ClingyHeuroBot2 ---
+  - Action: Up       Visits:   5072 Avg Score: 82.2997
+  - Action: Left     Visits:    130 Avg Score: 81.7475
+  - Action: Right    Visits:    273 Avg Score: 81.7983
+---------------------------------
+✅ AdvancedMCTSBotTest162_ClingyHeuroBot2 passed – action Up selected.
