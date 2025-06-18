@@ -157,12 +157,6 @@ namespace {
         }
         const auto& map = args[0].as_map();
 
-        fmt::print("DEBUG_GameStateConversion: Received map keys: [");
-        for (auto const& [key, val] : map) {
-            fmt::print("'{}', ", key);
-        }
-        fmt::println("]");
-
         GameState state;
         state.tick = try_get_int(map, "tick");
         state.remainingTicks = try_get_int(map, "remainingTicks");
@@ -170,8 +164,8 @@ namespace {
 
         if (map.count("cells") && map.at("cells").is_array()) {
             const auto& cells = map.at("cells").as_array();
-            
-            // First pass: determine grid dimensions
+
+            // First pass: determine grid dimensions from the sparse cell list
             int max_x = 0;
             int max_y = 0;
             for (const auto& cell_val : cells) {
@@ -182,29 +176,24 @@ namespace {
                 if (x > max_x) max_x = x;
                 if (y > max_y) max_y = y;
             }
-            state.gridWidth = max_x + 1;
-            state.gridHeight = max_y + 1;
 
-            // Second pass: populate bitboards
-            if (state.gridWidth > 0 && state.gridHeight > 0) {
-                state.wallBoard = BitBoard(state.gridWidth, state.gridHeight);
-                state.pelletBoard = BitBoard(state.gridWidth, state.gridHeight);
-                state.powerUpBoard = BitBoard(state.gridWidth, state.gridHeight);
+            int gridWidth = max_x + 1;
+            int gridHeight = max_y + 1;
 
+            // Initialize the grid and bitboards in the GameState object
+            if (gridWidth > 0 && gridHeight > 0) {
+                state.initializeGrid(gridWidth, gridHeight);
+
+                // Second pass: populate the grid using the GameState's setCell method
                 for (const auto& cell_val : cells) {
                     if (!cell_val.is_map()) continue;
                     const auto& cell_map = cell_val.as_map();
-                    
+
                     int x = try_get_int(cell_map, "x", -1);
                     int y = try_get_int(cell_map, "y", -1);
-                    int content = try_get_int(cell_map, "content", -1);
-
-                    if (x >= 0 && x < state.gridWidth && y >= 0 && y < state.gridHeight) {
-                        switch (content) {
-                            case 1: state.wallBoard.set(x, y); break;
-                            case 2: state.pelletBoard.set(x, y); break;
-                            case 3: state.powerUpBoard.set(x, y); break;
-                        }
+                    if (x != -1 && y != -1) {
+                        int content_val = try_get_int(cell_map, "content", 0); // Default to Empty
+                        state.setCell(x, y, static_cast<CellContent>(content_val));
                     }
                 }
             }
@@ -236,7 +225,7 @@ namespace {
         map.emplace("action", signalr::value(static_cast<double>(action)));
         return signalr::value(map);
     }
-}
+} // End of anonymous namespace
 
 Bot::Bot() {
     loadConfiguration();
@@ -258,29 +247,26 @@ Bot::Bot() {
     if (connection) {
         connection->on("GameState", [this](const std::vector<signalr::value>& args) {
         try {
-            fmt::println("DEBUG: GameState handler invoked.");
+
             if (!args.empty()) {
-                fmt::println("DEBUG: Received args type: {}", get_value_type_string(args[0].type()));
                 // Note: Printing full args might be too verbose or complex depending on structure.
                 // Consider logging specific parts if needed after seeing the type.
             } else {
-                fmt::println("DEBUG: Received empty args for GameState.");
             }
 
-            fmt::println("DEBUG: Attempting to convert game state...");
             GameState gameState = convertGameState(args);
-            fmt::println("DEBUG: Game state converted. Tick: {}, Animals: {}, Zookeepers: {}", gameState.tick, gameState.animals.size(), gameState.zookeepers.size());
 
-            fmt::println("DEBUG: Attempting to get best action...");
+
+
             MCTSResult result = mctsService->GetBestAction(gameState);
             BotAction command = result.bestAction;
-            fmt::println("DEBUG: Best action determined: {}. Responding with action: {}", static_cast<int>(command), static_cast<int>(command));
+
             
             signalr::value convertedCommand = convertBotAction(command);
             // connection->send("SendPlayerCommand", std::vector<signalr::value>{convertedCommand}, [](std::exception_ptr exc) {
             //     handleExceptionPtr("SendPlayerCommand", exc);
             // });
-            fmt::println("DEBUG: SendPlayerCommand was skipped.");
+            // fmt::println("DEBUG: SendPlayerCommand was skipped."); // Kept as comment if needed later
         } catch (const std::exception& e) {
             fmt::println("ERROR in GameState handler: {}", e.what());
             // Optionally, rethrow or handle to ensure stop_task is set if it's a fatal error for the bot's loop

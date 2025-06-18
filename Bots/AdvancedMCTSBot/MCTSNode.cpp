@@ -23,7 +23,6 @@ MCTSNode::MCTSNode(std::unique_ptr<GameState> state, MCTSNode* parent,
     , cachedUCBVisits(-1) {
     
     isTerminal = gameState->isTerminal();
-    fmt::println("DEBUG_MCTSNode: Node created. isTerminal set to: {}. Pellet count: {}", isTerminal.load(), gameState->getPelletBoard().count());
     if (isTerminal.load()) {
         isFullyExpanded = true;
     }
@@ -51,7 +50,6 @@ MCTSNode* MCTSNode::select(double explorationConstant) {
 }
 
 MCTSNode* MCTSNode::expand() {
-    fmt::println("DEBUG_MCTSNode: expand() called for node. Player ID: '{}'", this->playerId);
     if (isTerminalNode() || isFullyExpandedNode()) {
         return this;
     }

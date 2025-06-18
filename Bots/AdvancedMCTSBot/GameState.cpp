@@ -35,7 +35,9 @@ void GameState::setCell(int x, int y, CellContent content) {
     powerUpBoard.set(x, y, content == CellContent::ChameleonCloak || 
                            content == CellContent::Scavenger || 
                            content == CellContent::BigMooseJuice);
-    wallBoard.set(x, y, content == CellContent::Wall);
+    bool isWall = (content == CellContent::Wall);
+    wallBoard.set(x, y, isWall);
+    // if (isWall) { /* Wall logging removed */ }
 }
 
 CellContent GameState::getCell(int x, int y) const {
