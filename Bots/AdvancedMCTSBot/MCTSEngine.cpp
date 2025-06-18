@@ -1,4 +1,5 @@
 #include "MCTSEngine.h"
+#include "fmt/core.h" // Added for fmt::println
 #include <algorithm>
 #include <cmath>
 #include <chrono>
@@ -83,6 +84,21 @@ MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string&
         }
     }
     
+    // Print final statistics for debugging
+    fmt::println("\n--- MCTS Final Stats ---");
+    fmt::println("Total Simulations: {}", totalSimulations.load());
+    fmt::println("Root Node Children: {}", root->getChildren().size());
+    fmt::println("{:<12} | {:>10} | {:>15} | {:>15}", "Action", "Visits", "Avg Reward", "UCB1-Tuned");
+    fmt::println("----------------------------------------------------------------");
+    for (const auto& child : root->getChildren()) {
+        fmt::println("{:<12} | {:>10} | {:>15.4f} | {:>15.4f}", 
+                     static_cast<int>(child->getAction()), // Temporarily cast to int
+                     child->getVisits(), 
+                     child->getAverageReward(),
+                     calculateUCB1Tuned(child.get(), root.get()));
+    }
+    fmt::println("----------------------------------------------------------------\n");
+
     MCTSResult result;
     result.bestAction = BotAction::None;
 

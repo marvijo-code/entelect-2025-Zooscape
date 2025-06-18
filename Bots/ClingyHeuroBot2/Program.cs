@@ -4,17 +4,29 @@ using Marvijo.Zooscape.Bots.Common.Models;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Serilog;
+using System.Net.Sockets;
 
 namespace HeuroBot;
 
 public class Program
 {
     public static IConfigurationRoot? Configuration;
-    private static readonly ILogger _logger = new LoggerFactory().CreateLogger<Program>();
 
     public static async Task Main(string[] args)
     {
-        var builder = new ConfigurationBuilder()
+        Console.WriteLine("TEST: Program.Main has started.");
+        // Configure Serilog
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.Console()
+            .CreateLogger();
+
+        Log.Information("TEST: Serilog configured and attempting to log to console.");
+
+        try
+        {
+            var builder = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .AddEnvironmentVariables();
@@ -51,7 +63,7 @@ public class Program
             runnerIp = "http://" + runnerIp;
         }
         string url = $"{runnerIp}:{runnerPort}/{hubName}";
-        _logger.LogInformation($"Connecting to {url}");
+        Log.Information($"Connecting to {url}");
         Console.WriteLine($"Connecting to {url}");
 
         var connection = new HubConnectionBuilder()
@@ -64,7 +76,7 @@ public class Program
             .WithAutomaticReconnect()
             .Build();
 
-        var botService = new HeuroBotService();
+        var botService = new HeuroBotService(Log.Logger);
         BotCommand? command = null;
 
         connection.On<Guid>("Registered", id => botService.SetBotId(id));
@@ -73,13 +85,13 @@ public class Program
             "Disconnect",
             async reason =>
             {
-                _logger.LogInformation($"Disconnected: {reason}");
+                Log.Information($"Disconnected: {reason}");
                 await connection.StopAsync();
             }
         );
         connection.Closed += async error =>
         {
-            _logger.LogError($"Connection closed: {error?.Message}");
+            Log.Error($"Connection closed: {error?.Message}");
             await Task.Delay(new Random().Next(0, 5) * 1000);
             try
             {
@@ -88,7 +100,7 @@ public class Program
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Reconnection failed: {ex.Message}");
+                Log.Error($"Reconnection failed: {ex.Message}");
             }
         };
 
@@ -97,9 +109,14 @@ public class Program
             await connection.StartAsync();
             await connection.InvokeAsync("Register", botToken, botNickname);
         }
+        catch (HttpRequestException httpEx) when (httpEx.InnerException is SocketException sockEx && sockEx.SocketErrorCode == SocketError.ConnectionRefused)
+        {
+            Log.Error("Connection failed: The target machine actively refused it.");
+            return;
+        }
         catch (Exception ex)
         {
-            _logger.LogError($"Startup error: {ex.Message}");
+            Log.Error($"Startup error: {ex.GetBaseException().Message}");
             return;
         }
 
@@ -115,10 +132,21 @@ public class Program
             )
             {
                 await connection.SendAsync("BotCommand", command);
-                _logger.LogInformation($"Sent BotCommand: {command.Action}");
+                Log.Information($"Sent BotCommand: {command.Action}");
             }
             command = null;
             await Task.Delay(100);
+        }
+        Console.WriteLine("TEST: End of try block reached. Press Enter to exit.");
+        Console.ReadLine();
+        } // End of try
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Application start-up failed");
+        }
+        finally
+        {
+            Log.CloseAndFlush();
         }
     }
 }

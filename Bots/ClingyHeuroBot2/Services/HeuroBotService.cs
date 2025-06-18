@@ -41,7 +41,12 @@ public class HeuroBotService : IBot<HeuroBotService>
         BotAction?
     > _animalLastDirectionsHistory = new();
 
-    public void SetBotId(Guid botId) => BotId = botId;
+    public void SetBotId(Guid botId)
+    {
+        _logger.Information("SetBotId called. Received BotId: {ReceivedBotId}. Current BotId before set: {CurrentBotId}", botId, BotId);
+        BotId = botId;
+        _logger.Information("BotId after set: {UpdatedBotId}", BotId);
+    }
 
     public BotAction GetAction(GameState gameState)
     {
@@ -60,7 +65,14 @@ public class HeuroBotService : IBot<HeuroBotService>
         }
 
         // Identify this bot's animal
-        var me = gameState.Animals.First(a => a.Id == BotId);
+        var me = gameState.Animals.FirstOrDefault(a => a.Id == BotId);
+
+        if (me == null)
+        {
+            _logger.Error("Bot's animal with ID {BotId} not found in current game state. Skipping turn.", BotId);
+            // Return a default action, perhaps 'None' or the safest option.
+            return (BotAction.Up, new Dictionary<BotAction, decimal>()); // Defaulting to Up as BotAction.None is not available
+        }
 
         // Update visit count for current cell
         var currentPos = (me.X, me.Y);

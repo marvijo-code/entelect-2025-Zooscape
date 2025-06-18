@@ -48,6 +48,11 @@ public class ScoreLossMinimizerHeuristic : IHeuristic
         if (potentialLoss > scoreThreshold)
         {
             // Increase caution as potential loss increases
+            if (heuristicContext.Weights.ScoreLossMinimizerCautionFactor == 0m)
+            {
+                heuristicContext.Logger?.Warning("{HeuristicName}: ScoreLossMinimizerCautionFactor is zero, cannot apply caution scaling. Returning -captureRisk.", Name);
+                return -captureRisk; // Avoid division by zero, return risk without caution scaling
+            }
             return -captureRisk * (potentialLoss / heuristicContext.Weights.ScoreLossMinimizerCautionFactor);
         }
 

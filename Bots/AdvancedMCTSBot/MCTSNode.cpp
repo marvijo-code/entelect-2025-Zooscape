@@ -3,6 +3,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <random> // Added for std::mt19937 and std::uniform_int_distribution
 #include <functional>
 
 MCTSNode::MCTSNode(std::unique_ptr<GameState> state, MCTSNode* parent, 
@@ -58,8 +59,11 @@ MCTSNode* MCTSNode::expand() {
         return this;
     }
     
-    // Select action to expand (could be random or heuristic-based)
-    BotAction actionToExpand = untriedActions[0]; // For now, take first untried action
+    // Select a random action to expand. This is crucial for exploring the tree.
+    // Using a thread_local RNG here is efficient as it's initialized once per thread.
+        thread_local std::mt19937 generator(static_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::uniform_int_distribution<size_t> distribution(0, untriedActions.size() - 1);
+    BotAction actionToExpand = untriedActions[distribution(generator)];
     
     // Create new game state by applying the action
     auto newState = gameState->applyAction(playerId, actionToExpand);

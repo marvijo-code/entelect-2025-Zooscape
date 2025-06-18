@@ -37,6 +37,19 @@ namespace {
         return guid;
     }
 
+    // Helper function to get string representation of signalr::value_type
+    std::string get_value_type_string(signalr::value_type type) {
+        switch (type) {
+            case signalr::value_type::null: return "null";
+            case signalr::value_type::boolean: return "boolean";
+            case signalr::value_type::float64: return "float64";
+            case signalr::value_type::string: return "string";
+            case signalr::value_type::array: return "array";
+            case signalr::value_type::map: return "map";
+            default: return "unknown";
+        }
+    }
+
     void handleExceptionPtr(const std::string& context, const std::exception_ptr& exc) {
         if (!exc) return;
         try {
@@ -48,15 +61,45 @@ namespace {
 
     // Helper functions for safe value extraction from signalr::value maps
     int try_get_int(const std::map<std::string, signalr::value>& map, const std::string& key, int default_value = 0) {
-        return map.count(key) ? static_cast<int>(map.at(key).as_double()) : default_value;
+        if (map.count(key)) {
+            const auto& val = map.at(key);
+            if (val.is_null()) {
+                fmt::println("DEBUG: Field '{}' is present but null, expected int/double.", key);
+            } else if (val.is_double() || val.type() == signalr::value_type::boolean) {
+                return static_cast<int>(val.as_double());
+            } else {
+                fmt::println("DEBUG: Field '{}' is present but has unexpected type '{}', expected int/double.", key, get_value_type_string(val.type()));
+            }
+        }
+        return default_value;
     }
 
     bool try_get_bool(const std::map<std::string, signalr::value>& map, const std::string& key, bool default_value = false) {
-        return map.count(key) ? map.at(key).as_bool() : default_value;
+        if (map.count(key)) {
+            const auto& val = map.at(key);
+            if (val.is_null()) {
+                fmt::println("DEBUG: Field '{}' is present but null, expected boolean.", key);
+            } else if (val.type() == signalr::value_type::boolean) {
+                return val.as_bool();
+            } else {
+                fmt::println("DEBUG: Field '{}' is present but has unexpected type '{}', expected boolean.", key, get_value_type_string(val.type()));
+            }
+        }
+        return default_value;
     }
 
     std::string try_get_string(const std::map<std::string, signalr::value>& map, const std::string& key, const std::string& default_value = "") {
-        return map.count(key) ? map.at(key).as_string() : default_value;
+        if (map.count(key)) {
+            const auto& val = map.at(key);
+            if (val.is_null()) {
+                fmt::println("DEBUG: Field '{}' is present but null, expected string.", key);
+            } else if (val.is_string()) {
+                return val.as_string();
+            } else {
+                fmt::println("DEBUG: Field '{}' is present but has unexpected type '{}', expected string.", key, get_value_type_string(val.type()));
+            }
+        }
+        return default_value;
     }
 
     Position convertPosition(const signalr::value& val) {
@@ -177,17 +220,38 @@ Bot::Bot() {
     }
 
     if (connection) {
-        connection->on("ReceiveBotState", [this](const std::vector<signalr::value>& args) {
-        fmt::print("Received bot state. ");
-        GameState gameState = convertGameState(args);
-        MCTSResult result = mctsService->GetBestAction(gameState);
-        BotAction command = result.bestAction;
-        fmt::println("Responding with action: {}", static_cast<int>(command));
-        
-        signalr::value convertedCommand = convertBotAction(command);
-        connection->send("SendPlayerCommand", std::vector<signalr::value>{convertedCommand}, [](std::exception_ptr exc) {
-            handleExceptionPtr("SendPlayerCommand", exc);
-        });
+        connection->on("GameState", [this](const std::vector<signalr::value>& args) {
+        try {
+            fmt::println("DEBUG: GameState handler invoked.");
+            if (!args.empty()) {
+                fmt::println("DEBUG: Received args type: {}", get_value_type_string(args[0].type()));
+                // Note: Printing full args might be too verbose or complex depending on structure.
+                // Consider logging specific parts if needed after seeing the type.
+            } else {
+                fmt::println("DEBUG: Received empty args for GameState.");
+            }
+
+            fmt::println("DEBUG: Attempting to convert game state...");
+            GameState gameState = convertGameState(args);
+            fmt::println("DEBUG: Game state converted. Tick: {}, Animals: {}, Zookeepers: {}", gameState.tick, gameState.animals.size(), gameState.zookeepers.size());
+
+            fmt::println("DEBUG: Attempting to get best action...");
+            MCTSResult result = mctsService->GetBestAction(gameState);
+            BotAction command = result.bestAction;
+            fmt::println("DEBUG: Best action determined: {}. Responding with action: {}", static_cast<int>(command), static_cast<int>(command));
+            
+            signalr::value convertedCommand = convertBotAction(command);
+            // connection->send("SendPlayerCommand", std::vector<signalr::value>{convertedCommand}, [](std::exception_ptr exc) {
+            //     handleExceptionPtr("SendPlayerCommand", exc);
+            // });
+            fmt::println("DEBUG: SendPlayerCommand was skipped.");
+        } catch (const std::exception& e) {
+            fmt::println("ERROR in GameState handler: {}", e.what());
+            // Optionally, rethrow or handle to ensure stop_task is set if it's a fatal error for the bot's loop
+            // For now, just logging to see if this is where the issue originates.
+        } catch (...) {
+            fmt::println("ERROR in GameState handler: Unknown exception caught.");
+        }
     });
     }
 
