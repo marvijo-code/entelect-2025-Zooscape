@@ -1,5 +1,23 @@
 # Active Context
 
+**Primary Goal:** Resolve C++ compiler warnings and fix multi-threading issues in the `AdvancedMCTSBot`.
+
+**Recent Work Summary:**
+
+1.  **Resolved C++ Test Failure:** Successfully debugged and fixed the `AdvancedMCTSBot_SmokeTest34` functional test.
+    -   **Problem:** The test was failing at runtime because the bot nickname ("AdvancedMCTSBot") hardcoded in `Test34.cpp` was not present in the `34.json` game state file.
+    -   **Investigation:**
+        -   Confirmed the valid nicknames in `34.json` were "ClingyHeuroBot" and "ClingyHeuroBot2".
+        -   Diagnosed and fixed several build system issues in `CMakeLists.txt` that prevented the test executable from being built or run correctly.
+    -   **Resolution:** Updated `Test34.cpp` to use the correct nickname ("ClingyHeuroBot2"), which resolved the test failure.
+
+2.  **Current Focus:** Address C++ compiler warnings.
+    -   **Problem:** The build process is not displaying the `C4244` and `C4267` data conversion warnings, preventing diagnosis.
+    -   **Current Strategy:** Modified `CMakeLists.txt` to treat these specific warnings as errors (`/we4244`, `/we4267`) to force the build to fail and reveal their locations.
+
+**Next Immediate Step:**
+- Re-run the build with the new compiler flags to identify the exact source of the warnings.
+
 ## Current Project Focus
 
 - **Project:** `AdvancedMCTSBot` (C++)

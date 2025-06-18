@@ -5,7 +5,7 @@
 #include <future>
 #include <iostream>
 
-thread_local std::mt19937 MCTSEngine::rng(std::chrono::steady_clock::now().time_since_epoch().count());
+thread_local std::mt19937 MCTSEngine::rng(static_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count()));
 
 MCTSEngine::MCTSEngine(double explorationConstant, int maxIterations, int maxSimulationDepth, 
                        int timeLimit, int numThreads)
@@ -207,7 +207,7 @@ bool MCTSEngine::shouldExpandNode(const MCTSNode* node) const {
     // Progressive widening: expand when visits^alpha > children
     double alpha = 0.5;
     int visits = node->getVisits();
-    int children = node->getChildren().size();
+    int children = static_cast<int>(node->getChildren().size());
     
     return std::pow(visits, alpha) > children;
 }
@@ -258,14 +258,16 @@ BotAction MCTSEngine::selectSimulationAction(const GameState& state, const std::
 double MCTSEngine::evaluateTerminalState(const GameState& state, const std::string& playerId) {
     double baseScore = state.evaluate(playerId);
     
-    // Normalize score to [0, 1] range for MCTS
-    // Assuming scores can range from -1000 to 5000
-    double normalizedScore = (baseScore + 1000.0) / 6000.0;
-    return std::max(0.0, std::min(1.0, normalizedScore));
+    // Normalize score to [0, 100] range for MCTS
+    // Assuming scores can range from -2000 to 10000 for a wider, more dynamic range.
+    const double minScore = -2000.0;
+    const double maxScore = 10000.0;
+    double normalizedScore = (baseScore - minScore) / (maxScore - minScore);
+    return std::max(0.0, std::min(100.0, normalizedScore * 100.0));
 }
 
 void MCTSEngine::runParallelMCTS(MCTSNode* root, const std::string& playerId, int threadId) {
-    std::mt19937 localRng(std::chrono::steady_clock::now().time_since_epoch().count() + threadId);
+        std::mt19937 localRng(static_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count() + threadId));
     
     while (!shouldStop.load()) {
         // Selection

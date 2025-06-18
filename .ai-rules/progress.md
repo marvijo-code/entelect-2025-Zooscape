@@ -1,5 +1,17 @@
 # Progress
 
+## What's Working
+
+-   **C++ Functional Test:** The `AdvancedMCTSBot_SmokeTest34` test now runs and passes successfully, validating the bot's MCTS logic against a challenging game state.
+-   **MCTS Engine:** The engine provides varied and reasonable scores for the `34.json` scenario, unlike the trivial `162.json` case.
+-   **Build System:** The CMake configuration can successfully build and run specific test targets when explicitly commanded.
+
+## What's Left
+
+-   **Compiler Warnings:** Identify and resolve the `C4244` and `C4267` data conversion warnings in the C++ codebase.
+-   **Multi-threading:** Investigate and fix the suspected race condition in the MCTS engine that prevents simulations from running under short, multi-threaded time limits.
+-   **Build Configuration:** Improve `CMakeLists.txt` so that test executables are included in the default build (`cmake --build .`) without needing to be specified as explicit targets (`--target <test_name>`).
+
 ## What Works
 
 - **`AdvancedMCTSBot` Compilation:** All identified C++ compilation errors (C2248, C2679, C2512, C2601, C1075) in `Bot.cpp` and `GameState.h` have been resolved.

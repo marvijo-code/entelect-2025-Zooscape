@@ -6,6 +6,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Treat specific warnings as errors for MSVC
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /we4244 /we4267")
+endif()
+
 # Enable Hot Reload for MSVC compilers if supported.
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
@@ -44,6 +49,7 @@ add_executable(AdvancedMCTSBotTest162
     MctsService.cpp
     MCTSNode.cpp
     Heuristics.cpp
+    Bot.cpp
 )
 
 # Link the same libraries the main bot uses (except signalr, which the test doesn't require)
@@ -54,10 +60,9 @@ find_package(fmt CONFIG REQUIRED)
 target_include_directories(AdvancedMCTSBotTest162 PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR} 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../../Marvijo.Zooscape.Bots.Common/cpp
 )
 
-target_link_libraries(AdvancedMCTSBotTest162 PRIVATE fmt::fmt)
+target_link_libraries(AdvancedMCTSBotTest162 PRIVATE fmt::fmt microsoft-signalr::microsoft-signalr)
 
 add_test(NAME AdvancedMCTSBot_SmokeTest162 COMMAND AdvancedMCTSBotTest162)
 set_tests_properties(AdvancedMCTSBot_SmokeTest162 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)
@@ -72,15 +77,15 @@ add_executable(AdvancedMCTSBotTest34
     MctsService.cpp
     MCTSNode.cpp
     Heuristics.cpp
+    Bot.cpp
 )
 
 target_include_directories(AdvancedMCTSBotTest34 PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR} 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../../Marvijo.Zooscape.Bots.Common/cpp
 )
 
-target_link_libraries(AdvancedMCTSBotTest34 PRIVATE fmt::fmt)
+target_link_libraries(AdvancedMCTSBotTest34 PRIVATE fmt::fmt microsoft-signalr::microsoft-signalr)
 
 add_test(NAME AdvancedMCTSBot_SmokeTest34 COMMAND AdvancedMCTSBotTest34)
 set_tests_properties(AdvancedMCTSBot_SmokeTest34 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)
