@@ -6,7 +6,7 @@ using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Xunit;
 using Xunit.Abstractions;
-using ClingyHeuroBot2Service = HeuroBot.Services.HeuroBotService;
+using ClingyHeuroBot2Service = ClingyHeuroBot2.Services.HeuroBotService;
 using ClingyHeuroBotService = HeuroBotV2.Services.HeuroBotService;
 
 namespace FunctionalTests;

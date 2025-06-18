@@ -80,6 +80,52 @@ public class HeuristicWeights
     // UseItemHeuristic
     public decimal UseItemBonus { get; set; }
 
+    // Properties added based on build errors in ClingyHeuroBot2
+    public decimal CapturePenaltyPercent { get; set; }
+    public decimal ScoreLossMinimizerHighRiskDistance { get; set; }
+    public decimal ScoreLossMinimizerHighRiskFactor { get; set; }
+    public decimal ScoreLossMinimizerRiskDistanceDivisor { get; set; }
+    public decimal ScoreLossMinimizerMediumRiskDistance { get; set; }
+    public decimal ScoreLossMinimizerMediumRiskFactor { get; set; }
+    public decimal ScoreLossMinimizerSignificantScoreThreshold { get; set; }
+    public decimal ScoreLossMinimizerCautionFactor { get; set; }
+    public decimal ScoreLossMinimizerLowScoreCautionFactor { get; set; }
+    public decimal TiebreakerScore { get; set; }
+    public decimal TiebreakerDistance { get; set; }
+    public decimal TiebreakerCaptured { get; set; }
+    public decimal TimeToCaptureDanger { get; set; }
+    public decimal TimeToCaptureSafety { get; set; }
+    public decimal QuadrantPelletBonus { get; set; }
+    public decimal QuadrantAnimalPenalty { get; set; }
+
+    // Properties added based on further build errors in ClingyHeuroBot2 (Batch 2)
+    public decimal PathSafetyPenalty { get; set; }
+    public decimal MovementConsistencyBonus { get; set; }
+    public decimal MovementConsistencyPenalty { get; set; }
+    public decimal WallCollisionPenaltyImmediate { get; set; }
+    public decimal WallCollisionPenaltyNear { get; set; }
+    public decimal WallCollisionPenaltyMidRange { get; set; }
+    public int SpawnProximityEarlyGameDistanceThreshold { get; set; }
+    public int SpawnProximityEarlyGameTickThreshold { get; set; }
+    public decimal SpawnProximityEarlyGamePenalty { get; set; }
+    public decimal SpawnProximityDistanceBonusDivisor { get; set; }
+    public decimal ScoreStreakBonus { get; set; }
+    public int OpponentChaseMinDistance { get; set; }
+    public int OpponentChaseMaxDistance { get; set; }
+    public decimal OpponentChaseBonus { get; set; }
+    public decimal ResourceClusteringBonus { get; set; }
+    public decimal ResourceClusteringImmediatePelletBonus { get; set; }
+
+    // Properties added based on further build errors in ClingyHeuroBot2 (Batch 3)
+    public decimal ZookeeperPredictedPositionPenalty { get; set; }
+    public int ZookeeperNearPredictedPositionDistance { get; set; }
+    public decimal ZookeeperNearPredictedPositionPenalty { get; set; }
+    public decimal ZookeeperNearPredictedPositionDivisor { get; set; }
+    public decimal EarlyGameZookeeperAvoidancePenalty { get; set; }
+    public decimal EdgeSafetyPenalty_0 { get; set; }
+    public decimal EdgeSafetyPenalty_1 { get; set; }
+    public decimal EdgeSafetyPenalty_2 { get; set; }
+
     // OpponentTrailChasingHeuristic
     public int OpponentTrailChasingMinDistance { get; set; }
     public int OpponentTrailChasingMaxDistance { get; set; }

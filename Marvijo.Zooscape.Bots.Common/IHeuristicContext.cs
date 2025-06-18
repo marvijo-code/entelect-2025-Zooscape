@@ -69,15 +69,6 @@ namespace Marvijo.Zooscape.Bots.Common
         /// </summary>
         BotAction? AnimalLastDirection { get; }
 
-        /// <summary>
-        /// </summary>
-        HeuristicWeights Weights { get; }
-
-        /// <summary>
-        /// Gets the last committed direction of the current animal.
-        /// Null if no direction has been committed yet or not tracked.
-        /// </summary>
-        BotAction? AnimalLastDirection { get; }
 
         /// <summary>
         /// Gets the calculated new position (X, Y) after applying CurrentMove to CurrentAnimal.

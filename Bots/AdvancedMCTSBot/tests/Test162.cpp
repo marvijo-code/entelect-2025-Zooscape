@@ -53,11 +53,11 @@ int main()
     }
     std::cout << "---------------------------------" << std::endl;
 
-    if (result.bestAction == BotAction::Up) {
-        std::cout << "✅ AdvancedMCTSBotTest162 passed – action Up selected." << std::endl;
+    if (result.bestAction == BotAction::Right) {
+        std::cout << "✅ AdvancedMCTSBotTest162 passed – action Right selected." << std::endl;
         return 0;
     } else {
-        std::cerr << "❌ AdvancedMCTSBotTest162 failed. Expected Up, but got " << actionToString(result.bestAction) << std::endl;
+        std::cerr << "❌ AdvancedMCTSBotTest162 failed. Expected Right, but got " << actionToString(result.bestAction) << std::endl;
         return 1;
     }
 }

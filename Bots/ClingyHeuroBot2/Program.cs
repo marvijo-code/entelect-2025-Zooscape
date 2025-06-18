@@ -65,7 +65,7 @@ public class Program
             .Build();
 
         var botService = new HeuroBotService();
-        BotCommand command = new();
+        BotCommand? command = null;
 
         connection.On<Guid>("Registered", id => botService.SetBotId(id));
         connection.On<GameState>("GameState", state => command = botService.ProcessState(state));

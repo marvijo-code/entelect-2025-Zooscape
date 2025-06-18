@@ -102,7 +102,10 @@ public class HeuristicsManager
         GameState state,
         Animal me,
         BotAction move,
-        bool logHeuristicScores
+        bool logHeuristicScores,
+        IReadOnlyDictionary<(int X, int Y), int> visitCounts,
+        Queue<(int X, int Y)> animalRecentPositions,
+        BotAction? animalLastDirection
     )
     {
         var heuristicContext = new HeuristicContext(
@@ -110,7 +113,12 @@ public class HeuristicsManager
             me,
             move,
             _logger,
-            _weights
+            _weights,
+            previousAction: null, // Assuming null or determine if HeuroBotService._previousAction should be passed
+            visitCounts: visitCounts,
+            visitedQuadrants: null, // Assuming null or determine if this needs to be passed
+            animalRecentPositions: animalRecentPositions,
+            animalLastDirection: animalLastDirection
         );
 
         decimal totalScore = 0m;

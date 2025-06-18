@@ -93,7 +93,7 @@ public static class Heuristics
             var result = new List<(int x, int y)>();
             foreach (var zookeeper in state.Zookeepers)
             {
-                Animal targetAnimal = null;
+                Animal? targetAnimal = null;
                 int minDistance = int.MaxValue;
 
                 foreach (var animal in state.Animals.Where(a => a.IsViable))
