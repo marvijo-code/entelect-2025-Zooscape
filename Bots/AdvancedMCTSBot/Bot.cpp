@@ -242,38 +242,31 @@ Bot::Bot() {
 
     if (connection) {
         connection->on("GameState", [this](const std::vector<signalr::value>& args) {
+        BotAction chosenActionType = BotAction::None; // Default/fallback action
+
         try {
-
-            if (!args.empty()) {
-                // Note: Printing full args might be too verbose or complex depending on structure.
-                // Consider logging specific parts if needed after seeing the type.
-            } else {
-            }
-
             GameState gameState = convertGameState(args);
-
             MCTSResult mctsResult = mctsService->GetBestAction(gameState);
-            BotAction chosenActionType = mctsResult.bestAction;
-
-            BotActionCommand commandToSend;
-            commandToSend.actionType = chosenActionType;
-            commandToSend.targetX = 0; // Placeholder, will need logic if moves require specific targets
-            commandToSend.targetY = 0; // Placeholder
-
-            std::map<std::string, signalr::value> commandMap;
-            commandMap["Action"] = signalr::value(static_cast<double>(commandToSend.actionType));
-
-            connection->send("BotCommand", std::vector<signalr::value>{commandMap}, [](std::exception_ptr exc) {
-                handleExceptionPtr("BotCommand", exc);
-            });
+            chosenActionType = mctsResult.bestAction;
 
         } catch (const std::exception& e) {
-            fmt::println("ERROR in GameState handler: {}", e.what());
-            // Optionally, rethrow or handle to ensure stop_task is set if it's a fatal error for the bot's loop
-            // For now, just logging to see if this is where the issue originates.
+            fmt::println("ERROR during MCTS calculation: {}. Sending default action.", e.what());
         } catch (...) {
-            fmt::println("ERROR in GameState handler: Unknown exception caught.");
+            fmt::println("ERROR during MCTS calculation: Unknown exception. Sending default action.");
         }
+
+        // Always send a command to ensure the bot acts every tick
+        BotActionCommand commandToSend;
+        commandToSend.actionType = chosenActionType;
+        commandToSend.targetX = 0;
+        commandToSend.targetY = 0;
+
+        std::map<std::string, signalr::value> commandMap;
+        commandMap["Action"] = signalr::value(static_cast<double>(commandToSend.actionType));
+
+        connection->send("BotCommand", std::vector<signalr::value>{commandMap}, [](std::exception_ptr exc) {
+            handleExceptionPtr("BotCommand", exc);
+        });
     });
     }
 

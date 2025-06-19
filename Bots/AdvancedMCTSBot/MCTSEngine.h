@@ -16,11 +16,12 @@ struct MCTSResult {
 };
 
 #include <memory>
-#include <random>
+#include <vector>
 #include <chrono>
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <random>
 
 class MCTSEngine {
 private:
@@ -39,7 +40,7 @@ private:
     thread_local static std::mt19937 rng;
     
     // Heuristics
-    std::unique_ptr<HeuristicsEngine> heuristics;
+    HeuristicsEngine heuristicsEngine;
     
     // Statistics
     mutable std::atomic<int> totalSimulations;

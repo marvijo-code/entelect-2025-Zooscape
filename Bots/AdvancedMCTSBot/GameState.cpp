@@ -147,7 +147,8 @@ void GameState::applyAction(const std::string& animalId, BotAction action) {
     }
     
     // Update position
-    animal->position = newPos;
+        animal->position = newPos;
+    visitedCells.insert(newPos);
     animal->distanceCovered++;
     
     // Handle cell content at new position
@@ -234,7 +235,8 @@ void GameState::applyAction(const std::string& animalId, BotAction action) {
                         capturedAnimal->capturedCounter++;
                         capturedAnimal->score = static_cast<int>(capturedAnimal->score * 0.8); // 20% penalty
                         capturedAnimal->scoreStreak = 1;
-                        capturedAnimal->ticksSinceLastPellet = 0;
+                                                capturedAnimal->ticksSinceLastPellet = 0;
+                        capturedAnimal->isCaught = true;
                     }
                 }
             }
@@ -264,36 +266,20 @@ void GameState::applyAction(const std::string& animalId, BotAction action) {
     }
 }
 
+bool GameState::isPlayerCaught(const std::string& playerId) const {
+    const Animal* animal = getAnimal(playerId);
+    return animal && animal->isCaught;
+}
+
 bool GameState::isTerminal() const {
-    // Game is terminal if no pellets remain or time limit reached
+    const Animal* myAnimal = getMyAnimal();
+    if (myAnimal && myAnimal->isCaught) {
+        return true;
+    }
     return pelletBoard.count() == 0 || tick >= 1000; // Assuming 1000 tick limit
 }
 
-double GameState::evaluate(const std::string& animalId) const {
-    const Animal* animal = getAnimal(animalId);
-    if (!animal) return 0.0;
-    
-    double score = animal->score;
-    
-    // Penalty for being captured
-    score -= animal->capturedCounter * 50;
-    
-    // Bonus for score streak
-    score += animal->scoreStreak * 10;
-    
-    // Bonus for being far from zookeepers
-    double minZookeeperDistance = std::numeric_limits<double>::max();
-    for (const auto& zk : zookeepers) {
-        double distance = animal->position.manhattanDistance(zk.position);
-        minZookeeperDistance = std::min(minZookeeperDistance, distance);
-    }
-    
-    if (minZookeeperDistance < 5) {
-        score -= (5 - minZookeeperDistance) * 20; // Penalty for being close to zookeeper
-    }
-    
-    return score;
-}
+
 
 Animal* GameState::getAnimal(const std::string& id) {
     auto it = std::find_if(animals.begin(), animals.end(),
@@ -425,7 +411,28 @@ double GameState::getZookeeperThreat(const Position& pos) const {
 }
 
 std::unique_ptr<GameState> GameState::clone() const {
-    return std::make_unique<GameState>(*this);
+    auto clonedState = std::make_unique<GameState>(width, height);
+    
+    // Copy simple members
+    clonedState->tick = this->tick;
+    clonedState->myAnimalId = this->myAnimalId;
+    clonedState->gridWidth = this->gridWidth;
+    clonedState->gridHeight = this->gridHeight;
+    clonedState->remainingTicks = this->remainingTicks;
+    clonedState->gameMode = this->gameMode;
+
+    // Copy complex members
+    clonedState->grid = this->grid;
+    clonedState->animals = this->animals;
+    clonedState->zookeepers = this->zookeepers;
+    clonedState->pelletBoard = this->pelletBoard;
+    clonedState->powerUpBoard = this->powerUpBoard;
+    clonedState->wallBoard = this->wallBoard;
+    
+    // Copy new members
+    clonedState->visitedCells = this->visitedCells;
+
+    return clonedState;
 }
 
 uint64_t GameState::hash() const {

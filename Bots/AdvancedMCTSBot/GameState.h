@@ -6,6 +6,7 @@
 #include <memory>
 #include <unordered_map>
 #include <cstdint>
+#include <unordered_set>
 
 enum class BotAction : int {
     None = 0,
@@ -64,6 +65,19 @@ struct Position {
     }
 };
 
+// Hash function for Position
+namespace std {
+    template<>
+    struct hash<Position> {
+        size_t operator()(const Position& pos) const {
+            // A common way to combine hashes for a struct
+            auto h1 = std::hash<int>{}(pos.x);
+            auto h2 = std::hash<int>{}(pos.y);
+            return h1 ^ (h2 << 1); // Combine hashes
+        }
+    };
+} // namespace std
+
 struct Animal {
     std::string id;
     std::string nickname;
@@ -76,7 +90,8 @@ struct Animal {
     PowerUpType heldPowerUp;
     int powerUpDuration;
     int scoreStreak;
-    int ticksSinceLastPellet;
+        int ticksSinceLastPellet;
+    bool isCaught = false;
     
     Animal() : score(0), capturedCounter(0), distanceCovered(0), 
                isViable(true), heldPowerUp(PowerUpType::None), 
@@ -150,17 +165,21 @@ public:
     int gridWidth = 0;
     int gridHeight = 0;
     int remainingTicks = 0;
-    std::string gameMode;
+        std::string gameMode;
+
+    std::unordered_set<Position> visitedCells;
     
     GameState(int w = 0, int h = 0);
     
     // Core game state methods
     void initializeGrid(int w, int h);
     void setCell(int x, int y, CellContent content);
-    CellContent getCell(int x, int y) const;
-    bool isValidPosition(int x, int y) const;
+    // Game state queries
+    bool isTerminal() const;
+    bool isPlayerCaught(const std::string& playerId) const;
     bool isTraversable(int x, int y) const;
-    
+    bool isValidPosition(int x, int y) const;
+    CellContent getCell(int x, int y) const;
     // BitBoard access
     const BitBoard& getPelletBoard() const { return pelletBoard; }
     const BitBoard& getPowerUpBoard() const { return powerUpBoard; }
@@ -169,8 +188,6 @@ public:
     // Game logic
     std::vector<BotAction> getLegalActions(const std::string& animalId) const;
     void applyAction(const std::string& animalId, BotAction action);
-    bool isTerminal() const;
-    double evaluate(const std::string& animalId) const;
     
     // Animal management
     Animal* getAnimal(const std::string& id);
@@ -197,13 +214,3 @@ public:
     int getHeight() const { return height; }
     int getTick() const { return tick; }
 };
-
-// Hash function for Position
-namespace std {
-    template<>
-    struct hash<Position> {
-        size_t operator()(const Position& pos) const {
-            return hash<int>()(pos.x) ^ (hash<int>()(pos.y) << 1);
-        }
-    };
-}

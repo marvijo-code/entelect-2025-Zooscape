@@ -17,10 +17,10 @@ MCTSEngine::MCTSEngine(double explorationConstant, int maxIterations, int maxSim
     , numThreads(numThreads)
     , shouldStop(false)
     , totalSimulations(0)
-    , totalExpansions(0) {
+    , totalExpansions(0)
+    , heuristicsEngine(false) { // Initialize HeuristicsEngine
     
-    heuristics = std::make_unique<HeuristicsEngine>(false);
-    heuristics->loadBalancedPreset();
+    heuristicsEngine.loadBalancedPreset();
 }
 
 MCTSEngine::~MCTSEngine() {
@@ -86,11 +86,8 @@ MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string&
     }
     
     // Print final statistics for debugging
-    fmt::println("\n--- MCTS Final Stats ---");
-    fmt::println("Total Simulations: {}", totalSimulations.load());
-    fmt::println("Root Node Children: {}", root->getChildren().size());
+    fmt::println("\nTick: {} | Sims: {} | Children: {}", state.tick, totalSimulations.load(), root->getChildren().size());
     fmt::println("{:<12} | {:>10} | {:>15} | {:>15}", "Action", "Visits", "Avg Reward", "UCB1");
-    fmt::println("----------------------------------------------------------------");
     for (const auto& child : root->getChildren()) {
         fmt::println("{:<12} | {:>10} | {:>15.4f} | {:>15.4f}", 
                      static_cast<int>(child->getAction()), // Temporarily cast to int
@@ -98,7 +95,6 @@ MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string&
                      child->getAverageReward(),
                      calculateUCB1(child.get(), root.get()));
     }
-    fmt::println("----------------------------------------------------------------\n");
 
     MCTSResult result;
     result.bestAction = BotAction::None;
@@ -232,7 +228,7 @@ BotAction MCTSEngine::selectSimulationAction(const GameState& state, const std::
     }
     
     // Use heuristics to bias action selection
-    auto actionScores = heuristics->evaluateAllActions(state, playerId);
+    auto actionScores = heuristicsEngine.evaluateAllActions(state, playerId);
     
     // Convert scores to probabilities using softmax
     std::vector<double> probabilities;
@@ -269,14 +265,43 @@ BotAction MCTSEngine::selectSimulationAction(const GameState& state, const std::
 }
 
 double MCTSEngine::evaluateTerminalState(const GameState& state, const std::string& playerId) {
-    double baseScore = state.evaluate(playerId);
+    const Animal* animal = state.getAnimal(playerId);
+    if (!animal) {
+        return 0.0; // Should not happen
+    }
+
+    // 1. Pellet Score (Primary Reward)
+    double pelletScore = static_cast<double>(animal->score);
+
+    // 2. Exploration Bonus (Secondary Reward)
+    double explorationBonus = static_cast<double>(state.visitedCells.size());
+
+    // 3. Penalty for being caught
+    double capturePenalty = 0.0;
+    if (state.isPlayerCaught(playerId)) {
+        capturePenalty = -1000.0; // Large penalty for being caught
+    }
+
+    // --- Define Weights for each component ---
+    const double pelletWeight = 10.0;
+    const double explorationWeight = 1.0; 
+
+    // --- Calculate Final Raw Score ---
+    double finalScore = (pelletWeight * pelletScore) +
+                        (explorationWeight * explorationBonus) +
+                        capturePenalty;
+
+    // --- Normalize Score to [0, 100] range for MCTS ---
+    // These bounds might need tuning based on typical game scores.
+    const double minPossibleScore = -1000.0; // Based on capture penalty
+    const double maxPossibleScore = 10000.0; // Estimated max score (e.g., high pellet count + exploration)
     
-    // Normalize score to [0, 100] range for MCTS
-    // Assuming scores can range from -2000 to 10000 for a wider, more dynamic range.
-    const double minScore = -2000.0;
-    const double maxScore = 10000.0;
-    double normalizedScore = (baseScore - minScore) / (maxScore - minScore);
-    return std::max(0.0, std::min(100.0, normalizedScore * 100.0));
+    double normalizedScore = (finalScore - minPossibleScore) / (maxPossibleScore - minPossibleScore);
+    
+    // Clamp the normalized score to [0, 1] and then scale to [0, 100]
+    normalizedScore = std::max(0.0, std::min(1.0, normalizedScore));
+    
+    return normalizedScore * 100.0;
 }
 
 void MCTSEngine::runParallelMCTS(MCTSNode* root, const std::string& playerId, int threadId) {
