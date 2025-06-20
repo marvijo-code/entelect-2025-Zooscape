@@ -72,6 +72,17 @@ MCTSNode* MCTSNode::expand() {
     auto child = std::make_unique<MCTSNode>(std::move(newState), this, actionToExpand, playerId);
     MCTSNode* childPtr = child.get();
     
+    // -- Immediate reward shaping: if the action collected a pellet instantly, give the child an initial bonus
+    const Animal* parentAnimal = gameState->getAnimal(playerId);
+    const Animal* childAnimal  = childPtr->getGameState().getAnimal(playerId);
+    if (parentAnimal && childAnimal) {
+        int deltaScore = childAnimal->score - parentAnimal->score;
+        if (deltaScore > 0) {
+            const double immediatePelletBonus = 3000.0; // tuneable
+            child->update(immediatePelletBonus);
+        }
+    }
+
     children.push_back(std::move(child));
     
     // Check if fully expanded

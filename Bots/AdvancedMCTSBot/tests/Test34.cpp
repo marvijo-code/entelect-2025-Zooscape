@@ -36,7 +36,7 @@ int main() {
     }
 
     // Instantiate MCTS service with parameters suitable for a functional test
-    MctsService mcts(/*maxIterations*/1000000, /*timeLimitMs*/200, /*numThreads*/1, /*maxDepth*/10);
+    MctsService mcts(/*maxIterations*/1000000, /*timeLimitMs*/200, /*numThreads*/1, /*maxDepth*/20);
     mcts.SetBotId(gs.myAnimalId);
 
     MCTSResult result = mcts.GetBestAction(gs);

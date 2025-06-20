@@ -86,16 +86,18 @@ MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string&
         }
     }
     
+#ifdef ENABLE_MCTS_DEBUG
     // Print final statistics for debugging
     fmt::println("\nTick: {} | Sims: {} | Children: {}", state.tick, totalSimulations.load(), root->getChildren().size());
     fmt::println("{:<12} | {:>10} | {:>15} | {:>15}", "Action", "Visits", "Avg Reward", "UCB1");
     for (const auto& child : root->getChildren()) {
         fmt::println("{:<12} | {:>10} | {:>15.4f} | {:>15.4f}", 
-                     static_cast<int>(child->getAction()), // Temporarily cast to int
+                     static_cast<int>(child->getAction()),
                      child->getVisits(), 
                      child->getAverageReward(),
                      calculateUCB1(child.get(), root.get()));
     }
+#endif
 
     MCTSResult result;
     result.bestAction = BotAction::None;
@@ -183,6 +185,22 @@ double MCTSEngine::simulate(const GameState& state, const std::string& playerId)
         
         BotAction action = selectSimulationAction(simState, playerId);
         simState.applyAction(playerId, action);
+
+        // --- Simulate zookeeper movement (greedy one-step towards target) ---
+        for (auto& zk : simState.zookeepers) {
+            Position nextPos = simState.predictZookeeperPosition(zk, 1);
+            zk.position = nextPos;
+            // Capture check – if zookeeper ends on the same cell as the player, mark caught
+            Animal* myAnimal = simState.getAnimal(playerId);
+            if (myAnimal && myAnimal->position == zk.position) {
+                myAnimal->isCaught = true;
+            }
+        }
+        // Terminate rollout early if captured
+        if (simState.isPlayerCaught(playerId)) {
+            break;
+        }
+
         depth++;
     }
     
@@ -321,19 +339,19 @@ double MCTSEngine::evaluateTerminalState(const GameState& state, const std::stri
     double capturePenalty = state.isPlayerCaught(playerId) ? 1000.0 : 0.0;
 
     // --- Weights --- (tuned for balanced ranges)
-    const double pelletWeight      = 0.05;   // Reduce absolute score influence; focus on new pellet collection
-    const double distanceWeight    = 30.0;  // Stronger incentive to approach pellets
+    const double pelletWeight      = 1.0;    // Treat accumulated score at face value
+    const double distanceWeight    = 30.0;  // Incentive to approach pellets
     const double explorationWeight = 0.5;
     const double threatWeight      = 5.0;
-    const double emptyPenaltyWeight = 200.0;  // Massive penalty for not collecting pellet quickly
-    const double instantPelletRewardWeight = 5000.0; // Huge bonus for immediate pellet
+    const double emptyPenaltyWeight = 200.0; // Penalty for long idle stretches without pellets
+    const double instantPelletRewardWeight = 0.0;  // Immediate pellet worth exactly its base value via pelletScore – no extra bonus
     const double powerUpWeight     = 50.0;   // Reward active power-up usage
 
     // --- Compute raw score ---
     // 6. Empty-cell penalty (ticks since last pellet)
     double emptyPenalty = animal->ticksSinceLastPellet * emptyPenaltyWeight;
     // Reward if pellet collected this tick (ticksSinceLastPellet == 0)
-    double instantPelletReward = (animal->ticksSinceLastPellet == 0) ? instantPelletRewardWeight : 0.0;
+    double instantPelletReward = 0.0; // No special bonus – already accounted for in pelletScore
 
     // 7. Power-up reward (active duration remaining)
     double powerUpReward = 0.0;

@@ -143,6 +143,19 @@ public:
     void setWeight(double w) override { weight = w; }
 };
 
+// Long corridor pellet heuristic
+class ConsecutivePelletHeuristic : public IHeuristic {
+private:
+    double weight;
+    int maxLookahead;
+public:
+    ConsecutivePelletHeuristic(double w = 1.0, int lookahead = 30) : weight(w), maxLookahead(lookahead) {}
+    double evaluate(const GameState& state, const std::string& playerId, BotAction action) const override;
+    std::string getName() const override { return "ConsecutivePellet"; }
+    double getWeight() const override { return weight; }
+    void setWeight(double w) override { weight = w; }
+};
+
 // Advanced strategic heuristics
 class TerritoryControlHeuristic : public IHeuristic {
 private:

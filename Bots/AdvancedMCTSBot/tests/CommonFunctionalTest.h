@@ -23,7 +23,7 @@ inline int runScenario(const std::string& jsonPath,
                        BotAction expectedAction,
                        int timeLimitMs = 200,
                        int maxIterations = 1'000'000,
-                       int maxDepth = 10)
+                       int maxDepth = 20)
 {
     auto gameStateOpt = TestUtils::JsonGameStateLoader::loadStateFromFile(jsonPath, botNickname);
     if (!gameStateOpt) {

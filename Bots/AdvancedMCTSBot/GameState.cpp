@@ -116,6 +116,8 @@ void GameState::applyAction(const std::string& animalId, BotAction action) {
                 switch (animal->heldPowerUp) {
                     case PowerUpType::ChameleonCloak:
                         animal->powerUpDuration = 20;
+                        // This cloak is consumed on use
+                        animal->heldPowerUp = PowerUpType::None;
                         break;
                     case PowerUpType::Scavenger:
                         animal->powerUpDuration = 5;
@@ -132,12 +134,13 @@ void GameState::applyAction(const std::string& animalId, BotAction action) {
                                 }
                             }
                         }
+                        // Scavenger remains equipped until replaced
                         break;
                     case PowerUpType::BigMooseJuice:
                         animal->powerUpDuration = 5;
+                        // Moose Juice remains equipped until replaced
                         break;
                 }
-                animal->heldPowerUp = PowerUpType::None;
             }
             return;
     }
@@ -153,6 +156,7 @@ void GameState::applyAction(const std::string& animalId, BotAction action) {
     animal->distanceCovered++;
     
     // Handle cell content at new position
+    bool collectedPellet = false;
     CellContent cellContent = this->getCell(newPos.x, newPos.y);
     switch (cellContent) {
         case CellContent::Pellet:
@@ -165,6 +169,7 @@ void GameState::applyAction(const std::string& animalId, BotAction action) {
                 animal->ticksSinceLastPellet = 0;
                 animal->scoreStreak = std::min(4, animal->scoreStreak + 1);
                 this->setCell(newPos.x, newPos.y, CellContent::Empty);
+                collectedPellet = true;
             }
             break;
             
@@ -178,6 +183,7 @@ void GameState::applyAction(const std::string& animalId, BotAction action) {
                 animal->ticksSinceLastPellet = 0;
                 animal->scoreStreak = std::min(4, animal->scoreStreak + 1);
                 this->setCell(newPos.x, newPos.y, CellContent::Empty);
+                collectedPellet = true;
             }
             break;
             
@@ -203,9 +209,11 @@ void GameState::applyAction(const std::string& animalId, BotAction action) {
     }
     
     // Update score streak
-    animal->ticksSinceLastPellet++;
-    if (animal->ticksSinceLastPellet >= 3) {
-        animal->scoreStreak = 1;
+    if (!collectedPellet) {
+        animal->ticksSinceLastPellet++;
+        if (animal->ticksSinceLastPellet >= 3) {
+            animal->scoreStreak = 1;
+        }
     }
     
     // Simulate zookeeper movement and capture logic

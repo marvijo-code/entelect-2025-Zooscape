@@ -443,12 +443,62 @@ double EndgameHeuristic::evaluate(const GameState& state, const std::string& pla
     return 0.0;
 }
 
+// ConsecutivePelletHeuristic implementation
+double ConsecutivePelletHeuristic::evaluate(const GameState& state,
+                                            const std::string& playerId,
+                                            BotAction action) const {
+    const Animal* me = state.getAnimal(playerId);
+    if (!me) return 0.0;
+
+    // Project next position after action
+    Position pos = me->position;
+    switch (action) {
+        case BotAction::Up:    pos.y--; break;
+        case BotAction::Down:  pos.y++; break;
+        case BotAction::Left:  pos.x--; break;
+        case BotAction::Right: pos.x++; break;
+        default: break;
+    }
+    if (!state.isValidPosition(pos.x, pos.y) || !state.isTraversable(pos.x, pos.y)) {
+        return 0.0;
+    }
+
+    // Count consecutive pellets starting from new position continuing in same direction
+    int dx = 0, dy = 0;
+    switch (action) {
+        case BotAction::Up:    dy = -1; break;
+        case BotAction::Down:  dy = 1; break;
+        case BotAction::Left:  dx = -1; break;
+        case BotAction::Right: dx = 1; break;
+        default: break;
+    }
+
+    if (dx == 0 && dy == 0) return 0.0; // UseItem or None
+
+    int consecutive = 0;
+    Position cur = pos;
+    for (int step = 0; step < maxLookahead; ++step) {
+        if (!state.isValidPosition(cur.x, cur.y) || !state.isTraversable(cur.x, cur.y)) break;
+        CellContent content = state.getCell(cur.x, cur.y);
+        if (content == CellContent::Pellet || content == CellContent::PowerPellet) {
+            ++consecutive;
+        } else {
+            break;
+        }
+        cur.x += dx;
+        cur.y += dy;
+    }
+
+    return weight * static_cast<double>(consecutive);
+}
+
 // HeuristicsEngine implementation
 HeuristicsEngine::HeuristicsEngine(bool logging) : enableLogging(logging) {
     // Initialize with default heuristics
     addHeuristic(std::make_unique<PelletDistanceHeuristic>());
     addHeuristic(std::make_unique<PelletDensityHeuristic>());
     addHeuristic(std::make_unique<ScoreStreakHeuristic>());
+    addHeuristic(std::make_unique<ConsecutivePelletHeuristic>());
     addHeuristic(std::make_unique<ZookeeperAvoidanceHeuristic>());
     addHeuristic(std::make_unique<ZookeeperPredictionHeuristic>());
     addHeuristic(std::make_unique<PowerUpCollectionHeuristic>());
