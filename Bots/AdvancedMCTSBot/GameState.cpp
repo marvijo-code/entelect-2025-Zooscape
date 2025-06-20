@@ -4,6 +4,7 @@
 #include <cmath>
 #include <random>
 #include <unordered_set>
+#include <limits>
 
 GameState::GameState(int w, int h) : width(w), height(h), tick(0) {
     if (w > 0 && h > 0) {
@@ -370,6 +371,28 @@ int GameState::countPelletsInArea(const Position& center, int radius) const {
     }
     
     return count;
+}
+
+int GameState::distanceToNearestPellet(const Position& pos) const {
+    if (pelletBoard.count() == 0) {
+        return -1; // No pellets remain
+    }
+
+    int minDist = std::numeric_limits<int>::max();
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            if (pelletBoard.get(x, y)) {
+                int dist = std::abs(pos.x - x) + std::abs(pos.y - y);
+                if (dist < minDist) {
+                    minDist = dist;
+                    if (minDist == 0) {
+                        return 0; // Already on a pellet
+                    }
+                }
+            }
+        }
+    }
+    return (minDist == std::numeric_limits<int>::max()) ? -1 : minDist;
 }
 
 Position GameState::predictZookeeperPosition(const Zookeeper& zk, int ticksAhead) const {

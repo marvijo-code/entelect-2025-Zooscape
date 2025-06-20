@@ -1,4 +1,7 @@
 #include "JsonGameStateLoader.h"
+#include <climits>
+#include <stack>
+#include <unordered_set>
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <iostream>
@@ -102,6 +105,100 @@ std::optional<GameState> JsonGameStateLoader::loadStateFromFile(const std::strin
     }
 
     return gs;
+}
+
+StateAnalysis JsonGameStateLoader::analyzeState(const GameState& gs, const std::string& myBotNickname) {
+    StateAnalysis sa{};
+
+    const Animal* me = nullptr;
+    for (const auto& a : gs.animals) {
+        if (a.nickname == myBotNickname) { me = &a; break; }
+    }
+    if (!me) {
+        return sa; // default (invalid)
+    }
+    sa.myPos = me->position;
+    sa.score = me->score;
+
+    auto countConsecutive = [&](int dx,int dy){
+        int count=0;Position cur=sa.myPos;cur.x+=dx;cur.y+=dy;
+        while(gs.isValidPosition(cur.x,cur.y) && gs.getCell(cur.x,cur.y)==CellContent::Pellet){++count;cur.x+=dx;cur.y+=dy;}
+        return count;
+    };
+
+    auto checkPelletLine = [&](int dx, int dy, int& pelletsLine){
+        Position cur = sa.myPos;
+        for (int step = 1; step <= 3; ++step) {
+            cur.x += dx; cur.y += dy;
+            if (!gs.isValidPosition(cur.x, cur.y)) break;
+            if (gs.getCell(cur.x, cur.y) == CellContent::Pellet) {
+                if (step == 1) {
+                    if (dx==0 && dy==-1) sa.pelletUp = true;
+                    if (dx==-1 && dy==0) sa.pelletLeft = true;
+                    if (dx==1 && dy==0) sa.pelletRight = true;
+                    if (dx==0 && dy==1) sa.pelletDown = true;
+                }
+                ++pelletsLine;
+            }
+        }
+    };
+
+    checkPelletLine(0,-1, sa.pelletsUpTo3);
+    checkPelletLine(-1,0, sa.pelletsLeftTo3);
+    checkPelletLine(1,0, sa.pelletsRightTo3);
+    checkPelletLine(0,1, sa.pelletsDownTo3);
+
+    auto countConnected = [&](Position start){
+        std::stack<Position> st; std::unordered_set<uint32_t> vis;
+        auto key=[&](Position p){return (p.y<<8)|p.x;};
+        st.push(start); vis.insert(key(start)); int cnt=0;
+        while(!st.empty()){
+            Position cur=st.top();st.pop();++cnt;
+            const int dx[4]={1,-1,0,0}; const int dy[4]={0,0,1,-1};
+            for(int k=0;k<4;++k){int nx=cur.x+dx[k], ny=cur.y+dy[k];
+                if(!gs.isValidPosition(nx,ny)) continue;
+                if(gs.getCell(nx,ny)!=CellContent::Pellet) continue;
+                uint32_t k2=(ny<<8)|nx; if(vis.count(k2)) continue;
+                vis.insert(k2); st.push({nx,ny});
+            }
+        }
+        return cnt;
+    };
+
+    if(sa.pelletUp){ sa.consecutivePelletsUp = countConnected({sa.myPos.x, sa.myPos.y-1}); }
+    if(sa.pelletLeft){ sa.consecutivePelletsLeft = countConnected({sa.myPos.x-1, sa.myPos.y}); }
+    if(sa.pelletRight){ sa.consecutivePelletsRight = countConnected({sa.myPos.x+1, sa.myPos.y}); }
+    if(sa.pelletDown){ sa.consecutivePelletsDown = countConnected({sa.myPos.x, sa.myPos.y+1}); }
+
+    // Quadrant pellet counts
+    int midX = gs.getWidth()/2;
+    int midY = gs.getHeight()/2;
+    for(int y=0;y<gs.getHeight();++y){
+        for(int x=0;x<gs.getWidth();++x){
+            if(gs.getCell(x,y)==CellContent::Pellet){
+                int quad = (x>=midX) ? (y>=midY?3:1) : (y>=midY?2:0);
+                ++sa.pelletsPerQuadrant[quad];
+            }
+        }
+    }
+    sa.currentQuadrant = (sa.myPos.x>=midX)? (sa.myPos.y>=midY?3:1) : (sa.myPos.y>=midY?2:0);
+
+    // nearest zookeeper distance
+    for (const auto& zk : gs.zookeepers) {
+        int dist = std::abs(zk.position.x - sa.myPos.x) + std::abs(zk.position.y - sa.myPos.y);
+        if (dist < sa.nearestZookeeperDist) {
+            sa.nearestZookeeperDist = dist;
+            sa.nearestZookeeperPos = zk.position;
+        }
+    }
+
+    return sa;
+}
+
+std::optional<StateAnalysis> JsonGameStateLoader::analyzeStateFromFile(const std::string& filePath, const std::string& myBotNickname) {
+    auto gsOpt = JsonGameStateLoader::loadStateFromFile(filePath, myBotNickname);
+    if (!gsOpt) return std::nullopt;
+    return analyzeState(*gsOpt, myBotNickname);
 }
 
 }

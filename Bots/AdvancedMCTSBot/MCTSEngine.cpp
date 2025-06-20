@@ -5,6 +5,7 @@
 #include <chrono>
 #include <future>
 #include <iostream>
+#include <random>
 
 thread_local std::mt19937 MCTSEngine::rng(static_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count()));
 
@@ -128,22 +129,28 @@ MCTSNode* MCTSEngine::select(MCTSNode* root) {
     MCTSNode* current = root;
     
     while (!current->isTerminalNode() && current->isFullyExpandedNode()) {
+        constexpr double EPS = 1e-9;
         double bestUCB = -std::numeric_limits<double>::infinity();
-        MCTSNode* bestChild = nullptr;
-        
+        std::vector<MCTSNode*> bestChildren;
+
         for (const auto& child : current->getChildren()) {
             double ucb = calculateUCB1(child.get(), current);
-            if (ucb > bestUCB) {
+            if (ucb > bestUCB + EPS) {
                 bestUCB = ucb;
-                bestChild = child.get();
+                bestChildren.clear();
+                bestChildren.push_back(child.get());
+            } else if (std::abs(ucb - bestUCB) <= EPS) {
+                bestChildren.push_back(child.get());
             }
         }
-        
-        if (bestChild) {
-            current = bestChild;
-        } else {
-            break;
+
+        if (bestChildren.empty()) {
+            break; // Should not happen but safety first
         }
+
+        // Randomised tie-break among equally good children
+        std::uniform_int_distribution<size_t> dist(0, bestChildren.size() - 1);
+        current = bestChildren[dist(rng)];
     }
     
     return current;
@@ -199,11 +206,31 @@ double MCTSEngine::calculateUCB1(const MCTSNode* node, const MCTSNode* parent) c
         return std::numeric_limits<double>::infinity(); // Prioritize unvisited nodes
     }
 
-    // Standard UCB1 formula
-    double exploitation = node->getAverageReward();
-    double exploration = explorationConstant * std::sqrt(std::log(static_cast<double>(parent->getVisits())) / node->getVisits());
+    // --- Progressive Bias ---
+    // Heuristic: inverse distance to nearest pellet from this child state.
+    const GameState& childState = node->getGameState();
+    const Animal* childAnimal = childState.getAnimal(childState.myAnimalId);
+    double heuristicBias = 0.0;
+    if (childAnimal) {
+        int dist = childState.distanceToNearestPellet(childAnimal->position);
+        if (dist >= 0) {
+            heuristicBias = 1.0 / (dist + 1); // Closer pellets -> higher bias
+        }
+    }
+    // Weight and decay with visits (progressive): bias / (1 + visits)
+    const double biasWeight = 5.0; // Tuneable
+    double progressiveBias = biasWeight * heuristicBias / (1.0 + node->getVisits());
 
-    return exploitation + exploration;
+    // Depth-dependent exploration constant (decays with depth)
+    const int depth = node->getDepth();
+    const double depthDecayFactor = 0.5;               // Tuneable: larger → faster decay
+    double effectiveC = explorationConstant / (1.0 + depth * depthDecayFactor);
+
+    // Standard UCB1 components with depth decay
+    double exploitation = node->getAverageReward();
+    double exploration = effectiveC * std::sqrt(std::log(static_cast<double>(parent->getVisits())) / node->getVisits());
+
+    return exploitation + exploration + progressiveBias;
 }
 
 double MCTSEngine::calculateRAVE(const MCTSNode* node) const {
@@ -273,35 +300,62 @@ double MCTSEngine::evaluateTerminalState(const GameState& state, const std::stri
     // 1. Pellet Score (Primary Reward)
     double pelletScore = static_cast<double>(animal->score);
 
-    // 2. Exploration Bonus (Secondary Reward)
-    double explorationBonus = static_cast<double>(state.visitedCells.size());
-
-    // 3. Penalty for being caught
-    double capturePenalty = 0.0;
-    if (state.isPlayerCaught(playerId)) {
-        capturePenalty = -1000.0; // Large penalty for being caught
+    // 2. Distance to nearest pellet (encourage moving towards pellets)
+    int distToPellet = state.distanceToNearestPellet(animal->position);
+    double distanceReward = 0.0;
+    if (distToPellet >= 0) {
+        // Closer is better. Scale so that 0 distance yields max reward (e.g., 20) and far yields smaller.
+        // Assume max meaningful Manhattan distance is (width + height).
+        int maxDist = state.getWidth() + state.getHeight();
+        maxDist = std::max(1, maxDist); // Prevent division by zero.
+        distanceReward = static_cast<double>(maxDist - distToPellet);
     }
 
-    // --- Define Weights for each component ---
-    const double pelletWeight = 10.0;
-    const double explorationWeight = 1.0; 
+    // 3. Exploration bonus (encourage covering new tiles)
+    double explorationBonus = static_cast<double>(state.visitedCells.size());
 
-    // --- Calculate Final Raw Score ---
-    double finalScore = (pelletWeight * pelletScore) +
-                        (explorationWeight * explorationBonus) +
-                        capturePenalty;
+    // 4. Threat penalty (avoid zookeepers)
+    double threatPenalty = state.getZookeeperThreat(animal->position);
 
-    // --- Normalize Score to [0, 100] range for MCTS ---
-    // These bounds might need tuning based on typical game scores.
-    const double minPossibleScore = -1000.0; // Based on capture penalty
-    const double maxPossibleScore = 10000.0; // Estimated max score (e.g., high pellet count + exploration)
-    
-    double normalizedScore = (finalScore - minPossibleScore) / (maxPossibleScore - minPossibleScore);
-    
-    // Clamp the normalized score to [0, 1] and then scale to [0, 100]
-    normalizedScore = std::max(0.0, std::min(1.0, normalizedScore));
-    
-    return normalizedScore * 100.0;
+    // 5. Capture penalty
+    double capturePenalty = state.isPlayerCaught(playerId) ? 1000.0 : 0.0;
+
+    // --- Weights --- (tuned for balanced ranges)
+    const double pelletWeight      = 0.05;   // Reduce absolute score influence; focus on new pellet collection
+    const double distanceWeight    = 30.0;  // Stronger incentive to approach pellets
+    const double explorationWeight = 0.5;
+    const double threatWeight      = 5.0;
+    const double emptyPenaltyWeight = 200.0;  // Massive penalty for not collecting pellet quickly
+    const double instantPelletRewardWeight = 5000.0; // Huge bonus for immediate pellet
+    const double powerUpWeight     = 50.0;   // Reward active power-up usage
+
+    // --- Compute raw score ---
+    // 6. Empty-cell penalty (ticks since last pellet)
+    double emptyPenalty = animal->ticksSinceLastPellet * emptyPenaltyWeight;
+    // Reward if pellet collected this tick (ticksSinceLastPellet == 0)
+    double instantPelletReward = (animal->ticksSinceLastPellet == 0) ? instantPelletRewardWeight : 0.0;
+
+    // 7. Power-up reward (active duration remaining)
+    double powerUpReward = 0.0;
+    if (animal->heldPowerUp != PowerUpType::None || animal->powerUpDuration > 0) {
+        powerUpReward = powerUpWeight * (animal->powerUpDuration + 1); // favour collecting/using
+    }
+
+    double rawScore = (pelletWeight * pelletScore) +
+                      (distanceWeight * distanceReward) +
+                      (explorationWeight * explorationBonus) -
+                      (threatWeight * threatPenalty) -
+                      emptyPenalty +
+                      powerUpReward +
+                      instantPelletReward -
+                      capturePenalty;
+
+    // --- Scale the raw score into a bounded range using tanh to keep UCB exploitation comparable with exploration term ---
+    // Chosen scale factor based on empirical max game scores; tune if necessary.
+    const double scaleFactor = 20000.0;
+    double scaled = std::tanh(rawScore / scaleFactor); // in (-1,1)
+    // Map to [0,100] positive range for convenience
+    return (scaled + 1.0) * 50.0;
 }
 
 void MCTSEngine::runParallelMCTS(MCTSNode* root, const std::string& playerId, int threadId) {

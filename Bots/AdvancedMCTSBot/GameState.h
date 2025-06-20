@@ -200,6 +200,8 @@ public:
     std::vector<Position> getNearbyPowerUps(const Position& pos, int radius) const;
     double calculatePelletDensity(const Position& center, int radius) const;
     int countPelletsInArea(const Position& center, int radius) const;
+    // Returns Manhattan distance to the closest remaining pellet; returns -1 if none.
+    int distanceToNearestPellet(const Position& pos) const;
     
     // Zookeeper methods
     Position predictZookeeperPosition(const Zookeeper& zk, int ticksAhead) const;

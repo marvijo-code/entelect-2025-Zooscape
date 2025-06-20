@@ -232,10 +232,18 @@ const App = () => {
         console.warn(`No cells or Cells property found in tick data. Available properties:`, Object.keys(tickData));
       }
 
-      if (!tickData || typeof tickData.tick === 'undefined') {
+      // Normalize different casing conventions returned by the API so that the rest of the
+      // visualiser code can reliably rely on lowercase keys. This prevents the "Invalid tick
+      // data received" error when the backend sends `Tick` instead of `tick`.
+      const normalisedTick = tickData.tick !== undefined ? tickData.tick : tickData.Tick;
+      if (normalisedTick === undefined) {
         console.error(`Invalid tick data structure:`, tickData);
         throw new Error('Invalid tick data received');
       }
+      // Ensure required lowercase properties exist for downstream logic.
+      tickData.tick = normalisedTick;
+      tickData.cells = tickData.cells ?? tickData.Cells ?? [];
+      tickData.animals = tickData.animals ?? tickData.Animals ?? [];
 
       console.log(`Setting game state for tick ${tickData.tick}`);
       setAllGameStates([tickData]); // Store only the current tick

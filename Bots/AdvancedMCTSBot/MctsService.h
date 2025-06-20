@@ -7,7 +7,7 @@
 
 class MctsService {
 public:
-    MctsService(int maxIterations, int timeLimit, int numThreads = 0, int maxDepth = 200);
+    MctsService(int maxIterations, int timeLimit, int numThreads = 0, int maxDepth = 30);
     void SetBotId(std::string botId);
     MCTSResult GetBestAction(const GameState& gameState);
 
