@@ -33,13 +33,21 @@ public class ScoreLossMinimizerHeuristic : IHeuristic
                 BotUtils.ManhattanDistance(z.X, z.Y, nx, ny)
             );
 
+            // Prevent division by zero: ensure configured divisor is not zero
+            decimal riskDistanceDivisor = heuristicContext.Weights.ScoreLossMinimizerRiskDistanceDivisor;
+            if (riskDistanceDivisor == 0m)
+            {
+                heuristicContext.Logger?.Warning("{HeuristicName}: ScoreLossMinimizerRiskDistanceDivisor is zero. Using fallback divisor of 1 to avoid division by zero.", Name);
+                riskDistanceDivisor = 1m; // Fallback to 1 to avoid divide-by-zero
+            }
+
             // Risk increases as zookeeper gets closer
             if (minDist <= heuristicContext.Weights.ScoreLossMinimizerHighRiskDistance)
-                captureRisk = heuristicContext.Weights.ScoreLossMinimizerHighRiskFactor / 
-                              (minDist + heuristicContext.Weights.ScoreLossMinimizerRiskDistanceDivisor);
+                captureRisk = heuristicContext.Weights.ScoreLossMinimizerHighRiskFactor /
+                              (minDist + riskDistanceDivisor);
             else if (minDist <= heuristicContext.Weights.ScoreLossMinimizerMediumRiskDistance)
-                captureRisk = heuristicContext.Weights.ScoreLossMinimizerMediumRiskFactor / 
-                              (minDist + heuristicContext.Weights.ScoreLossMinimizerRiskDistanceDivisor);
+                captureRisk = heuristicContext.Weights.ScoreLossMinimizerMediumRiskFactor /
+                              (minDist + riskDistanceDivisor);
         }
 
         // Calculate risk-adjusted value

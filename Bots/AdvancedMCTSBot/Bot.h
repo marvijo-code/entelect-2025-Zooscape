@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <future>
+#include <atomic>
 #include <optional>
 
 class Bot {
@@ -30,5 +31,7 @@ private:
     std::unique_ptr<MctsService> mctsService;
     std::optional<signalr::hub_connection> connection;
     std::promise<void> stop_task;
+    std::atomic<int> lastProcessedTick{-1};
+    BotAction lastSentAction = BotAction::None;
 };
 

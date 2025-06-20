@@ -246,8 +246,21 @@ Bot::Bot() {
 
         try {
             GameState gameState = convertGameState(args);
+            int currentTick = gameState.tick;
+            // Ensure we process at most one action per game tick
+            if (currentTick == lastProcessedTick.load()) {
+                return; // already handled this tick
+            }
+            lastProcessedTick = currentTick;
             MCTSResult mctsResult = mctsService->GetBestAction(gameState);
             chosenActionType = mctsResult.bestAction;
+
+            // If the chosen action is a movement and is the same as last tick, skip sending
+            if ((chosenActionType == BotAction::Up || chosenActionType == BotAction::Down ||
+                 chosenActionType == BotAction::Left || chosenActionType == BotAction::Right) &&
+                chosenActionType == lastSentAction) {
+                return; // redundant move
+            }
 
         } catch (const std::exception& e) {
             fmt::println("ERROR during MCTS calculation: {}. Sending default action.", e.what());
@@ -264,6 +277,8 @@ Bot::Bot() {
         std::map<std::string, signalr::value> commandMap;
         commandMap["Action"] = signalr::value(static_cast<double>(commandToSend.actionType));
 
+        // Update last sent action only when we actually send
+        lastSentAction = chosenActionType;
         connection->send("BotCommand", std::vector<signalr::value>{commandMap}, [](std::exception_ptr exc) {
             handleExceptionPtr("BotCommand", exc);
         });
