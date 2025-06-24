@@ -1,0 +1,162 @@
+Build started 6/24/2025 3:52:33 AM.
+     1>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.sln" on node 1 (Clean target(s)).
+     1>ValidateSolutionConfiguration:
+         Building solution configuration "Debug|Any CPU".
+     1>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.sln" (1) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (3) on node 7 (Clean target(s)).
+     3>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (3) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (3:3) on node 2 (Clean target(s)).
+     3>CoreClean:
+         Deleting file "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\ZooscapeRunner.csproj.AssemblyReference.cache".
+         Deleting file "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\ZooscapeRunner.d-bfalse.GeneratedMSBuildEditorConfig.editorconfig".
+         Deleting file "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\ZooscapeRunner.AssemblyInfoInputs.cache".
+         Deleting file "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\ZooscapeRunner.AssemblyInfo.cs".
+         Deleting file "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\ZooscapeRunner.csproj.CoreCompileInputs.cache".
+         Deleting file "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\ZooscapeRunner.sourcelink.json".
+     1>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.sln" (1) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj" (2) on node 4 (Clean target(s)).
+     2>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj" (2) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj" (2:2) on node 4 (Clean target(s)).
+     2>ProcessFrameworkReferences:
+       C:\Program Files\dotnet\sdk\9.0.301\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.Sdk.FrameworkReferenceResolution.targets(175,5): message NETSDK1084: There is no application host available for the specified RuntimeIdentifier 'android-arm'. [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj::TargetFramework=net8.0-android]
+       C:\Program Files\dotnet\sdk\9.0.301\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.Sdk.FrameworkReferenceResolution.targets(175,5): message NETSDK1084: There is no application host available for the specified RuntimeIdentifier 'android-arm64'. [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj::TargetFramework=net8.0-android]
+       C:\Program Files\dotnet\sdk\9.0.301\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.Sdk.FrameworkReferenceResolution.targets(175,5): message NETSDK1084: There is no application host available for the specified RuntimeIdentifier 'android-x86'. [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj::TargetFramework=net8.0-android]
+       C:\Program Files\dotnet\sdk\9.0.301\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.Sdk.FrameworkReferenceResolution.targets(175,5): message NETSDK1084: There is no application host available for the specified RuntimeIdentifier 'android-x64'. [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj::TargetFramework=net8.0-android]
+     2>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj" (2) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj" (2:3) on node 9 (Clean target(s)).
+     2>_GenerateBuildSessionId:
+         Using Session Id: 55c5b30b892e3767ffc3ef304a8e1b3bdc15c4077675ba7f65629208e25a1ecc
+         Generated build app name: ZooscapeRunner.Mobile
+         Required Agent: Build 1.14.0.6
+     3>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (3) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (3:2) on node 7 (Clean target(s)).
+     3>UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0\\g" doesn't exist. Skipping.
+     3>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (Clean target(s)).
+     3>UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0-windows10.0.18362\\g" doesn't exist. Skipping.
+     3>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (Clean target(s)).
+     3>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (3) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (3:6) on node 13 (Clean target(s)).
+     3>_GenerateBuildSessionId:
+         Using Session Id: fab7ed14743a23d82fe24c1f97ec4c4ababf8d8fcd692fd510f4f7d0ae0b440a
+         Generated build app name: ZooscapeRunner
+         Required Agent: Build 1.14.0.6
+     3>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (3) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (3:16) on node 12 (Clean target(s)).
+     3>_CleanBindingResourcePackage:
+         Directory "bin\Debug\net8.0-maccatalyst\ZooscapeRunner.resources" doesn't exist. Skipping.
+       UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0-maccatalyst\\g" doesn't exist. Skipping.
+     3>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (Clean target(s)).
+     3>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (3) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (3:8) on node 11 (Clean target(s)).
+     3>UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0-android\\g" doesn't exist. Skipping.
+     3>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (Clean target(s)).
+     3>_CleanBindingResourcePackage:
+         Directory "bin\Debug\net8.0-ios\ZooscapeRunner.resources" doesn't exist. Skipping.
+       _GenerateHotRestartBuildSessionId:
+         Using Session Id: fab7ed14743a23d82fe24c1f97ec4c4ababf8d8fcd692fd510f4f7d0ae0b440a
+         Generated build app name: ZooscapeRunner
+         Required Agent: Build 1.14.0.6
+       _CleanHotRestartBundle:
+         Directory "C:\Users\marvi\AppData\Local\Temp\Xamarin\HotRestart\Signing\ZooscapeRunner.app\out\" doesn't exist. Skipping.
+         Directory "obj\Debug\net8.0-ios\UnpackedFrameworks" doesn't exist. Skipping.
+         Directory "obj\Debug\net8.0-ios\DynamicFrameworks" doesn't exist. Skipping.
+       UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0-ios\\g" doesn't exist. Skipping.
+     3>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (Clean target(s)).
+     3>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj" (Clean target(s)).
+     2>_CleanBindingResourcePackage:
+         Directory "bin\Debug\net8.0-ios\iossimulator-x64\ZooscapeRunner.Mobile.resources" doesn't exist. Skipping.
+     1>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.sln" (1) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Wasm\ZooscapeRunner.Wasm.csproj" (7) on node 6 (Clean target(s)).
+     7>UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0\\g" doesn't exist. Skipping.
+     2>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj" (2) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj" (2:4) on node 10 (Clean target(s)).
+     2>_CleanBindingResourcePackage:
+         Directory "bin\Debug\net8.0-maccatalyst\maccatalyst-x64\ZooscapeRunner.Mobile.resources" doesn't exist. Skipping.
+     1>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.sln" (1) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Skia.Gtk\ZooscapeRunner.Skia.Gtk.csproj" (4) on node 2 (Clean target(s)).
+     4>UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0\\g" doesn't exist. Skipping.
+     4>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Skia.Gtk\ZooscapeRunner.Skia.Gtk.csproj" (Clean target(s)).
+     7>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Wasm\ZooscapeRunner.Wasm.csproj" (Clean target(s)).
+     2>_GenerateHotRestartBuildSessionId:
+         Using Session Id: 55c5b30b892e3767ffc3ef304a8e1b3bdc15c4077675ba7f65629208e25a1ecc
+         Generated build app name: ZooscapeRunner.Mobile
+     1>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.sln" (1) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Skia.WPF\ZooscapeRunner.Skia.WPF.csproj" (5) on node 3 (Clean target(s)).
+     5>UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0-windows\\g" doesn't exist. Skipping.
+     2>UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0-maccatalyst\maccatalyst-x64\\g" doesn't exist. Skipping.
+     2>_GenerateHotRestartBuildSessionId:
+         Required Agent: Build 1.14.0.6
+     2>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj" (Clean target(s)).
+     2>_CleanHotRestartBundle:
+         Directory "C:\Users\marvi\AppData\Local\Temp\Xamarin\HotRestart\Signing\ZooscapeRunner.Mobile.app\out\" doesn't exist. Skipping.
+     5>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Skia.WPF\ZooscapeRunner.Skia.WPF.csproj" (Clean target(s)).
+     2>_CleanHotRestartBundle:
+         Directory "obj\Debug\net8.0-ios\iossimulator-x64\UnpackedFrameworks" doesn't exist. Skipping.
+         Directory "obj\Debug\net8.0-ios\iossimulator-x64\DynamicFrameworks" doesn't exist. Skipping.
+       UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0-ios\iossimulator-x64\\g" doesn't exist. Skipping.
+     2>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj" (Clean target(s)).
+     1>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.sln" (1) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Windows\ZooscapeRunner.Windows.csproj" (6) on node 8 (Clean target(s)).
+     6>UnoSourceGeneratorClean:
+         Directory "obj\x86\Debug\net8.0-windows10.0.19041.0\win-x86\\g" doesn't exist. Skipping.
+     2>UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0-android\\g" doesn't exist. Skipping.
+     6>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Windows\ZooscapeRunner.Windows.csproj" (Clean target(s)).
+     2>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj" (Clean target(s)).
+     2>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Mobile\ZooscapeRunner.Mobile.csproj" (Clean target(s)).
+     1>Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.sln" (1) is building "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Skia.Linux.FrameBuffer\ZooscapeRunner.Skia.Linux.FrameBuffer.csproj" (9) on node 1 (Clean target(s)).
+     9>UnoSourceGeneratorClean:
+         Directory "obj\Debug\net8.0\\g" doesn't exist. Skipping.
+     9>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.Skia.Linux.FrameBuffer\ZooscapeRunner.Skia.Linux.FrameBuffer.csproj" (Clean target(s)).
+     1>Done Building Project "C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner.sln" (Clean target(s)).
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.62
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(7,25): error CS0234: The type or namespace name 'Controls' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(8,25): error CS0234: The type or namespace name 'Navigation' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(9,25): error CS0234: The type or namespace name 'Controls' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(10,25): error CS0234: The type or namespace name 'Controls' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(12,25): error CS0234: The type or namespace name 'Input' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(13,25): error CS0234: The type or namespace name 'Media' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(14,25): error CS0234: The type or namespace name 'Navigation' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\Uno.UI.SourceGenerators\Uno.UI.SourceGenerators.XamlGenerator.XamlCodeGenerator\GlobalStaticResources.cs(13,25): error CS0234: The type or namespace name 'Controls' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\Uno.UI.SourceGenerators\Uno.UI.SourceGenerators.XamlGenerator.XamlCodeGenerator\GlobalStaticResources.cs(15,25): error CS0234: The type or namespace name 'Documents' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\Uno.UI.SourceGenerators\Uno.UI.SourceGenerators.XamlGenerator.XamlCodeGenerator\GlobalStaticResources.cs(16,25): error CS0234: The type or namespace name 'Media' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\Uno.UI.SourceGenerators\Uno.UI.SourceGenerators.XamlGenerator.XamlCodeGenerator\GlobalStaticResources.cs(17,25): error CS0234: The type or namespace name 'Media' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(15,28): error CS0246: The type or namespace name 'Application' could not be found (are you missing a using directive or an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(25,44): error CS0246: The type or namespace name 'Page' could not be found (are you missing a using directive or an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(32,18): error CS0246: The type or namespace name 'Window' could not be found (are you missing a using directive or an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(35,77): error CS0234: The type or namespace name 'RoutedEventArgs' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(39,55): error CS0234: The type or namespace name 'LaunchActivatedEventArgs' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(94,41): error CS0246: The type or namespace name 'NavigationFailedEventArgs' could not be found (are you missing a using directive or an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\Uno.UI.SourceGenerators\Uno.UI.SourceGenerators.XamlGenerator.XamlCodeGenerator\GlobalStaticResources.cs(42,31): error CS0234: The type or namespace name 'UI' does not exist in the namespace 'Uno' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+
+Build FAILED.
+
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(7,25): error CS0234: The type or namespace name 'Controls' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(8,25): error CS0234: The type or namespace name 'Navigation' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(9,25): error CS0234: The type or namespace name 'Controls' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(10,25): error CS0234: The type or namespace name 'Controls' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(12,25): error CS0234: The type or namespace name 'Input' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(13,25): error CS0234: The type or namespace name 'Media' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(14,25): error CS0234: The type or namespace name 'Navigation' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\Uno.UI.SourceGenerators\Uno.UI.SourceGenerators.XamlGenerator.XamlCodeGenerator\GlobalStaticResources.cs(13,25): error CS0234: The type or namespace name 'Controls' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\Uno.UI.SourceGenerators\Uno.UI.SourceGenerators.XamlGenerator.XamlCodeGenerator\GlobalStaticResources.cs(15,25): error CS0234: The type or namespace name 'Documents' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\Uno.UI.SourceGenerators\Uno.UI.SourceGenerators.XamlGenerator.XamlCodeGenerator\GlobalStaticResources.cs(16,25): error CS0234: The type or namespace name 'Media' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\Uno.UI.SourceGenerators\Uno.UI.SourceGenerators.XamlGenerator.XamlCodeGenerator\GlobalStaticResources.cs(17,25): error CS0234: The type or namespace name 'Media' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(15,28): error CS0246: The type or namespace name 'Application' could not be found (are you missing a using directive or an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(25,44): error CS0246: The type or namespace name 'Page' could not be found (are you missing a using directive or an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(32,18): error CS0246: The type or namespace name 'Window' could not be found (are you missing a using directive or an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\MainPage.xaml.cs(35,77): error CS0234: The type or namespace name 'RoutedEventArgs' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(39,55): error CS0234: The type or namespace name 'LaunchActivatedEventArgs' does not exist in the namespace 'Microsoft.UI.Xaml' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\App.cs(94,41): error CS0246: The type or namespace name 'NavigationFailedEventArgs' could not be found (are you missing a using directive or an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\obj\Debug\net8.0-windows10.0.18362\Uno.UI.SourceGenerators\Uno.UI.SourceGenerators.XamlGenerator.XamlCodeGenerator\GlobalStaticResources.cs(42,31): error CS0234: The type or namespace name 'UI' does not exist in the namespace 'Uno' (are you missing an assembly reference?) [C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj::TargetFramework=net8.0-windows10.0.18362]
+    0 Warning(s)
+    18 Error(s)
+
+Time Elapsed 00:00:02.32
+
+Workload updates are available. Run `dotnet workload list` for more information.

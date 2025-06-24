@@ -1,19 +1,43 @@
+extern alias UnoSdk;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using ZooscapeRunner.Services;
+using ZooscapeRunner.ViewModels;
+
+#if WINDOWS
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using ZooscapeRunner.Services;
-using ZooscapeRunner.ViewModels;
+using Page = UnoSdk::Microsoft.UI.Xaml.Controls.Page;
+using RoutedEventArgs = UnoSdk::Microsoft.UI.Xaml.RoutedEventArgs;
+using Grid = UnoSdk::Microsoft.UI.Xaml.Controls.Grid;
+using TextBlock = UnoSdk::Microsoft.UI.Xaml.Controls.TextBlock;
+using Button = UnoSdk::Microsoft.UI.Xaml.Controls.Button;
+using StackPanel = UnoSdk::Microsoft.UI.Xaml.Controls.StackPanel;
+using RowDefinition = UnoSdk::Microsoft.UI.Xaml.Controls.RowDefinition;
+using GridLength = UnoSdk::Microsoft.UI.Xaml.GridLength;
+using GridUnitType = UnoSdk::Microsoft.UI.Xaml.GridUnitType;
+using HorizontalAlignment = UnoSdk::Microsoft.UI.Xaml.HorizontalAlignment;
+using VerticalAlignment = UnoSdk::Microsoft.UI.Xaml.VerticalAlignment;
+using Thickness = UnoSdk::Microsoft.UI.Xaml.Thickness;
+using Orientation = UnoSdk::Microsoft.UI.Xaml.Controls.Orientation;
+#else
+using Page = UnoSdk::Microsoft.UI.Xaml.Controls.Page;
+using RoutedEventArgs = UnoSdk::Microsoft.UI.Xaml.RoutedEventArgs;
+using Grid = UnoSdk::Microsoft.UI.Xaml.Controls.Grid;
+using TextBlock = UnoSdk::Microsoft.UI.Xaml.Controls.TextBlock;
+using Button = UnoSdk::Microsoft.UI.Xaml.Controls.Button;
+using StackPanel = UnoSdk::Microsoft.UI.Xaml.Controls.StackPanel;
+using RowDefinition = UnoSdk::Microsoft.UI.Xaml.Controls.RowDefinition;
+using GridLength = UnoSdk::Microsoft.UI.Xaml.GridLength;
+using GridUnitType = UnoSdk::Microsoft.UI.Xaml.GridUnitType;
+using HorizontalAlignment = UnoSdk::Microsoft.UI.Xaml.HorizontalAlignment;
+using VerticalAlignment = UnoSdk::Microsoft.UI.Xaml.VerticalAlignment;
+using Thickness = UnoSdk::Microsoft.UI.Xaml.Thickness;
+using Orientation = UnoSdk::Microsoft.UI.Xaml.Controls.Orientation;
+#endif
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
@@ -32,7 +56,7 @@ namespace ZooscapeRunner
             Loaded += MainPage_Loaded;
         }
 
-        private async void MainPage_Loaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        private async void MainPage_Loaded(object sender, RoutedEventArgs e)
         {
             var processManager = await Services.ProcessManager.CreateAsync();
             ViewModel = new MainViewModel(processManager);

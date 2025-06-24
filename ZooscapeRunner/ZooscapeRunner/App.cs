@@ -1,17 +1,29 @@
+extern alias UnoSdk;
 using System;
 using Microsoft.Extensions.Logging;
+
+#if WINDOWS
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Navigation;
+using Application = UnoSdk::Microsoft.UI.Xaml.Application;
+using LaunchActivatedEventArgs = UnoSdk::Microsoft.UI.Xaml.LaunchActivatedEventArgs;
+using Window = UnoSdk::Microsoft.UI.Xaml.Window;
+using Frame = UnoSdk::Microsoft.UI.Xaml.Controls.Frame;
+using NavigationFailedEventArgs = UnoSdk::Microsoft.UI.Xaml.Navigation.NavigationFailedEventArgs;
+#else
+using Application = UnoSdk::Microsoft.UI.Xaml.Application;
+using LaunchActivatedEventArgs = UnoSdk::Microsoft.UI.Xaml.LaunchActivatedEventArgs;
+using Window = UnoSdk::Microsoft.UI.Xaml.Window;
+using Frame = UnoSdk::Microsoft.UI.Xaml.Controls.Frame;
+using NavigationFailedEventArgs = UnoSdk::Microsoft.UI.Xaml.Navigation.NavigationFailedEventArgs;
+#endif
 
 namespace ZooscapeRunner;
 
 /// <summary>
 /// Provides application-specific behavior to supplement the default Application class.
 /// </summary>
-public partial class App : Application
+public partial class App : UnoSdk::Microsoft.UI.Xaml.Application
 {
 	/// <summary>
 	/// Initializes the singleton application object.  This is the first line of authored code
@@ -28,14 +40,14 @@ public partial class App : Application
 	/// <summary>
 	/// Gets the main window of the app.
 	/// </summary>
-	internal static Window MainWindow { get; private set; }
+	internal static Window MainWindow { get; private set; } = null!;
 
 	/// <summary>
 	/// Invoked when the application is launched normally by the end user.  Other entry points
 	/// will be used such as when the application is launched to open a specific file.
 	/// </summary>
 	/// <param name="args">Details about the launch request and process.</param>
-	protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+	protected override void OnLaunched(UnoSdk::Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
 	{
 #if DEBUG
 		if (System.Diagnostics.Debugger.IsAttached)
@@ -48,7 +60,7 @@ public partial class App : Application
 		MainWindow = new Window();
 		MainWindow.Activate();
 #else
-		MainWindow = Microsoft.UI.Xaml.Window.Current;
+		MainWindow = UnoSdk::Microsoft.UI.Xaml.Window.Current;
 #endif
 
 		// Do not repeat app initialization when the Window already has content,
@@ -60,17 +72,19 @@ public partial class App : Application
 
 			rootFrame.NavigationFailed += OnNavigationFailed;
 
+#if WINDOWS
 			if (args.UWPLaunchActivatedEventArgs.PreviousExecutionState == ApplicationExecutionState.Terminated)
 			{
 				// TODO: Load state from previously suspended application
 			}
+#endif
 
 			// Place the frame in the current Window
 			MainWindow.Content = rootFrame;
 		}
 
 #if !(NET6_0_OR_GREATER && WINDOWS)
-		if (args.UWPLaunchActivatedEventArgs.PrelaunchActivated == false)
+		if (args.UWPLaunchActivatedEventArgs?.PrelaunchActivated == false)
 #endif
 		{
 			if (rootFrame.Content == null)
@@ -102,10 +116,12 @@ public partial class App : Application
 	/// </summary>
 	/// <param name="sender">The source of the suspend request.</param>
 	/// <param name="e">Details about the suspend request.</param>
-	private void OnSuspending(object sender, SuspendingEventArgs e)
+#if WINDOWS
+	private void OnSuspending(object sender, UnoSdk::Windows.ApplicationModel.SuspendingEventArgs e)
 	{
 		var deferral = e.SuspendingOperation.GetDeferral();
 		//TODO: Save the application state and stop any background activity
 		deferral.Complete();
 	}
+#endif
 }

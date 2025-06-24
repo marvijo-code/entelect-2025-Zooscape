@@ -1,4 +1,27 @@
-# Active Context
+# Active Context: ZooscapeRunner Build Resolution
+
+## Current Task
+Resolve compilation errors in the `ZooscapeRunner` Uno Platform project. The build is failing after an attempt to resolve a `CS0433` ambiguous reference error by using an `extern alias`.
+
+## Recent Changes
+1.  **`extern alias` Implementation:**
+    *   The `Uno.WinUI` package in `ZooscapeRunner.csproj` was aliased as `UnoSdk`.
+    *   The `extern alias UnoSdk;` directive was added to the top of `App.cs`.
+    *   The `SuspendingEventArgs` type in `App.cs` was updated to `UnoSdk::Windows.ApplicationModel.SuspendingEventArgs`.
+
+2.  **New Errors Encountered:**
+    *   The `extern alias` fixed the original `CS0433` error but introduced a cascade of `CS0234` and `CS0246` errors (e.g., "The type or namespace name 'Controls' does not exist in the namespace 'Microsoft.UI.Xaml'"). This is because all types from the aliased `Uno.WinUI` assembly are now hidden.
+
+## Current Blocker
+The build is broken due to the new compilation errors. To fix this, `using` aliases must be added to all affected C# files (`App.cs`, `MainPage.xaml.cs`, etc.) to map the required types from the `UnoSdk` alias.
+
+For example: `using Application = UnoSdk::Microsoft.UI.Xaml.Application;`
+
+## Next Steps
+1.  **Correct `App.cs`:** The user has provided the current content of `App.cs`. The file needs to be completely rewritten with the correct `extern alias` and a full set of `using` aliases for all required types.
+2.  **Request `MainPage.xaml.cs`:** Obtain the full content of `MainPage.xaml.cs` from the user.
+3.  **Correct `MainPage.xaml.cs`:** Rewrite the file with the necessary `using` aliases.
+4.  **Build and Verify:** Run the build script (`run-ZooscapeRunner.bat`) to confirm all compilation errors are resolved and the application builds successfully.
 
 **Primary Goal:** Ensure the `AdvancedMCTSBot` is a fully functional and effective game-playing agent.
 

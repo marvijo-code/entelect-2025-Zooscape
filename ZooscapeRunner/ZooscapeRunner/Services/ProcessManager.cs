@@ -6,10 +6,13 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text.Json;
 using System.Threading;
-using Windows.Storage;
 using System.Threading.Tasks;
 using ZooscapeRunner.Models;
 using ZooscapeRunner.ViewModels;
+
+#if WINDOWS
+using Windows.Storage;
+#endif
 
 namespace ZooscapeRunner.Services
 {
@@ -36,9 +39,43 @@ namespace ZooscapeRunner.Services
 
             try
             {
-                var installFolder = Windows.ApplicationModel.Package.Current.InstalledLocation;
-                var configFile = await installFolder.GetFileAsync("Assets\\processes.json");
-                var json = await FileIO.ReadTextAsync(configFile);
+                string json = "";
+                
+#if WINDOWS && !HAS_UNO
+                try
+                {
+                    var installFolder = Windows.ApplicationModel.Package.Current.InstalledLocation;
+                    var configFile = await installFolder.GetFileAsync("Assets\\processes.json");
+                    json = await Windows.Storage.FileIO.ReadTextAsync(configFile);
+                }
+                catch
+                {
+                    // Fallback to regular file access
+                    var assetsPath = Path.Combine(AppContext.BaseDirectory, "Assets", "processes.json");
+                    if (File.Exists(assetsPath))
+                    {
+                        json = await File.ReadAllTextAsync(assetsPath);
+                    }
+                }
+#else
+                // For non-Windows platforms or Uno platforms, try to read from Assets folder in the app directory
+                var assetsPath = Path.Combine(AppContext.BaseDirectory, "Assets", "processes.json");
+                if (!File.Exists(assetsPath))
+                {
+                    // Fallback to current directory
+                    assetsPath = Path.Combine(Directory.GetCurrentDirectory(), "Assets", "processes.json");
+                }
+                
+                if (File.Exists(assetsPath))
+                {
+                    json = await File.ReadAllTextAsync(assetsPath);
+                }
+                else
+                {
+                    Debug.WriteLine($"Config file not found at: {assetsPath}");
+                    return;
+                }
+#endif
 
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var configs = JsonSerializer.Deserialize<List<ProcessConfig>>(json, options);
@@ -90,6 +127,7 @@ namespace ZooscapeRunner.Services
                 try
                 {
                     managedProcess.ViewModel.Status = "Starting...";
+#if WINDOWS || MACCATALYST || ANDROID
                     managedProcess.ProcessInstance = Process.Start(managedProcess.StartInfo);
                     if (managedProcess.ProcessInstance != null)
                     {
@@ -104,6 +142,9 @@ namespace ZooscapeRunner.Services
                     {
                         managedProcess.ViewModel.Status = "Failed to start";
                     }
+#else
+                    managedProcess.ViewModel.Status = "Not supported on this platform";
+#endif
                 }
                 catch (Exception ex)
                 {
@@ -178,17 +219,30 @@ namespace ZooscapeRunner.Services
 
         private bool IsPortAvailable(int port)
         {
-            var ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
-            var tcpConnInfoArray = ipGlobalProperties.GetActiveTcpListeners();
-
-            foreach (var endpoint in tcpConnInfoArray)
+#if WINDOWS || MACCATALYST
+            try
             {
-                if (endpoint.Port == port)
+                var ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+                var tcpConnInfoArray = ipGlobalProperties.GetActiveTcpListeners();
+
+                foreach (var endpoint in tcpConnInfoArray)
                 {
-                    return false;
+                    if (endpoint.Port == port)
+                    {
+                        return false;
+                    }
                 }
+                return true;
             }
+            catch
+            {
+                // If port checking fails, assume it's available
+                return true;
+            }
+#else
+            // On platforms where IPGlobalProperties is not available, assume port is available
             return true;
+#endif
         }
 
         public Task StopAllAsync()
@@ -197,11 +251,15 @@ namespace ZooscapeRunner.Services
             {
                 try
                 {
+#if WINDOWS || MACCATALYST || ANDROID
                     if (managedProcess.ProcessInstance != null && !managedProcess.ProcessInstance.HasExited)
                     {
                         managedProcess.ProcessInstance.Kill(true);
                         managedProcess.ViewModel.Status = "Stopped";
                     }
+#else
+                    managedProcess.ViewModel.Status = "Stop not supported on this platform";
+#endif
                 }
                 catch (Exception ex)
                 {
