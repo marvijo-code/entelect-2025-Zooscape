@@ -822,14 +822,12 @@ const App = () => {
     if (showReplayMode && replayGameId) {
       try {
         await fetchAndDisplayReplayTick(replayGameId, 0);
-        setIsPlaying(true);
       } catch (error) {
         setError(`Failed to restart replay: ${error.message}`);
       }
     } else {
       // Legacy behavior for non-replay mode
       setCurrentDisplayIndex(0);
-      setIsPlaying(true);
     }
   }, [showReplayMode, replayGameId, fetchAndDisplayReplayTick]);
 

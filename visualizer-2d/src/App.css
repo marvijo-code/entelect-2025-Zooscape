@@ -85,10 +85,10 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   background-color: var(--surface-primary);
   box-shadow: var(--shadow-large);
-  position: relative; /* Establish stacking context for right panel children */
   border-left: 1px solid var(--border-primary);
 }
 
@@ -148,6 +148,7 @@ body {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .app-header h1 {
@@ -170,6 +171,7 @@ body {
   background-color: #2f3136; /* Darker background for header */
   border-bottom: 1px solid #202225;
   min-height: 40px; /* Ensure consistent height */
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .tick-info {
@@ -222,8 +224,7 @@ body {
   justify-content: center;
   gap: var(--spacing-sm);
   min-height: 56px;
-  position: relative; /* Ensure stacking context for the whole controls bar */
-  z-index: 100;     /* Significantly higher z-index */
+  margin: 0 0 10px 0;
 }
 
 .playback-controls-container button {
@@ -893,6 +894,7 @@ html body .waiting-message {
   min-height: 32px;
   width: 100%;
   border-bottom: 1px solid var(--dark-border);
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 /* Style the tab buttons in right panel */
@@ -922,32 +924,30 @@ html body .waiting-message {
 /* Right panel content styling */
 .right-panel-content {
   flex: 1;
-  overflow: hidden;
+  overflow: visible;
   background-color: var(--dark-surface);
+  min-height: 0; /* Allow flex item to shrink below content size */
 }
 
 /* Style for all tabs in right panel */
 .right-panel-content > div {
-  height: 100%;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
   padding: 0;
 }
 
 /* Leaderboard in right panel */
 .right-panel-content .leaderboard-tab {
-  height: 100%;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }
 
 .right-panel-content .leaderboard-container {
   flex: 1;
-  height: 100%;
   width: 100%;
-  overflow-y: auto;
+  overflow: visible;
   padding: 6px;
   margin: 0;
   box-sizing: border-box;
@@ -979,9 +979,8 @@ html body .waiting-message {
 .right-panel-content .selector-container,
 .right-panel-content .connection-container {
   flex: 1;
-  height: 100%;
   width: 100%;
-  overflow-y: auto;
+  overflow: visible;
   padding: 6px;
   margin: 0;
   box-sizing: border-box;
@@ -1040,9 +1039,8 @@ html body .waiting-message {
 .right-panel-content .leaderboard-tab,
 .right-panel-content .game-selector-tab,
 .right-panel-content .connection-debugger-tab {
-  height: 100%;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -1304,67 +1302,13 @@ html body .waiting-message {
 
 /* Add replay scoreboard styles at the end of the file */
 
-.replay-scoreboard {
-  background-color: rgba(255, 255, 255, 0.95);
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 12px;
-  margin: 10px 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.replay-scoreboard h4 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  font-size: 16px;
-  color: #333;
-  border-bottom: 2px solid #007bff;
-  padding-bottom: 5px;
-}
-
-.replay-scoreboard ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.replay-scoreboard li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.replay-scoreboard li:last-child {
-  border-bottom: none;
-}
-
-.replay-scoreboard li span:first-child {
-  color: #555;
-  font-weight: 500;
-}
-
-.replay-scoreboard li span:last-child {
-  color: #007bff;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-.replay-scoreboard p {
-  color: #777;
-  font-style: italic;
-  margin: 0;
-  text-align: center;
-}
-
 /* Current File Display Styles */
 .current-file-display {
   background-color: rgba(248, 249, 250, 0.95);
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   padding: 12px;
-  margin: 10px 0;
+  margin: 10px 0 0 0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -1468,7 +1412,7 @@ html body .waiting-message {
   background-color: var(--surface-secondary, #2c2c2e); /* Dark background, fallback if var not found */
   padding: var(--spacing-md, 12px);
   border-radius: var(--radius-medium, 8px);
-  margin: var(--spacing-md, 12px);
+  margin: 0 0 10px 0;
   border: 1px solid var(--border-primary, #38383a);
   box-shadow: var(--shadow-medium, 0 3px 6px rgba(0,0,0,0.16));
 }

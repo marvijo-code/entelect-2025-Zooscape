@@ -224,12 +224,20 @@ while ($keepRunningScript) {
     
     $engineCommand = "dotnet run --project `"$engineCsproj`" --configuration Release"
     $encodedEngineCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($engineCommand))
-    $wtArgsEngine = @("-w", "0", "new-tab", "--title", "Engine", "--tabColor", $engineTabColor, "-d", $engineDir, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedEngineCommand)
-    Start-Process wt -ArgumentList $wtArgsEngine -NoNewWindow
+    
+    # Use a specific window name to avoid focus stealing
+    $windowName = "zooscape-runner"
+    $wtArgsEngine = @("-w", $windowName, "new-tab", "--title", "Engine", "--tabColor", $engineTabColor, "--suppressApplicationTitle", "-d", $engineDir, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedEngineCommand)
+    
+    # Start the process in the background to avoid focus stealing
+    Start-Process wt -ArgumentList $wtArgsEngine -WindowStyle Hidden
 
-    # Give the engine a moment to start listening
-    Write-Host "Waiting for engine to initialize (5 seconds)..." -ForegroundColor DarkGray
-    Start-Sleep -Seconds 5
+    # Give the terminal window a moment to be created before adding more tabs
+    Start-Sleep -Seconds 2
+
+    # Give the engine a moment to start listening and let the terminal settle
+    Write-Host "Waiting for engine to initialize (3 more seconds)..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 3
 
     # 6. Launch all bots in a single command to avoid focus stealing
     $botCommands = @()
@@ -263,15 +271,18 @@ while ($keepRunningScript) {
         $currentBotTabColor = $botTabColors[$botColorIndex % $botTabColors.Count]
 
         # Note: The semicolon is crucial for chaining commands in wt.exe
-        $botCommands += @(";", "new-tab", "--title", $tabTitle, "--tabColor", $currentBotTabColor, "-d", $botWorkingDirectory, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedBotCommand)
+        $botCommands += @(";", "new-tab", "--title", $tabTitle, "--tabColor", $currentBotTabColor, "--suppressApplicationTitle", "-d", $botWorkingDirectory, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedBotCommand)
         $botColorIndex++
     }
 
     if ($botCommands.Count -gt 0) {
         Write-Host "[BOTS] Launching all bots in new tabs..." -ForegroundColor Green
         # The first command doesn't need the leading semicolon, so we skip it.
-        $allBotWtArgs = @("-w", "0") + $botCommands[1..($botCommands.Count - 1)]
-        Start-Process wt -ArgumentList $allBotWtArgs -NoNewWindow
+        # Use the same window name to add tabs to the existing terminal window
+        $allBotWtArgs = @("-w", $windowName) + $botCommands[1..($botCommands.Count - 1)]
+        
+        # Start the process in the background to avoid focus stealing
+        Start-Process wt -ArgumentList $allBotWtArgs -WindowStyle Hidden
     }
 
     # Mark that we've completed the first run

@@ -1,3 +1,4 @@
+#nullable disable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,14 +23,19 @@ namespace ZooscapeRunner
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        public MainViewModel? ViewModel { get; private set; }
+        public MainViewModel ViewModel { get; private set; }
 
         public MainPage()
         {
             this.InitializeComponent();
             
-            // Initialize ViewModel (in a real app, this would come from DI)
-            var processManager = new ProcessManager();
+            // Initialize ViewModel asynchronously
+            this.Loaded += MainPage_Loaded;
+        }
+
+        private async void MainPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            var processManager = await ProcessManager.CreateAsync();
             ViewModel = new MainViewModel(processManager);
             this.DataContext = ViewModel;
         }

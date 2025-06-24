@@ -12,8 +12,6 @@
   align-items: center;
   border-radius: 0;
   border-bottom: 1px solid var(--border-primary);
-  position: relative; /* Ensure stacking context */
-  z-index: 10; /* Adjust as needed */
 }
 
 .playback-info {

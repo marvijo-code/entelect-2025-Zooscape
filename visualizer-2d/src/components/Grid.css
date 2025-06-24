@@ -76,7 +76,7 @@
   white-space: nowrap;
   z-index: 1000;
   pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  /* REMOVED: box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); - GPU intensive shadows */
   min-width: 60px;
   text-align: center;
 }
@@ -95,9 +95,11 @@
 
 /* If cell is near bottom edge, position tooltip above */
 .dynamic-grid-cell:hover::after {
-  animation: fadeIn 0.2s ease-in;
+  /* REMOVED: animation: fadeIn 0.2s ease-in; - GPU intensive animation */
 }
 
+/* REMOVED: GPU intensive fade animation */
+/*
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -108,6 +110,7 @@
     transform: translateX(-50%) translateY(0);
   }
 }
+*/
 
 .grid-container {
   overflow: visible !important;
@@ -128,7 +131,7 @@
   font-size: 13px;
   font-weight: 600;
   z-index: 2000;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  /* REMOVED: box-shadow: 0 2px 12px rgba(0,0,0,0.25); - GPU intensive shadows */
   max-width: 400px;
   min-width: 120px;
   white-space: normal;
@@ -164,34 +167,43 @@
 
 .animal-label {
   /* Additional styles for animal labels */
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  /* REMOVED: backdrop-filter: blur(2px); - GPU intensive */
+  /* REMOVED: -webkit-backdrop-filter: blur(2px); - GPU intensive */
+  background-color: rgba(255, 255, 255, 0.95); /* Solid background for performance */
 }
 
 .zookeeper-label {
   /* Additional styles for zookeeper labels */
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  /* REMOVED: backdrop-filter: blur(2px); - GPU intensive */
+  /* REMOVED: -webkit-backdrop-filter: blur(2px); - GPU intensive */
+  background-color: rgba(255, 255, 255, 0.95); /* Solid background for performance */
 }
 
 /* Ensure labels are always visible and readable */
 .entity-label:hover {
-  transform: scale(1.1) !important;
+  /* REMOVED: transform: scale(1.1) !important; - Triggers expensive recomposition */
+  opacity: 0.8; /* Use opacity instead - GPU friendly */
   z-index: 10 !important;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
+  background-color: rgba(255, 255, 255, 1); /* Slight background change */
+  /* REMOVED: box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important; - Expensive */
 }
 
-/* Animation for better visual feedback */
+/* REMOVED: Animation for better visual feedback - GPU intensive */
+/* 
 @keyframes labelPulse {
   0% { transform: scale(1); }
   50% { transform: scale(1.02); }
   100% { transform: scale(1); }
 }
+*/
 
+/* REMOVED: Continuous animation on all labels - Major GPU drain */
+/*
 .entity-label {
   animation: labelPulse 3s ease-in-out infinite;
 }
+*/
 
 .entity-label:hover {
-  animation: none; /* Stop pulse animation on hover */
+  /* animation: none; */ /* No longer needed - animation removed */
 }
