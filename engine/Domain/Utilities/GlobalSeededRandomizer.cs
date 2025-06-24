@@ -107,7 +107,7 @@ public class GlobalSeededRandomizer
     /// <summary>
     /// Gets a random element from the given enumerable.
     /// </summary>
-    /// <param name="enumerable">The enumerable to select an element from.</param>
+    /// <param name="source">The enumerable to select an element from.</param>
     /// <typeparam name="T">The type that the enumerable contains.</typeparam>
     /// <returns>A randomly selected value from the given enumerable.</returns>
     public T GetRandomElement<T>(IEnumerable<T> source)
@@ -147,15 +147,16 @@ public class GlobalSeededRandomizer
     /// <summary>
     /// Gets a random element from the given enumerable, matching the conditions defined by the predicate function.
     /// </summary>
-    /// <param name="enumerable">The enumerable to select an element from.</param>
+    /// <param name="source">The enumerable to select an element from.</param>
     /// <param name="predicate">Predicate function to test validity of selected element.</param>
-    /// <param name="enumerable">Timeout in milliseconds within which element has to be found.</param>
+    /// <param name="timeout">Timeout in milliseconds within which element has to be found.</param>
     /// <typeparam name="T">The type that the enumerable contains.</typeparam>
     /// <returns>A randomly selected value from the given enumerable matching the conditions defined by predicate.
     /// Null if no valid element could be found within the allocated time.</returns>
     public T? GetRandomElement<T>(IEnumerable<T> source, Func<T, bool> predicate, int timeout)
     {
-        var stopwatch = Stopwatch.StartNew();
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
 
         do
         {

@@ -15,7 +15,7 @@ public partial class Main_LinkToLogs : Button
         {
             return;
         }
-
+        
         GameSettings.LogsLocation = fileDialog.CurrentFile;
         GameSettings.ReadFromLogs = true;
         GameSettings.GameSpeed = 5.0f;

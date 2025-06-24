@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -229,10 +229,7 @@ public partial class GameManager : Node3D
 
             Connection.On<GameState>(
                 "GameState",
-                (world) =>
-                {
-                    State.WorldStates.Add(world);
-                }
+                (world) => { State.WorldStates.Add(world); }
             );
 
             Connection.StartAsync();
@@ -267,9 +264,7 @@ public partial class GameManager : Node3D
         for (int i = 0; i < Zookeepers.Count(); i++)
         {
             var zookeeper = Zookeepers[i];
-            var zookeeperToRemove = State
-                .WorldStates[StateIndex]
-                .Zookeepers.SingleOrDefault(b => b.Id == zookeeper.ConnectionId);
+            var zookeeperToRemove = State.WorldStates[StateIndex].Zookeepers.SingleOrDefault(b => b.Id == zookeeper.ConnectionId);
 
             if (zookeeperToRemove == null)
             {
@@ -283,9 +278,7 @@ public partial class GameManager : Node3D
             if (StateIndex == 0 && PlayForward && !Initialized)
             {
                 var obj = (Node3D)ZookeeperScene.Instantiate();
-                var nameLabel = obj.GetNode<Label>(
-                    "ZookeeperName/SubViewport/CenterContainer/Label"
-                );
+                var nameLabel = obj.GetNode<Label>("ZookeeperName/SubViewport/CenterContainer/Label");
                 nameLabel.Text = zookeeper.NickName;
                 GD.Print($"zookeeper: {zookeeper.NickName}");
 
@@ -302,17 +295,13 @@ public partial class GameManager : Node3D
                 continue;
             }
 
-            var additionalZookeeper = Zookeepers.SingleOrDefault(b =>
-                b.ConnectionId == zookeeper.Id
-            );
+            var additionalZookeeper = Zookeepers.SingleOrDefault(b => b.ConnectionId == zookeeper.Id);
 
             if (additionalZookeeper == null)
             {
                 GD.Print($"zookeeperId: {zookeeper.Id}");
                 var obj = (Node3D)ZookeeperScene.Instantiate();
-                var nameLabel = obj.GetNode<Label>(
-                    "ZookeeperName/SubViewport/CenterContainer/Label"
-                );
+                var nameLabel = obj.GetNode<Label>("ZookeeperName/SubViewport/CenterContainer/Label");
                 nameLabel.Text = zookeeper.NickName;
                 GD.Print($"zookeeper: {zookeeper.NickName}");
 
@@ -327,9 +316,7 @@ public partial class GameManager : Node3D
                     }
                 );
 
-                additionalZookeeper = Zookeepers.SingleOrDefault(b =>
-                    b.ConnectionId == zookeeper.Id
-                );
+                additionalZookeeper = Zookeepers.SingleOrDefault(b => b.ConnectionId == zookeeper.Id);
             }
 
             additionalZookeeper.ZookeeperDetail = zookeeper;
@@ -361,19 +348,11 @@ public partial class GameManager : Node3D
             var bot = Animals.SingleOrDefault(b => b.ConnectionId == animal.Id);
             bot.AnimalDetail = animal;
 
-            var activePowerUp = bot.NodeReference.GetNode<Label>(
-                "AnimalLabels/SubViewport/VBoxContainer/ActivePowerUp"
-            );
-            var heldPowerUp = bot.NodeReference.GetNode<Label>(
-                "AnimalLabels/SubViewport/VBoxContainer/HeldPowerUp"
-            );
+            var activePowerUp = bot.NodeReference.GetNode<Label>("AnimalLabels/SubViewport/VBoxContainer/ActivePowerUp");
+            var heldPowerUp = bot.NodeReference.GetNode<Label>("AnimalLabels/SubViewport/VBoxContainer/HeldPowerUp");
 
-            activePowerUp.Text =
-                animal.ActivePowerUp != null
-                    ? $"Active - {animal.ActivePowerUp.Type.ToString()}"
-                    : "";
-            heldPowerUp.Text =
-                animal.HeldPowerUp != null ? $"Held - {animal.HeldPowerUp.ToString()}" : "";
+            activePowerUp.Text = animal.ActivePowerUp != null ? $"Active - {animal.ActivePowerUp.Type.ToString()}" : "";
+            heldPowerUp.Text = animal.HeldPowerUp != null ? $"Held - {animal.HeldPowerUp.ToString()}" : "";
         }
 
         foreach (var cell in State.WorldStates[StateIndex].Cells)
@@ -417,7 +396,7 @@ public partial class GameManager : Node3D
 
             if (cell.Content == CellContent.Empty)
             {
-                IEnumerable<(int, Cell, Node3D)> orderedPellets;
+                IEnumerable<(int,Cell, Node3D)> orderedPellets;
 
                 if (PlayForward)
                 {
@@ -494,17 +473,13 @@ public partial class GameManager : Node3D
     private Node3D ManagePellet(Cell cell, PackedScene scene)
     {
         Node3D obj = null;
-
-        if (
-            !Pellets.Any(p =>
-                p.Item2.X == cell.X && p.Item2.Y == cell.Y && p.Item2.Content == cell.Content
-            )
-        )
+        
+        if (!Pellets.Any(p => p.Item2.X == cell.X && p.Item2.Y == cell.Y && p.Item2.Content == cell.Content))
         {
             obj = (Node3D)scene.Instantiate();
             Pellets.Add((Pellets.Count() + 1, cell, obj));
         }
-
+        
         return obj;
     }
 

@@ -20,19 +20,16 @@ public partial class App : Application
 	}
 
 	/// <summary>
-	/// Invoked when the application is launched normally by the end user.  This method will be used to
-	/// open the user's file.
+	/// Invoked when the application is launched normally by the end user.
 	/// </summary>
 	/// <param name="args">Details about the launch request and process.</param>
 	protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
 	{
 		var window = new Window();
+		var frame = new Frame();
 		
-		// Create the main page
-		var rootFrame = new Frame();
-		rootFrame.Navigate(typeof(MainPage));
-		
-		window.Content = rootFrame;
+		frame.Navigate(typeof(MainPage), args.Arguments);
+		window.Content = frame;
 		window.Activate();
 	}
 }
