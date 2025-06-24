@@ -30,17 +30,17 @@
             Margin="0,0,0,20"
             HorizontalAlignment="Center"
             Orientation="Horizontal">
-            <Button x:Name="StartAllButton" Content="Start All" Margin="5" Command="{x:Bind ViewModel.StartAllCommand}" />
-            <Button x:Name="StopAllButton" Content="Stop All" Margin="5" Command="{x:Bind ViewModel.StopAllCommand}" />
-            <Button x:Name="RestartAllButton" Content="Restart All" Margin="5" Command="{x:Bind ViewModel.RestartAllCommand}" />
+            <Button x:Name="StartAllButton" Content="Start All" Margin="5" Command="{Binding StartAllCommand}" />
+            <Button x:Name="StopAllButton" Content="Stop All" Margin="5" Command="{Binding StopAllCommand}" />
+            <Button x:Name="RestartAllButton" Content="Restart All" Margin="5" Command="{Binding RestartAllCommand}" />
             <TextBlock
                 Margin="20,0,0,0"
                 VerticalAlignment="Center"
-                Text="{x:Bind ViewModel.AutoRestartText, Mode=OneWay}" />
+                Text="{Binding AutoRestartText}" />
         </StackPanel>
 
         <!--  Process List  -->
-        <ListView Grid.Row="2" x:Name="ProcessListView" ItemsSource="{x:Bind ViewModel.Processes}">
+        <ListView Grid.Row="2" x:Name="ProcessListView" ItemsSource="{Binding Processes}">
             <ListView.HeaderTemplate>
                 <DataTemplate>
                     <Grid Padding="10,5">
@@ -66,8 +66,8 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="120" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="{x:Bind Name}" />
-                        <TextBlock Grid.Column="1" Text="{x:Bind Status, Mode=OneWay}" />
+                        <TextBlock Grid.Column="0" Text="{Binding Name}" />
+                        <TextBlock Grid.Column="1" Text="{Binding Status}" />
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>

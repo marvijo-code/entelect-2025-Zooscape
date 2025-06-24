@@ -1,15 +1,17 @@
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback, memo } from 'react';
 import './Grid.css'; // Import CSS for the Grid component
 // Import from the new JavaScript models file
 import { CellContent } from '../models.js';
 import '../setupLogging.js';
 
-// Performance optimization constants
+// Performance optimization constants - UPDATED for GPU relief
 const RENDER_OPTIMIZATION = {
-  USE_TRANSFORM: true,  // Use CSS transforms instead of top/left for better performance
-  WILL_CHANGE: true,    // Use will-change CSS property for GPU acceleration
-  CONTAIN: true,        // Use CSS containment for better rendering isolation
-  BATCH_SIZE: 100       // Process entities in batches to avoid blocking the main thread
+  USE_TRANSFORM: false,  // DISABLED: CSS transforms cause GPU overload
+  WILL_CHANGE: false,    // DISABLED: will-change creates unnecessary GPU layers
+  CONTAIN: true,         // Keep CSS containment for better rendering isolation
+  BATCH_SIZE: 50,        // REDUCED: Smaller batches to prevent blocking
+  USE_VIRTUALIZATION: true, // Enable cell virtualization for large grids
+  MAX_RENDERED_CELLS: 2000  // Limit rendered cells for performance
 };
 
 /**
@@ -21,7 +23,7 @@ const RENDER_OPTIMIZATION = {
  * @param {boolean} props.showDetails - Whether to show additional details like positions and scores
  * @param {object} props.leaderBoard - Per-tick leaderboard data
  */
-const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap = {}, showDetails = false, leaderBoard = {} }) => {
+const Grid = memo(({ cells = [], animals = [], zookeepers = [], colorMap = {}, showDetails = false, leaderBoard = {} }) => {
   // Early return BEFORE any hooks to avoid Rules of Hooks violation
   if (!cells || cells.length === 0) {
     console.log("Grid component: No cells provided, showing loading message");
@@ -510,7 +512,7 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
       top: `${newTop}px`,
       left: nearEdge && newLeft < 0 ? `${offset}px` : `${newLeft}px`, // Ensure not off-screen left
       right: nearEdge && newLeft >= 0 ? 'auto' : (nearEdge ? `${offset}px` : 'auto'), // Handle right positioning if nearEdge and newLeft is positive
-      transform: 'translateY(0)', // Simpler transform, or adjust as needed
+      /* REMOVED: transform: 'translateY(0)'; - GPU intensive transforms */
       // zIndex should be handled by CSS class .entity-tooltip
     });
     // Store content in a separate state or directly use it if tooltip component can take content as prop
@@ -542,7 +544,7 @@ const Grid = React.memo(({ cells = [], animals = [], zookeepers = [], colorMap =
           height: `${gridHeight}px`,
           willChange: RENDER_OPTIMIZATION.WILL_CHANGE ? 'transform' : 'auto',
           contain: RENDER_OPTIMIZATION.CONTAIN ? 'layout style paint' : 'none',
-          transform: 'translateZ(0)', // Force GPU acceleration
+          /* REMOVED: transform: 'translateZ(0)'; - Causes GPU overload */
         }}
       >
         {renderedCells}

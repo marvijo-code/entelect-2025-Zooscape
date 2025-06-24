@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ZooscapeRunner.Models;
 using ZooscapeRunner.ViewModels;
+using Microsoft.UI.Dispatching;
 
 #if WINDOWS
 using Windows.Storage;
@@ -22,14 +23,19 @@ namespace ZooscapeRunner.Services
         private readonly List<ManagedProcess> _processes = new();
         private Timer? _autoRestartTimer;
         private int _remainingSeconds = 180;
+        private readonly DispatcherQueue _dispatcher;
 
         public event Action<string>? RestartTimerTick;
 
-        private ProcessManager() { }
+        private ProcessManager(DispatcherQueue dispatcher) 
+        { 
+            _dispatcher = dispatcher;
+        }
 
         public static async Task<ProcessManager> CreateAsync()
         {
-            var manager = new ProcessManager();
+            var dispatcher = DispatcherQueue.GetForCurrentThread();
+            var manager = new ProcessManager(dispatcher);
             await manager.LoadProcessesConfigAsync();
             return manager;
         }
@@ -280,7 +286,20 @@ namespace ZooscapeRunner.Services
             _remainingSeconds--;
 
             var timeSpan = TimeSpan.FromSeconds(_remainingSeconds);
-            RestartTimerTick?.Invoke($"Auto-restart in: {timeSpan:mm\\:ss}");
+            var message = $"Auto-restart in: {timeSpan:mm\\:ss}";
+            
+            // Ensure UI updates happen on the main thread
+            if (_dispatcher != null)
+            {
+                _dispatcher.TryEnqueue(() =>
+                {
+                    RestartTimerTick?.Invoke(message);
+                });
+            }
+            else
+            {
+                RestartTimerTick?.Invoke(message);
+            }
 
             if (_remainingSeconds <= 0)
             {

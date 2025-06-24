@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { HubConnectionBuilder, LogLevel, HubConnectionState } from "@microsoft/signalr";
 import Grid from './components/Grid.jsx';
 import Leaderboard from './components/Leaderboard.jsx';
@@ -14,7 +14,11 @@ import './styles/ConnectionDebugger.css';
 import './styles/Settings.css';
 import JsonPasteLoader from './components/JsonPasteLoader.jsx';
 
-const App = () => {
+// Static styles to prevent inline object creation on every render
+const appContainerStyle = { /* Using CSS classes instead of inline styles */ };
+const splitLayoutStyle = { /* Using CSS classes instead of inline styles */ };
+
+const App = memo(() => {
   // Initialize configuration
   const [appConfig, setAppConfig] = useState(() => getAppConfig());
   const HUB_URL = appConfig.hubUrl;
@@ -286,7 +290,7 @@ const App = () => {
     // Construct full path for selectedFile for display purposes.
     // This assumes the API server (localhost:5008) is serving logs from the specified fixed base path.
     // This is for UI display only. The relative gameId is used for API calls.
-    const assumedApiLogsBasePath = 'C:\\dev\\2025-Zooscape\\visualizer-2d\\logs\\';
+    const assumedApiLogsBasePath = 'C:\\dev\\2025-Zooscape\\logs\\';
 
     // Check if gameId already looks like an absolute path (e.g., from a different source or future API change)
     const isAbsolute = gameId.includes(':') || gameId.startsWith('/') || gameId.startsWith('\\');
@@ -1022,8 +1026,14 @@ const App = () => {
           <tbody>
             {scoresData.map((entry, index) => {
               const colorToApply = animalColorMap[entry.id] || 'transparent';
+              const textColor = getTextColorForBackground(colorToApply);
+              // Extract styles to prevent inline object creation
+              const rowStyle = {
+                backgroundColor: colorToApply,
+                color: textColor
+              };
               return (
-                <tr key={entry.id || index} style={{ backgroundColor: colorToApply, color: getTextColorForBackground(colorToApply) }}>
+                <tr key={entry.id || index} style={rowStyle}>
                   <td>{index + 1}</td>
                   <td className="bot-name-cell">{entry.nickname}</td>
                   <td>{entry.score}</td>
@@ -1080,9 +1090,9 @@ const App = () => {
               currentGameState={currentGameState}
               currentGameStateName={selectedFile ?
                 (typeof selectedFile === 'string' && (selectedFile.includes('/') || selectedFile.includes('\\'))
-                  ? selectedFile.split(/[\/\\]/).pop()
-                  : selectedFile) :
-                (replayingGameName || 'current-state.json')}
+                  ? `${selectedFile.split(/[\/\\]/).pop()}_tick_${currentReplayTick}.json`
+                  : `${selectedFile}_tick_${currentReplayTick}.json`) :
+                (replayingGameName ? `${replayingGameName}_tick_${currentReplayTick || 0}.json` : 'current-state.json')}
               shouldShowCreateModal={shouldShowCreateModal}
               onCreateModalChange={setShouldShowCreateModal}
             />
@@ -1282,6 +1292,6 @@ const App = () => {
   );
   // ...
 
-};
+}); // End of memo()
 
 export default App;

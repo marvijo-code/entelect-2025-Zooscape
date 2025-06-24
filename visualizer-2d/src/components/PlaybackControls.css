@@ -3,73 +3,233 @@
   align-items: center;
   justify-content: center;
   padding: 10px;
-  background-color: #f0f0f0;
-  border-top: 1px solid #ccc;
+  background: var(--surface-secondary, #2f3136);
+  border-top: 1px solid var(--border-primary, #202225);
   gap: 10px; /* Adds space between control elements */
 }
 
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .control-button {
-  background-color: #007bff;
-  color: white;
-  border: none;
+  background: var(--surface-tertiary, #36393f);
+  color: var(--text-primary, #ffffff);
+  border: 1px solid var(--border-secondary, #42464d);
   padding: 8px 12px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 1.2em; /* Slightly larger icons/text */
-  transition: background-color 0.2s ease-in-out;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .control-button:hover:not(:disabled) {
-  background-color: #0056b3;
+  background: var(--surface-elevated, #4f545c);
+  border-color: var(--border-tertiary, #5d6269);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .control-button:disabled {
-  background-color: #c0c0c0;
+  background: var(--surface-tertiary, #36393f);
+  color: var(--text-secondary, #72767d);
   cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+  transform: none;
 }
 
-.scrubber {
-  flex-grow: 1; /* Allows scrubber to take available space */
-  max-width: 300px; /* Max width for scrubber */
+.progress-container {
+  flex-grow: 1;
+  max-width: 300px;
   margin: 0 10px;
+}
+
+.progress-slider {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--surface-elevated, #4f545c);
+  border-radius: 2px;
+  outline: none;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.scrubber:disabled {
+.progress-slider:hover {
+  height: 6px;
+}
+
+.progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-blue, #3498db);
+  cursor: pointer;
+  border: 2px solid var(--text-primary, #ffffff);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.progress-slider:hover::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+}
+
+.progress-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-blue, #3498db);
+  cursor: pointer;
+  border: 2px solid var(--text-primary, #ffffff);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.progress-slider:hover::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+}
+
+.progress-slider:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
-.tick-display {
-  font-size: 0.9em;
-  min-width: 100px; /* Ensure enough space for tick count */
-  text-align: center;
-  color: #333;
+.tick-navigation {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.speed-select {
-  padding: 6px;
+.tick-input-form {
+  display: flex;
+  align-items: center;
+}
+
+.tick-input {
+  width: 60px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-secondary, #42464d);
   border-radius: 4px;
-  border: 1px solid #ccc;
-  background-color: white;
-  cursor: pointer;
+  text-align: center;
+  font-size: 0.9em;
+  background: var(--surface-tertiary, #36393f);
+  color: var(--text-primary, #ffffff);
+  transition: all 0.2s ease-in-out;
+  font-family: 'SF Mono', Monaco, monospace;
 }
 
-.speed-select:disabled {
-  background-color: #e9ecef;
+.tick-input:focus {
+  outline: none;
+  border-color: var(--accent-blue, #3498db);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+  background: var(--surface-elevated, #4f545c);
+}
+
+.tick-input:disabled {
+  background: var(--surface-tertiary, #36393f);
+  color: var(--text-secondary, #72767d);
   cursor: not-allowed;
-  opacity: 0.7;
+  opacity: 0.5;
+}
+
+.tick-input:invalid {
+  border-color: var(--accent-red, #e74c3c);
+  box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.3);
+}
+
+.frame-counter {
+  font-size: 0.9em;
+  min-width: 40px;
+  text-align: left;
+  color: var(--text-secondary, #b9bbbe);
+  white-space: nowrap;
+  font-family: 'SF Mono', Monaco, monospace;
+  font-weight: 500;
+}
+
+.speed-controls {
+  display: flex;
+  align-items: center;
+}
+
+.speed-selector {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-secondary, #42464d);
+  background: var(--surface-tertiary, #36393f);
+  color: var(--text-primary, #ffffff);
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-width: 60px;
+}
+
+.speed-selector:hover:not(:disabled) {
+  background: var(--surface-elevated, #4f545c);
+  border-color: var(--border-tertiary, #5d6269);
+}
+
+.speed-selector:focus {
+  outline: none;
+  border-color: var(--accent-blue, #3498db);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+}
+
+.speed-selector:disabled {
+  background: var(--surface-tertiary, #36393f);
+  color: var(--text-secondary, #72767d);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.exit-button {
+  background: var(--accent-red, #e74c3c);
+  color: var(--text-primary, #ffffff);
+  border: 1px solid var(--accent-red, #e74c3c);
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.1em;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.exit-button:hover {
+  background: #c0392b;
+  border-color: #c0392b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+.exit-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Styles for single-frame view to visually indicate disabled controls */
 .playback-controls-container.single-frame-view .control-button,
-.playback-controls-container.single-frame-view .scrubber,
-.playback-controls-container.single-frame-view .speed-select {
-  opacity: 0.5;
+.playback-controls-container.single-frame-view .progress-slider,
+.playback-controls-container.single-frame-view .tick-input,
+.playback-controls-container.single-frame-view .speed-selector {
+  opacity: 0.3;
   pointer-events: none; /* Further ensure no interaction */
 }
 
 .playback-controls-container.single-frame-view .play-pause-button {
   /* Keep play/pause visually distinct but still disabled */
-  background-color: #6c757d; 
+  background: var(--surface-tertiary, #36393f);
+  color: var(--text-secondary, #72767d);
 }

@@ -125,7 +125,7 @@ body {
   justify-content: center;
   position: relative;
   z-index: 1;
-  will-change: transform;
+  /* REMOVED: will-change: transform; - Unnecessary GPU layer promotion */
   contain: layout style paint;
 }
 
@@ -139,8 +139,9 @@ body {
 /* Right panel styling */
 .app-header {
   background: var(--surface-secondary);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  /* REMOVED: backdrop-filter: blur(20px); - GPU intensive blur */
+  /* REMOVED: -webkit-backdrop-filter: blur(20px); - GPU intensive blur */
+  background-color: rgba(47, 49, 54, 0.95); /* Solid background for performance */
   color: var(--text-primary);
   padding: var(--spacing-lg) var(--spacing-xl);
   height: 64px;
@@ -471,22 +472,28 @@ body {
   border-top: 2px solid var(--accent-blue);
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  will-change: transform;
+  /* REMOVED: will-change: transform; - Unnecessary GPU layer promotion */
 }
 
+/* REMOVED: GPU intensive spin animation */
+/*
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+*/
 
+/* REMOVED: GPU intensive pulse animation */
+/*
 @keyframes pulse {
   0% { transform: scale(1); }
   50% { transform: scale(1.1); }
   100% { transform: scale(1); }
 }
+*/
 
 .entity-animal.captured {
-  animation: pulse 0.5s ease-in-out;
-  opacity: 0.7;
+  /* REMOVED: animation: pulse 0.5s ease-in-out; - GPU intensive */
+  opacity: 0.5; /* Static style for captured state */
 }
 
 /* Responsive layout */
@@ -502,14 +509,17 @@ body {
   border-top: 4px solid #61dafb; /* Spinner color, matches theme */
   width: 40px;
   height: 40px;
-  animation: spin 1s linear infinite;
+  /* REMOVED: animation: spin 1s linear infinite; - GPU intensive spinner */
   margin: 20px auto; /* Center spinner */
 }
 
+/* REMOVED: Spinner animation - GPU intensive */
+/*
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+*/
 
 #root {
   max-width: 100%;
@@ -521,16 +531,20 @@ body {
 .logo {
   height: 6em;
   padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+  /* REMOVED: will-change: filter; - Unnecessary GPU layer promotion */
+  /* REMOVED: transition: filter 300ms; - GPU expensive filter transitions */
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  /* REMOVED: filter: drop-shadow(0 0 2em #646cffaa); - GPU intensive filter */
+  opacity: 0.8; /* Simple opacity change instead */
 }
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  /* REMOVED: filter: drop-shadow(0 0 2em #61dafbaa); - GPU intensive filter */
+  opacity: 0.8; /* Simple opacity change instead */
 }
 
+/* REMOVED: Logo spinning animation - GPU intensive */
+/*
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
@@ -539,12 +553,16 @@ body {
     transform: rotate(360deg);
   }
 }
+*/
 
+/* REMOVED: Auto-spinning logo animation */
+/*
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
   }
 }
+*/
 
 .card {
   padding: 2em;
@@ -726,7 +744,7 @@ body {
   text-align: center; /* As was in inline style */
 }
 
-/* Spinner animation for connection */
+/* Static spinner for connection - No animation */
 .spinner {
   margin: auto;
   width: 24px;
@@ -734,11 +752,14 @@ body {
   border: 2px solid #f3f3f3;
   border-top: 2px solid #61dafb;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  /* REMOVED: animation: spin 1s linear infinite; - GPU intensive */
 }
+/* REMOVED: GPU intensive spinner animation */
+/*
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+*/
 
 /* Responsive adjustments */
 @media (max-width: 1024px) {
@@ -1171,10 +1192,13 @@ html body .waiting-message {
   color: black;
 }
 
+/* REMOVED: GPU intensive fadeIn animation */
+/*
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+*/
 
 /* Add tooltip styles for enhanced information display */
 [title] {
@@ -1274,25 +1298,25 @@ html body .waiting-message {
   opacity: 0.5;
 }
 
-/* Performance optimizations */
+/* Performance optimizations - REMOVED problematic will-change properties */
 .grid-layout {
-  will-change: transform;
+  /* REMOVED: will-change: transform; - Creates unnecessary GPU layers */
   contain: layout style paint;
 }
 
 .entity-marker {
-  will-change: transform;
+  /* REMOVED: will-change: transform; - Creates unnecessary GPU layers */
   contain: layout style paint;
 }
 
 .entity-label {
-  will-change: transform, opacity;
+  /* REMOVED: will-change: transform, opacity; - Creates unnecessary GPU layers */
   contain: layout style paint;
 }
 
 /* Optimize animations */
 .loading-indicator {
-  will-change: transform;
+  /* REMOVED: will-change: transform; - Creates unnecessary GPU layers */
 }
 
 /* Reduce repaints */
