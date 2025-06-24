@@ -1,52 +1,39 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Uno.Sdk">
   <PropertyGroup>
-		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows')) or '$(EnableWindowsTargeting)' == 'true'">$(TargetFrameworks);net8.0-windows10.0.18362</TargetFrameworks>
-		<TargetFrameworks>$(TargetFrameworks);net8.0</TargetFrameworks>
-		<!-- 
-			This condition is used when building under Linux. If you're not building under
-			 Linux, you can remove this line and the conditions below.
-		-->
-		<_CanUseMobileTargets Condition="!$([MSBuild]::IsOSPlatform('Linux'))">true</_CanUseMobileTargets>
+    <TargetFrameworks>net8.0-android;net8.0-ios;net8.0-browserwasm;net8.0-desktop</TargetFrameworks>
 
-		<TargetFrameworks Condition="'$(_CanUseMobileTargets)'=='true'">$(TargetFrameworks);net8.0-android</TargetFrameworks>
-		<TargetFrameworks Condition="'$(_CanUseMobileTargets)'=='true'">$(TargetFrameworks);net8.0-ios</TargetFrameworks>
-		<TargetFrameworks Condition="'$(_CanUseMobileTargets)'=='true'">$(TargetFrameworks);net8.0-maccatalyst</TargetFrameworks>
-		
-		<DefaultLanguage>en</DefaultLanguage>
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">14.2</SupportedOSPlatformVersion>
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">14.0</SupportedOSPlatformVersion>
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.18362.0</SupportedOSPlatformVersion>
-		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.18362.0</TargetPlatformMinVersion>
-		<RuntimeIdentifiers Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">win-x86;win-x64;win-arm64</RuntimeIdentifiers>
-		<Nullable>enable</Nullable>
-		
-		<!-- Temporarily disable XAML generation to fix build issues -->
-		<EnableXamlGenerator>false</EnableXamlGenerator>
-		<UnoDisableXamlGenerator>true</UnoDisableXamlGenerator>
-	</PropertyGroup>
-  <PropertyGroup>
-    <!-- Ensures the .xr.xml files are generated in a proper layout folder -->
-    <GenerateLibraryLayout>true</GenerateLibraryLayout>
+    <OutputType>Exe</OutputType>
+    <UnoSingleProject>true</UnoSingleProject>
+    <Nullable>disable</Nullable>
+
+    <!-- Display name -->
+    <ApplicationTitle>ZooscapeRunner</ApplicationTitle>
+    <!-- App Identifier -->
+    <ApplicationId>com.companyname.zooscaperunner</ApplicationId>
+    <!-- Versions -->
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <!-- Package Publisher -->
+    <ApplicationPublisher>ZooscapeRunner</ApplicationPublisher>
+    <!-- Package Description -->
+    <Description>ZooscapeRunner powered by Uno Platform.</Description>
+
+    <!--
+      UnoFeatures let's you quickly add and manage implicit package references based on the features you want to use.
+      https://aka.platform.uno/singleproject-features
+    -->
+    <UnoFeatures>
+      Material;
+      Toolkit;
+      Logging;
+    </UnoFeatures>
   </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
-    <PackageReference Include="Uno.Core.Extensions.Logging.Singleton" Version="4.0.1" />
-    <PackageReference Include="Uno.WinUI" Version="4.7.56" Aliases="UnoSdk" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)'!='net8.0-windows10.0.18362'">
-    <Content Include="Assets\**" />
-    <Content Include="Assets\processes.json" />
-    <Page Include="**\*.xaml" Exclude="bin\**\*.xaml;obj\**\*.xaml" />
-    <Compile Update="**\*.xaml.cs">
-      <DependentUpon>%(Filename)</DependentUpon>
-    </Compile>
-    <PriResource Include="**\*.resw" />
-    <!-- Exclude backed up XAML file -->
-    <None Remove="MainPage.xaml.bak" />
-  </ItemGroup>
   <ItemGroup>
-    <UpToDateCheckInput Include="**\*.xaml" Exclude="bin\**\*.xaml;obj\**\*.xaml" />
+    <UpToDateCheckInput Include="**/*.xaml" Exclude="bin/**/*.xaml;obj/**/*.xaml" />
   </ItemGroup>
 </Project>

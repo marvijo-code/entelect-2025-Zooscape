@@ -5,8 +5,8 @@
     xmlns:local="using:ZooscapeRunner"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"    
-    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    xmlns:viewmodels="using:ZooscapeRunner.ViewModels"
+    mc:Ignorable="d">
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -60,7 +60,7 @@
                 </DataTemplate>
             </ListView.HeaderTemplate>
             <ListView.ItemTemplate>
-                <DataTemplate>
+                <DataTemplate x:DataType="viewmodels:ProcessViewModel">
                     <Grid Padding="10,5">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
