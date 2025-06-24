@@ -1,0 +1,16 @@
+{
+  "solution": {
+    "path": "ZooscapeRunner.sln",
+    "projects": [
+		"ZooscapeRunner\\ZooscapeRunner.csproj",
+
+		"ZooscapeRunner.Mobile\\ZooscapeRunner.Mobile.csproj",
+
+		"ZooscapeRunner.Wasm\\ZooscapeRunner.Wasm.csproj",
+
+		"ZooscapeRunner.Skia.Gtk\\ZooscapeRunner.Skia.Gtk.csproj",
+
+		"ZooscapeRunner.Skia.Gtk\\ZooscapeRunner.Skia.Gtk.csproj",
+    ]
+  }
+}

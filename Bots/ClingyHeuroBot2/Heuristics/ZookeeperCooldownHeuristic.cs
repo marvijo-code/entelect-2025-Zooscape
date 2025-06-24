@@ -24,6 +24,14 @@ public class ZookeeperCooldownHeuristic : IHeuristic
 
         decimal score = 0m;
         var recalculateInterval = weights.ZookeeperCooldownRecalcInterval;
+
+        // Guard against misconfigured weight that could cause divide-by-zero
+        if (recalculateInterval == 0)
+        {
+            heuristicContext.Logger?.Warning("{HeuristicName}: ZookeeperCooldownRecalcInterval is zero. Skipping cooldown bonus calculation to avoid division by zero.", Name);
+            return 0m;
+        }
+
         int ticksUntilRecalculate = recalculateInterval - (state.Tick % recalculateInterval);
 
         foreach (var zookeeper in state.Zookeepers)
@@ -39,7 +47,7 @@ public class ZookeeperCooldownHeuristic : IHeuristic
             {
                 // The bonus is higher if the recalculation is further away.
                 // This encourages taking advantage of the "cooldown" period.
-                score += weights.ZookeeperCooldownBonus * ((decimal)ticksUntilRecalculate / recalculateInterval);
+                score += weights.ZookeeperCooldownBonus * ((decimal)ticksUntilRecalculate / recalculateInterval); // recalculateInterval guaranteed non-zero
             }
         }
 

@@ -44,7 +44,15 @@ public class ZookeeperPredictionHeuristic : IHeuristic
 
                 int distToPredicted = BotUtils.ManhattanDistance(predictedX, predictedY, nx, ny);
                 if (distToPredicted <= heuristicContext.Weights.ZookeeperNearPredictedPositionDistance)
-                    return heuristicContext.Weights.ZookeeperNearPredictedPositionPenalty / ((decimal)distToPredicted + heuristicContext.Weights.ZookeeperNearPredictedPositionDivisor);
+                {
+                    decimal baseDivisor = (decimal)distToPredicted + heuristicContext.Weights.ZookeeperNearPredictedPositionDivisor;
+                    if (baseDivisor == 0m)
+                    {
+                        heuristicContext.Logger?.Warning("{HeuristicName}: ZookeeperNearPredictedPositionDivisor leads to division by zero. Using fallback divisor 1.", Name);
+                        baseDivisor = 1m;
+                    }
+                    return heuristicContext.Weights.ZookeeperNearPredictedPositionPenalty / baseDivisor;
+                }
             }
         }
 

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ZooscapeRunner.Windows (local)": {
+      "commandName": "Project"
+    },
+    "ZooscapeRunner.Windows (Package)": {
+      "commandName": "MsixPackage"
+    }
+  }
+}

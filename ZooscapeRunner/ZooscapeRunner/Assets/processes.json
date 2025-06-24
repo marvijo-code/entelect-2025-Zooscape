@@ -1,0 +1,28 @@
+[
+  {
+    "Name": "Zooscape Engine",
+    "FileName": "dotnet",
+    "Arguments": "run --project engine/Zooscape/Zooscape.csproj",
+    "WorkingDirectory": ""
+  },
+  {
+    "Name": "ClingyHeuroBot2",
+    "FileName": "dotnet",
+    "Arguments": "run --project Bots/ClingyHeuroBot2/ClingyHeuroBot2.csproj",
+    "WorkingDirectory": "",
+    "EnvironmentVariables": {
+      "BOT_NICKNAME": "ClingyHeuroBot2-Uno",
+      "BOT_TOKEN": "some-secret-token-1"
+    }
+  },
+  {
+    "Name": "AdvancedMCTSBot",
+    "FileName": "cmd.exe",
+    "Arguments": "/c build\\AdvancedMCTSBot.exe",
+    "WorkingDirectory": "Bots\\AdvancedMCTSBot",
+    "EnvironmentVariables": {
+      "BOT_NICKNAME": "AdvancedMCTSBot-Uno",
+      "BOT_TOKEN": "some-secret-token-2"
+    }
+  }
+]

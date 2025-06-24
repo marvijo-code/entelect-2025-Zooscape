@@ -1,0 +1,76 @@
+<Page
+    x:Class="ZooscapeRunner.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ZooscapeRunner"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"    
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!--  Title  -->
+        <TextBlock
+            Grid.Row="0"
+            HorizontalAlignment="Center"
+            FontSize="32"
+            FontWeight="Bold"
+            Margin="0,0,0,20"
+            Text="Zooscape Runner" />
+
+        <!--  Controls  -->
+        <StackPanel
+            Grid.Row="1"
+            Margin="0,0,0,20"
+            HorizontalAlignment="Center"
+            Orientation="Horizontal">
+            <Button x:Name="StartAllButton" Content="Start All" Margin="5" Command="{x:Bind ViewModel.StartAllCommand}" />
+            <Button x:Name="StopAllButton" Content="Stop All" Margin="5" Command="{x:Bind ViewModel.StopAllCommand}" />
+            <Button x:Name="RestartAllButton" Content="Restart All" Margin="5" Command="{x:Bind ViewModel.RestartAllCommand}" />
+            <TextBlock
+                Margin="20,0,0,0"
+                VerticalAlignment="Center"
+                Text="{x:Bind ViewModel.AutoRestartText, Mode=OneWay}" />
+        </StackPanel>
+
+        <!--  Process List  -->
+        <ListView Grid.Row="2" x:Name="ProcessListView" ItemsSource="{x:Bind ViewModel.Processes}">
+            <ListView.HeaderTemplate>
+                <DataTemplate>
+                    <Grid Padding="10,5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="120" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            Grid.Column="0"
+                            FontWeight="SemiBold"
+                            Text="Process" />
+                        <TextBlock
+                            Grid.Column="1"
+                            FontWeight="SemiBold"
+                            Text="Status" />
+                    </Grid>
+                </DataTemplate>
+            </ListView.HeaderTemplate>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Padding="10,5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="120" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{x:Bind Name}" />
+                        <TextBlock Grid.Column="1" Text="{x:Bind Status, Mode=OneWay}" />
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</Page>
