@@ -201,11 +201,78 @@ namespace ZooscapeRunner.Services
                 var mctsBot = _processes.FirstOrDefault(p => p.ViewModel.Name == "AdvancedMCTSBot");
                 if (mctsBot != null)
                 {
+                    // Create a custom build script that uses the full CMake path
+                    var buildScript = Path.Combine(Path.GetTempPath(), "build_mcts_bot.bat");
+                    var cmakePath = @"C:\Program Files\CMake\bin\cmake.exe";
+                    var buildDir = Path.Combine(repoRoot, "Bots", "AdvancedMCTSBot", "build");
+                    var sourceDir = Path.Combine(repoRoot, "Bots", "AdvancedMCTSBot");
+                    
+                    var buildScriptContent = $@"@echo off
+setlocal
+
+echo Building AdvancedMCTSBot with CMake...
+set CMAKE_PATH=""{cmakePath}""
+set BUILD_DIR=""{buildDir}""
+set SOURCE_DIR=""{sourceDir}""
+
+if not exist %BUILD_DIR% (
+    echo Creating build directory: %BUILD_DIR%
+    mkdir ""%BUILD_DIR%""
+    if errorlevel 1 (
+        echo Failed to create build directory.
+        exit /b 1
+    )
+)
+
+pushd ""%BUILD_DIR%""
+if errorlevel 1 (
+    echo Failed to change to build directory.
+    exit /b 1
+)
+
+echo Configuring CMake project (source: %SOURCE_DIR%)...
+%CMAKE_PATH% ""%SOURCE_DIR%""
+if errorlevel 1 (
+    echo CMake configuration failed.
+    popd
+    exit /b 1
+)
+
+echo Building project (Release)...
+%CMAKE_PATH% --build . --config Release --target AdvancedMCTSBot
+set BUILD_ERRORLEVEL=%ERRORLEVEL%
+echo CMake build command finished with ERRORLEVEL: %BUILD_ERRORLEVEL%
+
+if %BUILD_ERRORLEVEL% equ 0 (
+    echo Build successful.
+    popd
+    exit /b 0
+)
+
+if %BUILD_ERRORLEVEL% neq 0 (
+    echo CMake build command returned ERRORLEVEL: %BUILD_ERRORLEVEL%.
+    if exist ""%BUILD_DIR%\Release\AdvancedMCTSBot.exe"" (
+        echo Target executable AdvancedMCTSBot.exe found. Overriding exit code to 0.
+        popd
+        exit /b 0
+    ) else (
+        echo Target executable AdvancedMCTSBot.exe NOT found. Build truly failed.
+        popd
+        exit /b 1
+    )
+)
+";
+
+                    await File.WriteAllTextAsync(buildScript, buildScriptContent);
+                    
                     await RunBuildCommandAsync(
                         "cmd.exe",
-                        "/c build.bat",
-                        Path.Combine(repoRoot, "Bots", "AdvancedMCTSBot"),
+                        $"/c \"{buildScript}\"",
+                        repoRoot,
                         mctsBot.ViewModel);
+                        
+                    // Clean up temp script
+                    try { File.Delete(buildScript); } catch { }
                 }
             }
             catch (Exception ex)

@@ -1,4 +1,4 @@
-# System Patterns
+# System Patterns & Debugging Methodologies
 
 ## System Build
 
@@ -70,3 +70,74 @@
 - **Example Fix:** `int insertIndex = Math.Max(0, currentDetailedLog.Count - 2);` before list insertion
 - **Null Reference Prevention:** Check for null/empty collections before operations
 - **Tool Validation:** Game Inspector validates file existence, JSON format, and bot presence before analysis
+
+## Heuristic Debugging Pattern (Critical)
+**When fixing bot heuristics that affect multiple tests:**
+
+1. **Isolate the Problem:**
+   - Run single failing test first to understand the core issue
+   - Use Game State Inspector to get ground truth about game state
+   - Compare heuristic output with expected behavior
+
+2. **Fix Incrementally:**
+   - Make minimal changes to fix the primary issue
+   - Run ALL tests immediately after any heuristic change
+   - If new tests fail, the fix likely has fundamental logic errors
+
+3. **Debug with Logging:**
+   - Add debug logging to heuristic calculations
+   - Extract debug messages from test output (they exist but need careful parsing)
+   - Compare logged values with Game State Inspector analysis
+
+4. **Verify Direction Mapping:**
+   - Coordinate systems can be confusing (Y-axis up vs down)
+   - Direction mapping (Up/Down/Left/Right) may not match expectations
+   - Always verify with known game state positions
+
+## Game State Analysis Pattern
+**Use Game State Inspector for ground truth:**
+- Tool location: `tools/GameStateInspector/`
+- Command: `dotnet run -- <json-file> <bot-nickname>`
+- Provides authoritative pellet counts, positions, and game state analysis
+- Always compare heuristic calculations against inspector results
+
+## Test-Driven Debugging
+**When multiple tests fail after a fix:**
+1. **Don't assume the fix is correct** - it likely introduced new bugs
+2. **Analyze the pattern** - what's common across failing tests?
+3. **Use existing working tools** (Game State Inspector) for verification
+4. **Fix the root cause**, not just the symptoms
+
+## Functional Test Patterns
+**Test file locations:**
+- Tests: `FunctionalTests/StandardBotTests.cs`
+- Game states: `FunctionalTests/bin/Debug/net8.0/GameStates/`
+- Bot factory: `FunctionalTests/Services/BotFactory.cs`
+
+**Common test patterns:**
+- Tests expect specific bot actions based on game state
+- Game states are JSON files with full game board data
+- Bot behavior is determined by heuristic scoring
+- Multiple bots may be tested with same game state
+
+## Heuristic Implementation Patterns
+**File pattern:** `Bots/{BotName}/Heuristics/{HeuristicName}Heuristic.cs`
+**Interface:** `IHeuristic` with `CalculateScore(IHeuristicContext context)`
+**Context provides:**
+- `CurrentAnimal` - bot's current position and state
+- `MyNewPosition` - destination position for the move being evaluated
+- `CurrentGameState` - full game state including all cells and animals
+- `Weights` - configured weights for this heuristic
+
+## Debugging Memory Bank Updates
+**Always update Memory Bank when:**
+- Debugging session reveals complex multi-step issues
+- Multiple tests are failing due to interconnected problems
+- Debug evidence accumulates that needs to be preserved
+- Fresh session would benefit from detailed context
+
+**Memory Bank should include:**
+- Current problem state and evidence
+- Debug commands to resume efficiently
+- Key insights and patterns discovered
+- Files modified and their current state

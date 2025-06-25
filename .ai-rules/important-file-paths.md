@@ -47,3 +47,50 @@ This file tracks important and frequently accessed file paths within the project
 - `VisualizerGameSelector`: visualizer-2d/src/components/GameSelector.jsx
 - `VisualizerAppCSS`: visualizer-2d/src/App.css
 - `VisualizerGameSelectorCSS`: visualizer-2d/src/styles/GameSelector.css
+
+## Debugging Context (ACTIVE)
+- `Bots/ClingyHeuroBot2/Heuristics/LineOfSightPelletsHeuristic.cs` - **BROKEN HEURISTIC** with debug logging
+- `FunctionalTests/StandardBotTests.cs` - Test definitions (2 tests failing)
+- `FunctionalTests/bin/Debug/net8.0/GameStates/162.json` - ChaseMorePelletGroups test data
+- `FunctionalTests/bin/Debug/net8.0/GameStates/34.json` - ChaseImmediatePellet test data
+- `tools/GameStateInspector/Program.cs` - Working analysis tool for ground truth
+
+## Core Application Structure
+- `engine/` - Core game engine and domain logic
+- `Bots/` - Bot implementations and strategies
+- `FunctionalTests/` - Test suite for bot behavior validation
+- `tools/` - Development and analysis tools
+
+## Bot Development
+- `Bots/ClingyHeuroBot2/` - Main bot being debugged
+- `Bots/ClingyHeuroBot2/Services/HeuroBotService.cs` - Bot service implementation
+- `Bots/ClingyHeuroBot2/Heuristics/` - Individual heuristic implementations
+- `Marvijo.Zooscape.Bots.Common/` - Shared bot interfaces and models
+
+## Testing Infrastructure
+- `FunctionalTests/StandardBotTests.cs` - Standard bot behavior tests
+- `FunctionalTests/Services/BotFactory.cs` - Bot instantiation for tests
+- `FunctionalTests/BotTestsBase.cs` - Base test functionality
+- `FunctionalTests/bin/Debug/net8.0/GameStates/` - Test game state JSON files
+
+## Analysis Tools
+- `tools/GameStateInspector/` - **PRIMARY DEBUG TOOL** for game state analysis
+- `tools/GameStateInspector/Program.cs` - Main inspector implementation
+- `tools/GameStateInspector/README.md` - Tool documentation
+- `tools/GameStateInspector/inspect-game-state.ps1` - PowerShell wrapper
+
+## Configuration & Documentation
+- `.ai-rules/activeContext.md` - **CURRENT DEBUG SESSION** context
+- `.ai-rules/systemPatterns.md` - Debugging patterns and methodologies
+- `docs/` - Project documentation
+- `engine/Rules.md` - Game rules and mechanics
+
+## Build & Deployment
+- `solutions/` - Solution files for different configurations
+- `build.bat` - Build script
+- `dependencies.txt` - Project dependencies
+
+## Key Interfaces
+- `Marvijo.Zooscape.Bots.Common/IBot.cs` - Bot interface
+- `Marvijo.Zooscape.Bots.Common/IHeuristic.cs` - Heuristic interface
+- `Marvijo.Zooscape.Bots.Common/HeuristicContext.cs` - Context for heuristic calculations

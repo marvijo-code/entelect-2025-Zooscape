@@ -1,63 +1,97 @@
-# Active Context: Functional Testing & Game State Analysis
+# Active Context: Functional Testing & Heuristic Debugging - RESOLVED ✅
 
-## Current Task
-Implementing and debugging functional tests for bot behavior verification, specifically testing ClingyHeuroBot2 with GameState 12.json to ensure it moves Up as expected.
+## Task Status: COMPLETED SUCCESSFULLY ✅
 
-## Recent Changes
-1. **Functional Test Implementation:**
-   - Added new test `GameState12ClingyHeuroBot2MustMoveUp` in `FunctionalTests/StandardBotTests.cs`
-   - Fixed compilation errors in `FunctionalTests/Services/BotFactory.cs` by commenting out problematic DeepMCTS and MCTSo4 references
-   - Fixed IndexOutOfRangeException bug in `Bots/ClingyHeuroBot2/Services/HeuroBotService.cs` where list insertion was failing due to insufficient elements
+**CRITICAL DEBUG SESSION RESOLVED:** Fixed ClingyHeuroBot2's LineOfSightPelletsHeuristic that was causing multiple test failures.
 
-2. **Game State Inspector Tool - Now Official:**
-   - **Moved to official location:** `tools/GameStateInspector/`
-   - Created comprehensive documentation with `README.md`
-   - Added PowerShell wrapper script `inspect-game-state.ps1` for easier usage
-   - Tool analyzes JSON game state files and provides detailed information about:
-     - Bot position and score
-     - Immediate pellet availability in all directions
-     - Pellets within 3-step range
-     - Current quadrant location
-     - Nearest zookeeper position and distance
-   - Successfully used to analyze 12.json for ClingyHeuroBot2
+## Problem Summary
+1. **Initial Issue:** GameState12 test failed - bot chose Down instead of Up
+2. **Our Fix:** Rewrote LineOfSightPelletsHeuristic but broke 2 other tests
+3. **Root Cause Found:** Heuristic was giving completely backwards results (14.5 pellets Left vs 1 pellet Up, when it should be 2 pellets each)
 
-## Current Test Results
-- **Test Status:** ❌ FAILING - ClingyHeuroBot2 chooses Down instead of Up
+## Final Solution ✅
+**Key Issues Fixed:**
+1. **Wrong Starting Position:** Was counting from current position instead of new position after move
+2. **Incorrect Stop Condition:** Was only stopping at walls, not at any non-pellet content
+3. **Logic Error:** The combination caused massive over-counting in some directions
+
+**Final Working Logic:**
+- Count pellets from the **new position** (where bot will be after move)
+- Count in the **direction of movement**
+- Stop at **any non-pellet content** (not just walls)
+- This matches GameStateInspector's "consecutive pellets" calculation
+
+## Test Results - ALL PASSING ✅
+- ✅ **GameState12ClingyHeuroBot2MustMoveUp** - PASSES (original issue fixed)
+- ✅ **ChaseMorePelletGroups** - PASSES (was failing, now fixed)
+- ✅ **ChaseImmediatePellet_LeftOrDown_EvenWhenChased** - PASSES (was failing, now fixed)
+
+## Key Learning
+The LineOfSightPelletsHeuristic should count **consecutive pellets in line of sight** from the position the bot will move to, not complex linked pellet analysis. The GameStateInspector's `CountConsecutivePellets` function was the correct reference implementation.
+
+## Final Implementation
+**File:** `Bots/ClingyHeuroBot2/Heuristics/LineOfSightPelletsHeuristic.cs`
+- Counts from `MyNewPosition` (where bot will be after move)
+- Uses simple while loop until hitting non-pellet content
+- Clean, efficient implementation matching game inspector logic
+
+## Status: READY FOR NEXT TASK
+The LineOfSightPelletsHeuristic is now working correctly and all related tests are passing. Debug session complete.
+
+## Debug Evidence from Test Logs
+**GameState 162 (ChaseMorePelletGroups):**
 - **Expected:** Up movement
-- **Actual:** Down movement (score: 1012.4014 vs Up score: 314.7143)
-- **Root Cause:** LineOfSightPellets heuristic heavily favors Down direction (800.00 points) vs Up (100.00 points)
+- **Bot chose:** Left (score: 1610.5692) 
+- **Up score:** 262.7025
+- **Critical Issue:** LineOfSightPellets giving Left=1,450.00 points vs Up=100.00 points
+- **Game Inspector shows:** Up has 23 linked pellets, Left has only 2 linked pellets
+- **This is BACKWARDS - our heuristic is completely wrong!**
 
-## Game Inspector Usage (Official Tool)
-**Location:** `tools/GameStateInspector/`
-**Direct Command:** `dotnet run -- <path-to-json-file> <bot-nickname>`
-**Wrapper Script:** `.\inspect-game-state.ps1 -GameStateFile <file> -BotNickname <bot>`
-**Example:** `dotnet run -- ../../FunctionalTests/GameStates/12.json ClingyHeuroBot2`
+## Heuristic Implementation Status
+**File:** `Bots/ClingyHeuroBot2/Heuristics/LineOfSightPelletsHeuristic.cs`
+**Current Logic:** Counts pellets in direction of movement from current position until wall/boundary
+**Debug Logging:** Added `Log.Information` statements (messages ARE in logs but need careful parsing)
 
-**Output Provides:**
-- Bot position (X, Y coordinates)
-- Current score
-- Immediate pellet detection (Up/Down/Left/Right)
-- Pellet count within 3-step range for each direction
-- Current quadrant (Top-Left, Top-Right, Bottom-Left, Bottom-Right)
-- Nearest zookeeper location and distance
+## Key Debugging Insights
+1. **Heuristic gives 14.5 pellets Left vs 1 pellet Up** (from scores: 1450/100 = 14.5, 100/100 = 1)
+2. **Game Inspector shows opposite:** Up=23 pellets, Left=2 pellets  
+3. **Logic Error:** Our direction calculation or pellet counting is fundamentally broken
+4. **Debug messages exist** in test output but require careful extraction
 
-## Next Steps
-1. **Analyze Game State 12 Further:** Use Game Inspector to understand why Down direction has significantly more pellets visible than Up
-2. **Review Heuristic Weights:** The LineOfSightPellets heuristic may need adjustment or the test expectation may be incorrect
-3. **Validate Test Expectation:** Confirm whether the bot SHOULD move Up in this scenario or if the test needs updating
-4. **Consider Game Rules:** Review GameRules.md to understand optimal movement strategy for this game state
+## Next Debug Steps (Resume Here)
+1. **Extract debug messages** from test logs to see actual pellet counts being calculated
+2. **Verify direction calculation** - ensure Up/Down/Left/Right are mapped correctly
+3. **Test pellet counting logic** - manually verify cells being checked match expected direction
+4. **Consider coordinate system** - check if Y-axis is inverted or coordinate mapping is wrong
+5. **Fix the core logic error** causing backwards pellet counting
 
-## Key Files Modified
-- `FunctionalTests/StandardBotTests.cs` - Added GameState12 test
-- `FunctionalTests/Services/BotFactory.cs` - Fixed compilation errors
-- `Bots/ClingyHeuroBot2/Services/HeuroBotService.cs` - Fixed IndexOutOfRangeException
-- `tools/GameStateInspector/Program.cs` - Official game state analysis tool
-- `tools/GameStateInspector/README.md` - Comprehensive tool documentation
-- `tools/GameStateInspector/inspect-game-state.ps1` - PowerShell wrapper script
+## Game Inspector Analysis (Working Tool)
+**GameState 162 Analysis:**
+- Bot at position (40,47)
+- Immediate pellets: Up=Yes, Left=Yes, Right=No, Down=No
+- Total linked pellets: Up=23, Left=2, Right=0, Down=0
+- **Test expects Up (correct based on pellet count)**
 
-## Technical Notes
-- Game Inspector tool successfully parses JSON game states and provides actionable analysis
-- ClingyHeuroBot2 logging shows detailed heuristic scoring breakdown
-- Fixed multiple bounds checking issues in bot logging code
-- All compilation errors resolved, functional tests now execute successfully
-- Tool is now officially supported with full documentation and helper scripts
+## Commands for Resume
+```bash
+# Run failing test with full logs
+dotnet test FunctionalTests/FunctionalTests.csproj --filter "ChaseMorePelletGroups" --logger "console;verbosity=detailed"
+
+# Analyze game state
+cd tools/GameStateInspector && dotnet run -- ../../FunctionalTests/bin/Debug/net8.0/GameStates/162.json "ClingyHeuroBot2"
+
+# Search for debug messages in logs
+dotnet test --filter "ChaseMorePelletGroups" | findstr "DEBUG"
+```
+
+## Files with Debug Code
+- `Bots/ClingyHeuroBot2/Heuristics/LineOfSightPelletsHeuristic.cs` - Has debug logging added
+- `tools/GameStateInspector/Program.cs` - Working analysis tool
+- `FunctionalTests/StandardBotTests.cs` - Test definitions
+
+## Critical Fix Needed
+The LineOfSightPelletsHeuristic is giving completely backwards results. Need to identify if the issue is:
+- Direction mapping (Up/Down/Left/Right confusion)
+- Coordinate system (X/Y axis confusion) 
+- Pellet counting logic (wrong cells being checked)
+- Weight calculation error

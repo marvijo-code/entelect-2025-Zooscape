@@ -22,10 +22,10 @@ public class LineOfSightPelletsHeuristic : IHeuristic
             return 0; // No pellets to count for item usage
         }
 
-        // Count pellets in the direction of movement from current position
+        // Count pellets in the direction of movement from new position
         int pelletsInDirection = CountPelletsInDirection(
             heuristicContext.CurrentGameState, 
-            currentPos, 
+            heuristicContext.MyNewPosition, 
             action
         );
 
@@ -73,18 +73,17 @@ public class LineOfSightPelletsHeuristic : IHeuristic
         int currentX = startPos.x + dx;
         int currentY = startPos.y + dy;
 
-        // Count pellets in the direction until we hit a wall or boundary
+        // Count consecutive pellets in the direction until we hit a non-pellet
         while (true)
         {
             var cell = gameState.Cells.FirstOrDefault(c => c.X == currentX && c.Y == currentY);
             
-            // Stop if we hit a boundary or wall
-            if (cell == null || cell.Content == CellContent.Wall)
+            // Stop if we hit a boundary (null cell) or any non-pellet content
+            if (cell == null || cell.Content != CellContent.Pellet)
                 break;
                 
-            // Count pellets
-            if (cell.Content == CellContent.Pellet)
-                pelletsFound++;
+            // Count this pellet
+            pelletsFound++;
 
             // Move to next position in the same direction
             currentX += dx;
