@@ -67,8 +67,13 @@ namespace ZooscapeRunner.Services
 
                         Debug.WriteLine($"Adding process: {config.Name}, WorkingDir: {workingDir}");
 
+                        var processViewModel = new ProcessViewModel { Name = config.Name, Status = "Stopped" };
+                        
+                        // Add initial helpful information to logs
+                        processViewModel.Logs = $"Process: {config.Name}\nCommand: {config.FileName} {config.Arguments}\nWorking Directory: {workingDir}\nStatus: Ready to build/start\n\n--- Build/Run logs will appear below ---\n";
+
                         _processes.Add(new ManagedProcess(
-                            new ProcessViewModel { Name = config.Name, Status = "Stopped" },
+                            processViewModel,
                             new ProcessStartInfo
                             {
                                 FileName = config.FileName,

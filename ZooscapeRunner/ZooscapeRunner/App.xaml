@@ -12,8 +12,103 @@
                 <utum:MaterialToolkitTheme />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Add resources here -->
-
+            <!-- Dark Theme Colors -->
+            <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1E1E1E"/>
+            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#2D2D30"/>
+            <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#3E3E42"/>
+            <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="SecondaryTextBrush" Color="#CCCCCC"/>
+            <SolidColorBrush x:Key="BorderBrush" Color="#464647"/>
+            <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
+            <SolidColorBrush x:Key="SuccessBrush" Color="#107C10"/>
+            <SolidColorBrush x:Key="ErrorBrush" Color="#D13438"/>
+            <SolidColorBrush x:Key="WarningBrush" Color="#FF8C00"/>
+            
+            <!-- Button Styles -->
+            <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="MinWidth" Value="120"/>
+            </Style>
+            
+            <Style x:Key="SuccessButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource SuccessBrush}"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="MinWidth" Value="120"/>
+            </Style>
+            
+            <Style x:Key="ErrorButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource ErrorBrush}"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="MinWidth" Value="120"/>
+            </Style>
+            
+            <Style x:Key="WarningButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource WarningBrush}"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="MinWidth" Value="120"/>
+            </Style>
+            
+            <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="Padding" Value="12,6"/>
+                <Setter Property="FontSize" Value="12"/>
+            </Style>
+            
+            <!-- Card Style -->
+            <Style x:Key="CardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="8"/>
+            </Style>
+            
+            <!-- Header Text Style -->
+            <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="FontSize" Value="18"/>
+            </Style>
+            
+            <!-- Primary Text Style -->
+            <Style x:Key="PrimaryTextStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+                <Setter Property="FontWeight" Value="Medium"/>
+            </Style>
+            
+            <!-- Secondary Text Style -->
+            <Style x:Key="SecondaryTextStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}"/>
+            </Style>
+            
+            <!-- Log Text Style -->
+            <Style x:Key="LogTextStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+                <Setter Property="FontFamily" Value="Consolas"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="IsTextSelectionEnabled" Value="True"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 

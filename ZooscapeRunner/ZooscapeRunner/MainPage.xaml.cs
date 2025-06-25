@@ -8,6 +8,7 @@ using ZooscapeRunner.ViewModels;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
 using System.Diagnostics;
+using System.ComponentModel;
 
 #if WINDOWS
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -122,11 +123,11 @@ namespace ZooscapeRunner
         {
             try
             {
-                LogsHeaderText.Text = $"Logs for {process.Name}";
+                LogsHeaderText.Text = $"📋 Logs for {process.Name}";
                 
                 if (string.IsNullOrEmpty(process.Logs))
                 {
-                    LogsTextBlock.Text = $"No logs available for {process.Name}\n\nCurrent Status: {process.Status}";
+                    LogsTextBlock.Text = $"No logs available for {process.Name}\n\nCurrent Status: {process.Status}\n\nClick 'Start All' to begin building and running processes.\nLogs will appear here in real-time during build and execution.";
                 }
                 else
                 {
@@ -138,12 +139,42 @@ namespace ZooscapeRunner
                 {
                     scrollViewer.ChangeView(null, scrollViewer.ScrollableHeight, null);
                 }
+                
+                // Set up property change notification to auto-refresh logs
+                if (_selectedProcess != null)
+                {
+                    _selectedProcess.PropertyChanged -= OnSelectedProcessPropertyChanged;
+                }
+                _selectedProcess = process;
+                _selectedProcess.PropertyChanged += OnSelectedProcessPropertyChanged;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"ShowLogsForProcess failed: {ex}");
                 LogsTextBlock.Text = $"Error displaying logs: {ex.Message}";
-                LogsHeaderText.Text = "Error";
+                LogsHeaderText.Text = "❌ Error";
+            }
+        }
+
+        private void OnSelectedProcessPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            try
+            {
+                if (e.PropertyName == nameof(ProcessViewModel.Logs) || e.PropertyName == nameof(ProcessViewModel.Status))
+                {
+                    if (sender is ProcessViewModel process && process == _selectedProcess)
+                    {
+                        // Update logs display on UI thread
+                        DispatcherQueue.TryEnqueue(() =>
+                        {
+                            ShowLogsForProcess(process);
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"OnSelectedProcessPropertyChanged failed: {ex}");
             }
         }
 
