@@ -11,6 +11,21 @@ namespace ZooscapeRunner.Models
         public ProcessStartInfo StartInfo { get; }
         public Process? ProcessInstance { get; set; }
 
+        public ManagedProcess(ProcessViewModel viewModel, ProcessStartInfo startInfo, string workingDirectory, Dictionary<string, string>? environmentVariables)
+        {
+            ViewModel = viewModel;
+            StartInfo = startInfo;
+
+            if (environmentVariables != null)
+            {
+                foreach (var envVar in environmentVariables)
+                {
+                    StartInfo.EnvironmentVariables[envVar.Key] = envVar.Value;
+                }
+            }
+        }
+
+        // Keep the old constructor for backward compatibility
         public ManagedProcess(string name, string fileName, string arguments, string workingDirectory, Dictionary<string, string>? environmentVariables)
         {
             ViewModel = new ProcessViewModel { Name = name, Status = "Stopped" };

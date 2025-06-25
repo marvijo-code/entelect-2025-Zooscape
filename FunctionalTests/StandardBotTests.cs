@@ -221,4 +221,19 @@ public class StandardBotTests : BotTestsBase
 
         TestBotsArray(testParams);
     }
+
+    [Fact]
+    public void GameState12ClingyHeuroBot2MustMoveUp()
+    {
+        var testParams = new TestParams
+        {
+            TestName = "GameState12ClingyHeuroBot2MustMoveUp",
+            TestGameStateJsonPath = "12.json",
+            BotNicknameToTest = "ClingyHeuroBot2",
+            ExpectedAction = BotAction.Up,
+            TestDescription = "Test ClingyHeuroBot2 must move Up in game state 12",
+        };
+
+        TestBotAction(_clingyHeuroBot2, testParams);
+    }
 }

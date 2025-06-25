@@ -3,36 +3,36 @@ using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using ZooscapeRunner.Services;
+using System.Diagnostics;
+using System;
 
 namespace ZooscapeRunner.ViewModels
 {
     public class MainViewModel : BindableBase
     {
-        private string _autoRestartText = "Auto-restart in: --:--";
+        private IProcessManager _processManager;
+        private string _autoRestartText = "Auto-restart: Disabled";
+
+        public ObservableCollection<ProcessViewModel> Processes { get; } = new();
+
+        public RelayCommand StartAllCommand { get; }
+        public RelayCommand StopAllCommand { get; }
+        public RelayCommand RestartAllCommand { get; }
+
         public string AutoRestartText
         {
             get => _autoRestartText;
             set => SetProperty(ref _autoRestartText, value);
         }
 
-        public ObservableCollection<ProcessViewModel> Processes { get; } = new();
-
-        private IProcessManager _processManager;
-
-        public RelayCommand StartAllCommand { get; }
-        public RelayCommand StopAllCommand { get; }
-        public RelayCommand RestartAllCommand { get; }
-
         public MainViewModel(IProcessManager processManager)
         {
             _processManager = processManager;
-            
-            // Initialize commands
-            StartAllCommand = new RelayCommand(async _ => await OnStartAll(), _ => _processManager != null);
-            StopAllCommand = new RelayCommand(async _ => await OnStopAll(), _ => _processManager != null);
-            RestartAllCommand = new RelayCommand(async _ => await OnRestartAll(), _ => _processManager != null);
 
-            // Only initialize if we have a valid process manager
+            StartAllCommand = new RelayCommand(async () => await StartAllAsync(), () => _processManager != null);
+            StopAllCommand = new RelayCommand(async () => await StopAllAsync(), () => _processManager != null);
+            RestartAllCommand = new RelayCommand(async () => await RestartAllAsync(), () => _processManager != null);
+
             if (_processManager != null)
             {
                 InitializeProcessManager();
@@ -41,51 +41,126 @@ namespace ZooscapeRunner.ViewModels
 
         public void UpdateProcessManager(IProcessManager processManager)
         {
-            _processManager = processManager;
-            if (_processManager != null)
+            try
             {
+                _processManager = processManager;
                 InitializeProcessManager();
                 
-                // Refresh command states
+                // Update command states
                 StartAllCommand.RaiseCanExecuteChanged();
                 StopAllCommand.RaiseCanExecuteChanged();
                 RestartAllCommand.RaiseCanExecuteChanged();
+                
+                Debug.WriteLine("ProcessManager updated successfully");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to update ProcessManager: {ex}");
+                AutoRestartText = $"Error: {ex.Message}";
             }
         }
 
         private void InitializeProcessManager()
         {
-            _processManager.RestartTimerTick += (newText) => AutoRestartText = newText;
-
-            // Clear existing processes and load new ones
-            Processes.Clear();
-            foreach (var process in _processManager.GetProcesses())
+            try
             {
-                Processes.Add(process);
+                // Clear existing processes
+                Processes.Clear();
+
+                // Add processes from manager
+                foreach (var process in _processManager.GetProcesses())
+                {
+                    Processes.Add(process);
+                }
+
+                // Subscribe to timer events
+                _processManager.RestartTimerTick += OnRestartTimerTick;
+
+                Debug.WriteLine($"Initialized with {Processes.Count} processes");
             }
-
-            _processManager.StartAutoRestart();
-        }
-
-        private async Task OnStartAll()
-        {
-            if (_processManager != null)
-                await _processManager.StartAllAsync();
-        }
-
-        private async Task OnStopAll()
-        {
-            if (_processManager != null)
-                await _processManager.StopAllAsync();
-        }
-
-        private async Task OnRestartAll()
-        {
-            if (_processManager != null)
+            catch (Exception ex)
             {
-                await OnStopAll();
-                // In a real scenario, we'd wait for processes to stop before starting.
-                await OnStartAll();
+                Debug.WriteLine($"Failed to initialize ProcessManager: {ex}");
+                AutoRestartText = $"Initialization Error: {ex.Message}";
+            }
+        }
+
+        private void OnRestartTimerTick(string message)
+        {
+            try
+            {
+                AutoRestartText = message;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Timer tick update failed: {ex}");
+            }
+        }
+
+        private async Task StartAllAsync()
+        {
+            try
+            {
+                if (_processManager == null)
+                {
+                    Debug.WriteLine("ProcessManager is null");
+                    return;
+                }
+
+                Debug.WriteLine("Starting all processes...");
+                await _processManager.StartAllAsync();
+                _processManager.StartAutoRestart();
+                Debug.WriteLine("Start all completed");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"StartAllAsync failed: {ex}");
+                AutoRestartText = $"Start Error: {ex.Message}";
+            }
+        }
+
+        private async Task StopAllAsync()
+        {
+            try
+            {
+                if (_processManager == null)
+                {
+                    Debug.WriteLine("ProcessManager is null");
+                    return;
+                }
+
+                Debug.WriteLine("Stopping all processes...");
+                await _processManager.StopAllAsync();
+                AutoRestartText = "Auto-restart: Disabled";
+                Debug.WriteLine("Stop all completed");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"StopAllAsync failed: {ex}");
+                AutoRestartText = $"Stop Error: {ex.Message}";
+            }
+        }
+
+        private async Task RestartAllAsync()
+        {
+            try
+            {
+                if (_processManager == null)
+                {
+                    Debug.WriteLine("ProcessManager is null");
+                    return;
+                }
+
+                Debug.WriteLine("Restarting all processes...");
+                await StopAllAsync();
+                await Task.Delay(2000); // Give processes time to stop
+                await StartAllAsync();
+                Debug.WriteLine("Restart all completed");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"RestartAllAsync failed: {ex}");
+                AutoRestartText = $"Restart Error: {ex.Message}";
             }
         }
     }

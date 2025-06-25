@@ -1,3 +1,4 @@
+#nullable disable
 namespace ZooscapeRunner.ViewModels
 {
     public class ProcessViewModel : BindableBase
@@ -14,6 +15,13 @@ namespace ZooscapeRunner.ViewModels
         {
             get => _status;
             set => SetProperty(ref _status, value);
+        }
+
+        private string _logs = string.Empty;
+        public string Logs
+        {
+            get => _logs;
+            set => SetProperty(ref _logs, value);
         }
     }
 }

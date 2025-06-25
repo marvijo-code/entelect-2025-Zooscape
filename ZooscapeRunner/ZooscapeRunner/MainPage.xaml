@@ -13,6 +13,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="200" />
         </Grid.RowDefinitions>
 
         <!--  Title  -->
@@ -30,47 +32,92 @@
             Margin="0,0,0,20"
             HorizontalAlignment="Center"
             Orientation="Horizontal">
-            <Button x:Name="StartAllButton" Content="Start All" Margin="5" Command="{Binding StartAllCommand}" />
-            <Button x:Name="StopAllButton" Content="Stop All" Margin="5" Command="{Binding StopAllCommand}" />
-            <Button x:Name="RestartAllButton" Content="Restart All" Margin="5" Command="{Binding RestartAllCommand}" />
+            <Button x:Name="StartAllButton" Content="▶️ Start All" Margin="5" Command="{Binding StartAllCommand}" 
+                    Background="#2196F3" Foreground="White" CornerRadius="4" Padding="16,8" FontWeight="SemiBold" />
+            <Button x:Name="StopAllButton" Content="⏹️ Stop All" Margin="5" Command="{Binding StopAllCommand}"
+                    Background="#F44336" Foreground="White" CornerRadius="4" Padding="16,8" FontWeight="SemiBold" />
+            <Button x:Name="RestartAllButton" Content="🔄 Restart All" Margin="5" Command="{Binding RestartAllCommand}"
+                    Background="#FF9800" Foreground="White" CornerRadius="4" Padding="16,8" FontWeight="SemiBold" />
             <TextBlock
                 Margin="20,0,0,0"
                 VerticalAlignment="Center"
+                FontWeight="SemiBold"
                 Text="{Binding AutoRestartText}" />
         </StackPanel>
 
         <!--  Process List  -->
-        <ListView Grid.Row="2" x:Name="ProcessListView" ItemsSource="{Binding Processes}">
+        <ListView Grid.Row="2" x:Name="ProcessListView" ItemsSource="{Binding Processes}" 
+                  SelectionChanged="ProcessListView_SelectionChanged"
+                  BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4">
             <ListView.HeaderTemplate>
                 <DataTemplate>
-                    <Grid Padding="10,5">
+                    <Grid Padding="10,8" Background="#F5F5F5">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="100" />
                         </Grid.ColumnDefinitions>
                         <TextBlock
                             Grid.Column="0"
                             FontWeight="SemiBold"
-                            Text="Process" />
+                            Text="Process Name" />
                         <TextBlock
                             Grid.Column="1"
                             FontWeight="SemiBold"
                             Text="Status" />
+                        <TextBlock
+                            Grid.Column="2"
+                            FontWeight="SemiBold"
+                            Text="Actions" />
                     </Grid>
                 </DataTemplate>
             </ListView.HeaderTemplate>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:ProcessViewModel">
-                    <Grid Padding="10,5">
+                    <Grid Padding="10,8" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="100" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="{Binding Name}" />
-                        <TextBlock Grid.Column="1" Text="{Binding Status}" />
+                        <TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center" FontWeight="Medium" />
+                        <TextBlock Grid.Column="1" Text="{Binding Status}" VerticalAlignment="Center" />
+                        <Button Grid.Column="2" Content="📋 Logs" Margin="2" Padding="8,4" FontSize="12"
+                                Click="ViewLogsButton_Click" Tag="{Binding}" />
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
+
+        <!--  Logs Section Header  -->
+        <TextBlock Grid.Row="3" Text="Process Logs" FontSize="18" FontWeight="SemiBold" Margin="0,20,0,10" />
+
+        <!--  Logs Viewer  -->
+        <Border Grid.Row="4" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Background="#FAFAFA">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                
+                <!--  Logs Header  -->
+                <Border Grid.Row="0" Background="#F0F0F0" Padding="10,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="LogsHeaderText" Text="Select a process to view logs" FontWeight="SemiBold" />
+                        <Button Grid.Column="1" Content="🗑️ Clear" Padding="8,4" FontSize="12" Click="ClearLogsButton_Click" />
+                    </Grid>
+                </Border>
+                
+                <!--  Logs Content  -->
+                <ScrollViewer Grid.Row="1" Padding="10" ZoomMode="Disabled" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <TextBlock x:Name="LogsTextBlock" Text="No logs to display" FontFamily="Consolas" FontSize="12" 
+                               TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
 </Page>

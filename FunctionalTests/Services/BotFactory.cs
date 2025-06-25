@@ -1,7 +1,7 @@
 using ClingyHeuroBot2Service = ClingyHeuroBot2.Services.HeuroBotService;
 using ClingyHeuroBotService = HeuroBotV2.Services.HeuroBotService;
-using DeepMCTSService = DeepMCTS.Services.BotService;
-using MCTSo4Service = MCTSo4.Services.MCTSo4Logic;
+// using DeepMCTSService = DeepMCTS.Services.BotService;
+// using MCTSo4Service = MCTSo4.Services.MCTSo4Logic;
 
 namespace FunctionalTests.Services;
 
@@ -19,8 +19,8 @@ public class BotFactory
         {
             "ClingyHeuroBot2" => new ClingyHeuroBot2Service(),
             "ClingyHeuroBot" => new ClingyHeuroBotService(),
-            "DeepMCTS" => new DeepMCTSService(),
-            "MCTSo4" => new MCTSo4Service(),
+            // "DeepMCTS" => new DeepMCTSService(),
+            // "MCTSo4" => new MCTSo4Service(),
             _ => throw new ArgumentException(
                 $"Unknown bot type: {botTypeName}",
                 nameof(botTypeName)
@@ -33,7 +33,7 @@ public class BotFactory
     /// </summary>
     public List<string> GetAvailableBotTypes()
     {
-        return ["ClingyHeuroBot2", "ClingyHeuroBot", "DeepMCTS", "MCTSo4"];
+        return ["ClingyHeuroBot2", "ClingyHeuroBot"]; // , "DeepMCTS", "MCTSo4"];
     }
 
     /// <summary>

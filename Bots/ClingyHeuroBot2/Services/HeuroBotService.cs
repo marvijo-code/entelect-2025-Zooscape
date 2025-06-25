@@ -182,8 +182,9 @@ public class HeuroBotService : IBot<HeuroBotService>
                 decimal reverseMovePenaltyValue = WeightManager.Instance.ReverseMovePenalty;
                 if (LogHeuristicScores)
                 {
+                    int insertIndex = Math.Max(0, currentDetailedLog.Count - 2);
                     currentDetailedLog.Insert(
-                        currentDetailedLog.Count - 2,
+                        insertIndex,
                         string.Format(
                             "    {0,-35}: Raw={1,8:F4}, Weight={2,8:F4}, Contribution={3,8:F4}, NewScore={4,8:F4}",
                             "ReverseMovePenalty",
@@ -221,8 +222,9 @@ public class HeuroBotService : IBot<HeuroBotService>
             decimal visitPenaltyContribution = rawVisitFactor * visitWeight;
             if (LogHeuristicScores)
             {
+                int insertIndex = Math.Max(0, currentDetailedLog.Count - 2);
                 currentDetailedLog.Insert(
-                    currentDetailedLog.Count - 2,
+                    insertIndex,
                     string.Format(
                         "    {0,-35}: Raw={1,8:F4}, Weight={2,8:F4}, Contribution={3,8:F4}, NewScore={4,8:F4}",
                         "VisitPenalty",
@@ -241,8 +243,9 @@ public class HeuroBotService : IBot<HeuroBotService>
                 decimal unexploredQuadrantBonusValue = WeightManager.Instance.UnexploredQuadrantBonus;
                 if (LogHeuristicScores)
                 {
+                    int insertIndex = Math.Max(0, currentDetailedLog.Count - 2);
                     currentDetailedLog.Insert(
-                        currentDetailedLog.Count - 2,
+                        insertIndex,
                         string.Format(
                             "    {0,-35}: Raw={1,8:F4}, Weight={2,8:F4}, Contribution={3,8:F4}, NewScore={4,8:F4}",
                             "UnexploredQuadrantBonus",

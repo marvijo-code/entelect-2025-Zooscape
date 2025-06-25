@@ -1,7 +1,7 @@
 #nullable disable
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System;
 using System.IO;
 using System.Linq;
 using System.Net.NetworkInformation;
@@ -11,9 +11,10 @@ using System.Threading.Tasks;
 using ZooscapeRunner.Models;
 using ZooscapeRunner.ViewModels;
 using Microsoft.UI.Dispatching;
+using System.Text;
 
 #if WINDOWS
-using Windows.Storage;
+// using System.Net.NetworkInformation; // Already included above
 #endif
 
 namespace ZooscapeRunner.Services
@@ -42,63 +43,42 @@ namespace ZooscapeRunner.Services
 
         private async Task LoadProcessesConfigAsync()
         {
-            var repoRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".."));
-
             try
             {
-                string json = "";
+                var configPath = Path.Combine(Directory.GetCurrentDirectory(), "Assets", "processes.json");
+                Debug.WriteLine($"Loading process config from: {configPath}");
                 
-#if WINDOWS && !HAS_UNO
-                try
+                if (!File.Exists(configPath))
                 {
-                    var installFolder = Windows.ApplicationModel.Package.Current.InstalledLocation;
-                    var configFile = await installFolder.GetFileAsync("Assets\\processes.json");
-                    json = await Windows.Storage.FileIO.ReadTextAsync(configFile);
-                }
-                catch
-                {
-                    // Fallback to regular file access
-                    var assetsPath = Path.Combine(AppContext.BaseDirectory, "Assets", "processes.json");
-                    if (File.Exists(assetsPath))
-                    {
-                        json = await File.ReadAllTextAsync(assetsPath);
-                    }
-                }
-#else
-                // For non-Windows platforms or Uno platforms, try to read from Assets folder in the app directory
-                var assetsPath = Path.Combine(AppContext.BaseDirectory, "Assets", "processes.json");
-                if (!File.Exists(assetsPath))
-                {
-                    // Fallback to current directory
-                    assetsPath = Path.Combine(Directory.GetCurrentDirectory(), "Assets", "processes.json");
-                }
-                
-                if (File.Exists(assetsPath))
-                {
-                    json = await File.ReadAllTextAsync(assetsPath);
-                }
-                else
-                {
-                    Debug.WriteLine($"Config file not found at: {assetsPath}");
+                    Debug.WriteLine($"Process config file not found at: {configPath}");
                     return;
                 }
-#endif
 
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var configs = JsonSerializer.Deserialize<List<ProcessConfig>>(json, options);
+                var json = await File.ReadAllTextAsync(configPath);
+                var configs = JsonSerializer.Deserialize<ProcessConfig[]>(json);
 
                 if (configs != null)
                 {
                     foreach (var config in configs)
                     {
-                        var workingDir = string.IsNullOrEmpty(config.WorkingDirectory)
-                            ? repoRoot
-                            : Path.Combine(repoRoot, config.WorkingDirectory);
+                        var workingDir = string.IsNullOrEmpty(config.WorkingDirectory) 
+                            ? Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".."))
+                            : Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", config.WorkingDirectory));
+
+                        Debug.WriteLine($"Adding process: {config.Name}, WorkingDir: {workingDir}");
 
                         _processes.Add(new ManagedProcess(
-                            config.Name,
-                            config.FileName,
-                            config.Arguments,
+                            new ProcessViewModel { Name = config.Name, Status = "Stopped" },
+                            new ProcessStartInfo
+                            {
+                                FileName = config.FileName,
+                                Arguments = config.Arguments,
+                                WorkingDirectory = workingDir,
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true
+                            },
                             workingDir,
                             config.EnvironmentVariables));
                     }
@@ -107,7 +87,7 @@ namespace ZooscapeRunner.Services
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to load process configuration: {ex}");
-                // Optionally, handle this error more gracefully in the UI
+                // Don't crash the app - just log the error
             }
         }
 
@@ -115,81 +95,137 @@ namespace ZooscapeRunner.Services
 
         public async Task StartAllAsync()
         {
-            var engineProcess = _processes.FirstOrDefault(p => p.ViewModel.Name == "Zooscape Engine");
-            if (engineProcess != null && !IsPortAvailable(5000))
+            try
             {
-                engineProcess.ViewModel.Status = "Port 5000 in use";
-                return; // Stop if port is not available
+                Debug.WriteLine("StartAllAsync called");
+                
+                var engineProcess = _processes.FirstOrDefault(p => p.ViewModel.Name == "Zooscape Engine");
+                if (engineProcess != null && !IsPortAvailable(5000))
+                {
+                    UpdateProcessStatus(engineProcess.ViewModel, "Port 5000 in use");
+                    return;
+                }
+
+                await BuildBotsAsync();
+
+                foreach (var managedProcess in _processes)
+                {
+                    if (managedProcess.ViewModel.Status.Contains("Failed") || managedProcess.ViewModel.Status.Contains("Error"))
+                    {
+                        Debug.WriteLine($"Skipping {managedProcess.ViewModel.Name} due to build failure");
+                        continue;
+                    }
+
+                    await StartProcessSafelyAsync(managedProcess);
+                }
             }
-
-            await BuildBotsAsync();
-
-            foreach (var managedProcess in _processes)
+            catch (Exception ex)
             {
-                if (managedProcess.ViewModel.Status.Contains("Failed") || managedProcess.ViewModel.Status.Contains("Error"))
-                {
-                    continue;
-                }
+                Debug.WriteLine($"StartAllAsync failed: {ex}");
+                // Don't crash - just log the error
+            }
+        }
 
-                try
-                {
-                    managedProcess.ViewModel.Status = "Starting...";
+        private async Task StartProcessSafelyAsync(ManagedProcess managedProcess)
+        {
+            try
+            {
+                UpdateProcessStatus(managedProcess.ViewModel, "Starting...");
+                
 #if WINDOWS || MACCATALYST || ANDROID
-                    managedProcess.ProcessInstance = Process.Start(managedProcess.StartInfo);
-                    if (managedProcess.ProcessInstance != null)
-                    {
-                        managedProcess.ProcessInstance.EnableRaisingEvents = true;
-                        managedProcess.ProcessInstance.Exited += (sender, args) =>
-                        {
-                            managedProcess.ViewModel.Status = "Stopped";
-                        };
-                        managedProcess.ViewModel.Status = "Running";
-                    }
-                    else
-                    {
-                        managedProcess.ViewModel.Status = "Failed to start";
-                    }
-#else
-                    managedProcess.ViewModel.Status = "Not supported on this platform";
-#endif
-                }
-                catch (Exception ex)
+                managedProcess.ProcessInstance = Process.Start(managedProcess.StartInfo);
+                if (managedProcess.ProcessInstance != null)
                 {
-                    managedProcess.ViewModel.Status = $"Error: {ex.Message}";
+                    managedProcess.ProcessInstance.EnableRaisingEvents = true;
+                    managedProcess.ProcessInstance.Exited += (sender, args) =>
+                    {
+                        UpdateProcessStatus(managedProcess.ViewModel, "Stopped");
+                    };
+                    UpdateProcessStatus(managedProcess.ViewModel, "Running");
                 }
+                else
+                {
+                    UpdateProcessStatus(managedProcess.ViewModel, "Failed to start");
+                }
+#else
+                UpdateProcessStatus(managedProcess.ViewModel, "Not supported on this platform");
+#endif
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to start {managedProcess.ViewModel.Name}: {ex}");
+                UpdateProcessStatus(managedProcess.ViewModel, $"Error: {ex.Message}");
+            }
+        }
+
+        private void UpdateProcessStatus(ProcessViewModel viewModel, string status)
+        {
+            if (_dispatcher != null)
+            {
+                _dispatcher.TryEnqueue(() =>
+                {
+                    viewModel.Status = status;
+                    Debug.WriteLine($"{viewModel.Name}: {status}");
+                });
+            }
+            else
+            {
+                viewModel.Status = status;
+                Debug.WriteLine($"{viewModel.Name}: {status}");
             }
         }
 
         private async Task BuildBotsAsync()
         {
-            var repoRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".."));
-
-            var clingyBot = _processes.FirstOrDefault(p => p.ViewModel.Name == "ClingyHeuroBot2");
-            if (clingyBot != null)
+            try
             {
-                await RunBuildCommandAsync(
-                    "dotnet",
-                    "build Bots/ClingyHeuroBot2/ClingyHeuroBot2.csproj -c Release",
-                    repoRoot,
-                    clingyBot.ViewModel);
+                Debug.WriteLine("BuildBotsAsync started");
+                var repoRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".."));
+                Debug.WriteLine($"Repository root: {repoRoot}");
+
+                var clingyBot = _processes.FirstOrDefault(p => p.ViewModel.Name == "ClingyHeuroBot2");
+                if (clingyBot != null)
+                {
+                    await RunBuildCommandAsync(
+                        "dotnet",
+                        "build Bots/ClingyHeuroBot2/ClingyHeuroBot2.csproj -c Release",
+                        repoRoot,
+                        clingyBot.ViewModel);
+                }
+
+                var mctsBot = _processes.FirstOrDefault(p => p.ViewModel.Name == "AdvancedMCTSBot");
+                if (mctsBot != null)
+                {
+                    await RunBuildCommandAsync(
+                        "cmd.exe",
+                        "/c build.bat",
+                        Path.Combine(repoRoot, "Bots", "AdvancedMCTSBot"),
+                        mctsBot.ViewModel);
+                }
             }
-
-            var mctsBot = _processes.FirstOrDefault(p => p.ViewModel.Name == "AdvancedMCTSBot");
-            if (mctsBot != null)
+            catch (Exception ex)
             {
-                await RunBuildCommandAsync(
-                    "cmd.exe",
-                    "/c build.bat",
-                    Path.Combine(repoRoot, "Bots", "AdvancedMCTSBot"),
-                    mctsBot.ViewModel);
+                Debug.WriteLine($"BuildBotsAsync failed: {ex}");
+                // Don't crash - just log the error
             }
         }
 
         private async Task RunBuildCommandAsync(string fileName, string arguments, string workingDirectory, ProcessViewModel viewModel)
         {
-            viewModel.Status = "Building...";
             try
             {
+                UpdateProcessStatus(viewModel, "Building...");
+                Debug.WriteLine($"Building {viewModel.Name}: {fileName} {arguments} in {workingDirectory}");
+
+                if (!Directory.Exists(workingDirectory))
+                {
+                    var errorMsg = $"Working directory does not exist: {workingDirectory}";
+                    Debug.WriteLine(errorMsg);
+                    UpdateProcessStatus(viewModel, "Build Failed - Directory not found");
+                    viewModel.Logs = errorMsg;
+                    return;
+                }
+
                 using var process = new Process
                 {
                     StartInfo = new ProcessStartInfo
@@ -203,24 +239,103 @@ namespace ZooscapeRunner.Services
                         CreateNoWindow = true,
                     }
                 };
-                process.Start();
-                await process.WaitForExitAsync();
 
+                var outputBuilder = new StringBuilder();
+                var errorBuilder = new StringBuilder();
+
+                // Real-time log updates
+                process.OutputDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                    {
+                        outputBuilder.AppendLine(e.Data);
+                        Debug.WriteLine($"[{viewModel.Name} OUTPUT] {e.Data}");
+                        
+                        // Update logs in real-time on UI thread
+                        if (_dispatcher != null)
+                        {
+                            _dispatcher.TryEnqueue(() =>
+                            {
+                                viewModel.Logs = $"{outputBuilder}\n{errorBuilder}".Trim();
+                            });
+                        }
+                        else
+                        {
+                            viewModel.Logs = $"{outputBuilder}\n{errorBuilder}".Trim();
+                        }
+                    }
+                };
+
+                process.ErrorDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                    {
+                        errorBuilder.AppendLine(e.Data);
+                        Debug.WriteLine($"[{viewModel.Name} ERROR] {e.Data}");
+                        
+                        // Update logs in real-time on UI thread
+                        if (_dispatcher != null)
+                        {
+                            _dispatcher.TryEnqueue(() =>
+                            {
+                                viewModel.Logs = $"{outputBuilder}\n{errorBuilder}".Trim();
+                            });
+                        }
+                        else
+                        {
+                            viewModel.Logs = $"{outputBuilder}\n{errorBuilder}".Trim();
+                        }
+                    }
+                };
+
+                Debug.WriteLine($"Starting build process: {fileName} {arguments}");
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                // Add timeout to prevent hanging
+                var timeout = TimeSpan.FromMinutes(5);
+                if (!process.WaitForExit((int)timeout.TotalMilliseconds))
+                {
+                    process.Kill();
+                    var timeoutMsg = $"Build timed out after {timeout.TotalMinutes} minutes";
+                    Debug.WriteLine(timeoutMsg);
+                    UpdateProcessStatus(viewModel, "Build Failed - Timeout");
+                    viewModel.Logs = $"{outputBuilder}\n{errorBuilder}\n{timeoutMsg}";
+                    return;
+                }
+
+                // Wait a bit more for output to be processed
+                await Task.Delay(500);
+
+                var allOutput = $"{outputBuilder}\n{errorBuilder}".Trim();
+                viewModel.Logs = allOutput;
+
+                Debug.WriteLine($"Build process exited with code: {process.ExitCode}");
+                Debug.WriteLine($"Build output length: {allOutput.Length} characters");
+                
                 if (process.ExitCode == 0)
                 {
-                    viewModel.Status = "Build Succeeded";
+                    Debug.WriteLine($"Build succeeded for {viewModel.Name}");
+                    UpdateProcessStatus(viewModel, "Build Succeeded");
                 }
                 else
                 {
-                    var error = await process.StandardError.ReadToEndAsync();
-                    Debug.WriteLine($"Build failed for {viewModel.Name}: {error}");
-                    viewModel.Status = $"Build Failed";
+                    Debug.WriteLine($"Build failed for {viewModel.Name} with exit code {process.ExitCode}");
+                    UpdateProcessStatus(viewModel, $"Build Failed (Exit Code: {process.ExitCode})");
+                    
+                    // If no output was captured, add a helpful message
+                    if (string.IsNullOrEmpty(allOutput))
+                    {
+                        viewModel.Logs = $"Build failed with exit code {process.ExitCode}\nNo output captured from build process.\nCommand: {fileName} {arguments}\nWorking Directory: {workingDirectory}";
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Build exception for {viewModel.Name}: {ex}");
-                viewModel.Status = $"Build Error";
+                UpdateProcessStatus(viewModel, "Build Error");
+                viewModel.Logs = $"Build exception: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}\n\nCommand: {fileName} {arguments}\nWorking Directory: {workingDirectory}";
             }
         }
 
@@ -241,72 +356,92 @@ namespace ZooscapeRunner.Services
                 }
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
-                // If port checking fails, assume it's available
+                Debug.WriteLine($"Port check failed: {ex.Message}");
                 return true;
             }
 #else
-            // On platforms where IPGlobalProperties is not available, assume port is available
             return true;
 #endif
         }
 
         public Task StopAllAsync()
         {
-            foreach (var managedProcess in _processes)
+            try
             {
-                try
+                foreach (var managedProcess in _processes)
                 {
-#if WINDOWS || MACCATALYST || ANDROID
-                    if (managedProcess.ProcessInstance != null && !managedProcess.ProcessInstance.HasExited)
+                    try
                     {
-                        managedProcess.ProcessInstance.Kill(true);
-                        managedProcess.ViewModel.Status = "Stopped";
-                    }
+#if WINDOWS || MACCATALYST || ANDROID
+                        if (managedProcess.ProcessInstance != null && !managedProcess.ProcessInstance.HasExited)
+                        {
+                            managedProcess.ProcessInstance.Kill(true);
+                            UpdateProcessStatus(managedProcess.ViewModel, "Stopped");
+                        }
 #else
-                    managedProcess.ViewModel.Status = "Stop not supported on this platform";
+                        UpdateProcessStatus(managedProcess.ViewModel, "Stop not supported on this platform");
 #endif
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to stop {managedProcess.ViewModel.Name}: {ex}");
+                        UpdateProcessStatus(managedProcess.ViewModel, $"Stop Error: {ex.Message}");
+                    }
                 }
-                catch (Exception ex)
-                {
-                    managedProcess.ViewModel.Status = $"Error: {ex.Message}";
-                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"StopAllAsync failed: {ex}");
             }
             return Task.CompletedTask;
         }
 
         public void StartAutoRestart()
         {
-            _autoRestartTimer = new Timer(OnTimerTick, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+            try
+            {
+                _autoRestartTimer = new Timer(OnTimerTick, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to start auto-restart timer: {ex}");
+            }
         }
 
         private async void OnTimerTick(object? state)
         {
-            _remainingSeconds--;
-
-            var timeSpan = TimeSpan.FromSeconds(_remainingSeconds);
-            var message = $"Auto-restart in: {timeSpan:mm\\:ss}";
-            
-            // Ensure UI updates happen on the main thread
-            if (_dispatcher != null)
+            try
             {
-                _dispatcher.TryEnqueue(() =>
+                _remainingSeconds--;
+
+                var timeSpan = TimeSpan.FromSeconds(_remainingSeconds);
+                var message = $"Auto-restart in: {timeSpan:mm\\:ss}";
+                
+                if (_dispatcher != null)
+                {
+                    _dispatcher.TryEnqueue(() =>
+                    {
+                        RestartTimerTick?.Invoke(message);
+                    });
+                }
+                else
                 {
                     RestartTimerTick?.Invoke(message);
-                });
-            }
-            else
-            {
-                RestartTimerTick?.Invoke(message);
-            }
+                }
 
-            if (_remainingSeconds <= 0)
+                if (_remainingSeconds <= 0)
+                {
+                    await StopAllAsync();
+                    await Task.Delay(1000);
+                    await StartAllAsync();
+                    _remainingSeconds = 180;
+                }
+            }
+            catch (Exception ex)
             {
-                await StopAllAsync();
-                await Task.Delay(1000); // Give processes time to shut down
-                await StartAllAsync();
-                _remainingSeconds = 180; // Reset timer
+                Debug.WriteLine($"Timer tick failed: {ex}");
             }
         }
     }
