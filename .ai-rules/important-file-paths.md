@@ -27,10 +27,10 @@ This file tracks important and frequently accessed file paths within the project
 - `GameStates_Directory`: FunctionalTests/GameStates/
 - `GameState12_JSON`: FunctionalTests/GameStates/12.json
 
-## Game Analysis Tools (Official)
+## Game Analysis Tools (Enhanced)
 
 - `GameInspector_Project`: tools/GameStateInspector/GameStateInspector.csproj
-- `GameInspector_Program`: tools/GameStateInspector/Program.cs
+- `GameInspector_Program`: tools/GameStateInspector/Program.cs ✅ **ENHANCED with --analyze-move**
 - `GameInspector_README`: tools/GameStateInspector/README.md
 - `GameInspector_Script`: tools/GameStateInspector/inspect-game-state.ps1
 - `GameInspector_Directory`: tools/GameStateInspector/
@@ -74,10 +74,23 @@ This file tracks important and frequently accessed file paths within the project
 - `FunctionalTests/bin/Debug/net8.0/GameStates/` - Test game state JSON files
 
 ## Analysis Tools
-- `tools/GameStateInspector/` - **PRIMARY DEBUG TOOL** for game state analysis
-- `tools/GameStateInspector/Program.cs` - Main inspector implementation
+- `tools/GameStateInspector/` - **ENHANCED DEBUG TOOL** for game state analysis
+- `tools/GameStateInspector/Program.cs` - Main inspector implementation ✅ **WITH --analyze-move**
 - `tools/GameStateInspector/README.md` - Tool documentation
 - `tools/GameStateInspector/inspect-game-state.ps1` - PowerShell wrapper
+
+### Game Inspector Usage Examples:
+```bash
+# List all bots in a game state
+dotnet run --project tools/GameStateInspector -- gamestate.json
+
+# Analyze current bot position
+dotnet run --project tools/GameStateInspector -- gamestate.json "BotName"
+
+# Analyze what happens after a move (NEW FEATURE)
+dotnet run --project tools/GameStateInspector -- gamestate.json "BotName" --analyze-move Up
+dotnet run --project tools/GameStateInspector -- gamestate.json "BotName" --analyze-move Left
+```
 
 ## Configuration & Documentation
 - `.ai-rules/activeContext.md` - **CURRENT DEBUG SESSION** context

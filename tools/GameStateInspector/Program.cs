@@ -15,6 +15,14 @@ namespace GameStateInspector
         EscapeZone = 4
     }
 
+    public enum MoveDirection
+    {
+        Up,
+        Down,
+        Left,
+        Right
+    }
+
     public class Cell
     {
         [JsonPropertyName("X")]
@@ -102,6 +110,11 @@ namespace GameStateInspector
         public int CurrentQuadrant { get; set; } = -1;
         public int NearestZookeeperDist { get; set; } = int.MaxValue;
         public (int x, int y) NearestZookeeperPos { get; set; } = (-1, -1);
+        
+        // Move analysis fields
+        public bool IsAnalyzingMove { get; set; }
+        public MoveDirection? AnalyzedMove { get; set; }
+        public (int x, int y) OriginalPos { get; set; }
     }
 
     class Program
@@ -110,14 +123,35 @@ namespace GameStateInspector
         {
             if (args.Length < 1)
             {
-                Console.WriteLine("Usage: GameStateInspector <json-file-path> [bot-nickname]");
+                Console.WriteLine("Usage: GameStateInspector <json-file-path> [bot-nickname] [--analyze-move <direction>]");
                 Console.WriteLine("Example: GameStateInspector gamestate.json MyBot");
+                Console.WriteLine("Example: GameStateInspector gamestate.json MyBot --analyze-move Up");
+                Console.WriteLine("Directions: Up, Down, Left, Right");
                 Console.WriteLine("If no bot nickname is provided, all animals will be listed.");
                 return;
             }
 
             string filePath = args[0];
             string? botNickname = args.Length > 1 ? args[1] : null;
+            MoveDirection? moveToAnalyze = null;
+
+            // Parse --analyze-move argument
+            for (int i = 2; i < args.Length; i++)
+            {
+                if (args[i] == "--analyze-move" && i + 1 < args.Length)
+                {
+                    if (Enum.TryParse<MoveDirection>(args[i + 1], true, out var direction))
+                    {
+                        moveToAnalyze = direction;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Invalid move direction: {args[i + 1]}. Valid directions: Up, Down, Left, Right");
+                        return;
+                    }
+                    break;
+                }
+            }
 
             if (botNickname == null)
             {
@@ -125,7 +159,7 @@ namespace GameStateInspector
                 return;
             }
 
-            var analysis = AnalyzeStateFromFile(filePath, botNickname);
+            var analysis = AnalyzeStateFromFile(filePath, botNickname, moveToAnalyze);
             if (analysis != null)
             {
                 PrintAnalysis(analysis);
@@ -159,9 +193,13 @@ namespace GameStateInspector
             Console.WriteLine();
             Console.WriteLine("To analyze a specific animal, run:");
             Console.WriteLine($"GameStateInspector \"{filePath}\" \"<nickname>\"");
+            Console.WriteLine();
+            Console.WriteLine("To analyze what happens if an animal makes a move, run:");
+            Console.WriteLine($"GameStateInspector \"{filePath}\" \"<nickname>\" --analyze-move <direction>");
+            Console.WriteLine("Example: GameStateInspector \"gamestate.json\" \"MyBot\" --analyze-move Up");
         }
 
-        static StateAnalysis? AnalyzeStateFromFile(string filePath, string botNickname)
+        static StateAnalysis? AnalyzeStateFromFile(string filePath, string botNickname, MoveDirection? moveToAnalyze = null)
         {
             if (!File.Exists(filePath))
             {
@@ -178,10 +216,10 @@ namespace GameStateInspector
                 return null;
             }
 
-            return AnalyzeState(gameState, botNickname);
+            return AnalyzeState(gameState, botNickname, moveToAnalyze);
         }
 
-        static StateAnalysis? AnalyzeState(GameState gameState, string botNickname)
+        static StateAnalysis? AnalyzeState(GameState gameState, string botNickname, MoveDirection? moveToAnalyze = null)
         {
             var me = gameState.Animals.FirstOrDefault(a => a.Nickname == botNickname);
             if (me == null)
@@ -190,10 +228,36 @@ namespace GameStateInspector
                 return null;
             }
 
+            var originalPos = (me.X, me.Y);
+            var analysisPos = originalPos;
+
+            // If analyzing a move, calculate the new position
+            if (moveToAnalyze.HasValue)
+            {
+                analysisPos = ApplyMove(originalPos, moveToAnalyze.Value);
+                
+                // Check if the move is valid (not into a wall)
+                var tempCellLookup = gameState.Cells.ToDictionary(c => (c.X, c.Y), c => c.Content);
+                if (tempCellLookup.TryGetValue(analysisPos, out var content) && content == CellContent.Wall)
+                {
+                    Console.WriteLine($"Invalid move: {moveToAnalyze} would move into a wall at ({analysisPos.Item1}, {analysisPos.Item2})");
+                    return null;
+                }
+                
+                if (!tempCellLookup.ContainsKey(analysisPos))
+                {
+                    Console.WriteLine($"Invalid move: {moveToAnalyze} would move out of bounds to ({analysisPos.Item1}, {analysisPos.Item2})");
+                    return null;
+                }
+            }
+
             var analysis = new StateAnalysis
             {
-                MyPos = (me.X, me.Y),
-                Score = me.Score
+                MyPos = analysisPos,
+                Score = me.Score,
+                IsAnalyzingMove = moveToAnalyze.HasValue,
+                AnalyzedMove = moveToAnalyze,
+                OriginalPos = originalPos
             };
 
             // Create a lookup for cells by position
@@ -245,6 +309,18 @@ namespace GameStateInspector
             FindNearestZookeeper(gameState, analysis);
 
             return analysis;
+        }
+
+        static (int x, int y) ApplyMove((int x, int y) pos, MoveDirection move)
+        {
+            return move switch
+            {
+                MoveDirection.Up => (pos.x, pos.y - 1),
+                MoveDirection.Down => (pos.x, pos.y + 1),
+                MoveDirection.Left => (pos.x - 1, pos.y),
+                MoveDirection.Right => (pos.x + 1, pos.y),
+                _ => pos
+            };
         }
 
         static void CheckPelletDirection(Dictionary<(int, int), CellContent> cellLookup, (int x, int y) pos, int dx, int dy, out bool pelletAdjacent, out int pelletsInThree)
@@ -462,7 +538,16 @@ namespace GameStateInspector
         static void PrintAnalysis(StateAnalysis analysis)
         {
             Console.WriteLine("=== GAME STATE ANALYSIS ===");
-            Console.WriteLine($"Bot Position: ({analysis.MyPos.x}, {analysis.MyPos.y})");
+            if (analysis.IsAnalyzingMove)
+            {
+                Console.WriteLine($"Original Bot Position: ({analysis.OriginalPos.x}, {analysis.OriginalPos.y})");
+                Console.WriteLine($"After Move {analysis.AnalyzedMove}: ({analysis.MyPos.x}, {analysis.MyPos.y})");
+                Console.WriteLine($"*** ANALYZING PELLETS FROM NEW POSITION ***");
+            }
+            else
+            {
+                Console.WriteLine($"Bot Position: ({analysis.MyPos.x}, {analysis.MyPos.y})");
+            }
             Console.WriteLine($"Score: {analysis.Score}");
             Console.WriteLine();
 
