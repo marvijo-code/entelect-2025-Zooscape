@@ -2,27 +2,88 @@
   {
     "Name": "Zooscape Engine",
     "FileName": "dotnet",
-    "Arguments": "run --project engine/Zooscape/Zooscape.csproj",
-    "WorkingDirectory": ""
+    "Arguments": "run --project engine/Zooscape/Zooscape.csproj --configuration Release",
+    "WorkingDirectory": "",
+    "EnvironmentVariables": {
+      "ASPNETCORE_ENVIRONMENT": "Development",
+      "ASPNETCORE_URLS": "http://localhost:5000"
+    }
   },
   {
     "Name": "ClingyHeuroBot2",
     "FileName": "dotnet",
-    "Arguments": "run --project Bots/ClingyHeuroBot2/ClingyHeuroBot2.csproj",
+    "Arguments": "run --project Bots/ClingyHeuroBot2/ClingyHeuroBot2.csproj --configuration Release",
     "WorkingDirectory": "",
     "EnvironmentVariables": {
-      "BOT_NICKNAME": "ClingyHeuroBot2-Uno",
-      "BOT_TOKEN": "some-secret-token-1"
+      "BOT_NICKNAME": "ClingyHeuroBot2",
+      "Token": "{{GUID}}",
+      "BOT_TOKEN": "{{GUID}}"
     }
   },
   {
     "Name": "AdvancedMCTSBot",
     "FileName": "cmd.exe",
-    "Arguments": "/c build\\AdvancedMCTSBot.exe",
-    "WorkingDirectory": "Bots\\AdvancedMCTSBot",
+    "Arguments": "/c \"cd /d Bots\\AdvancedMCTSBot && build.bat && build\\Release\\AdvancedMCTSBot.exe\"",
+    "WorkingDirectory": "",
     "EnvironmentVariables": {
-      "BOT_NICKNAME": "AdvancedMCTSBot-Uno",
-      "BOT_TOKEN": "some-secret-token-2"
+      "BOT_NICKNAME": "AdvancedMCTSBot",
+      "Token": "{{GUID}}",
+      "BOT_TOKEN": "{{GUID}}"
+    }
+  },
+  {
+    "Name": "ClingyHeuroBotExp",
+    "FileName": "dotnet",
+    "Arguments": "run --project Bots/ClingyHeuroBotExp/ClingyHeuroBotExp.csproj --configuration Release",
+    "WorkingDirectory": "",
+    "EnvironmentVariables": {
+      "BOT_NICKNAME": "ClingyHeuroBotExp",
+      "Token": "{{GUID}}",
+      "BOT_TOKEN": "{{GUID}}"
+    }
+  },
+  {
+    "Name": "ClingyHeuroBot",
+    "FileName": "dotnet",
+    "Arguments": "run --project Bots/ClingyHeuroBot/ClingyHeuroBot.csproj --configuration Release",
+    "WorkingDirectory": "",
+    "EnvironmentVariables": {
+      "BOT_NICKNAME": "ClingyHeuroBot",
+      "Token": "{{GUID}}",
+      "BOT_TOKEN": "{{GUID}}"
+    }
+  },
+  {
+    "Name": "DeepMCTS",
+    "FileName": "dotnet",
+    "Arguments": "run --project Bots/DeepMCTS/DeepMCTS.csproj --configuration Release",
+    "WorkingDirectory": "",
+    "EnvironmentVariables": {
+      "BOT_NICKNAME": "DeepMCTS",
+      "Token": "{{GUID}}",
+      "BOT_TOKEN": "{{GUID}}"
+    }
+  },
+  {
+    "Name": "MCTSo4",
+    "FileName": "dotnet",
+    "Arguments": "run --project Bots/MCTSo4/MCTSo4.csproj --configuration Release",
+    "WorkingDirectory": "",
+    "EnvironmentVariables": {
+      "BOT_NICKNAME": "MCTSo4",
+      "Token": "{{GUID}}",
+      "BOT_TOKEN": "{{GUID}}"
+    }
+  },
+  {
+    "Name": "ReferenceBot",
+    "FileName": "dotnet",
+    "Arguments": "run --project Bots/ReferenceBot/ReferenceBot.csproj --configuration Release",
+    "WorkingDirectory": "",
+    "EnvironmentVariables": {
+      "BOT_NICKNAME": "ReferenceBot",
+      "Token": "{{GUID}}",
+      "BOT_TOKEN": "{{GUID}}"
     }
   }
 ]

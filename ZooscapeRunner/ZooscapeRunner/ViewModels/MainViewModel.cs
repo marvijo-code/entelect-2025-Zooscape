@@ -5,6 +5,7 @@ using System.Windows.Input;
 using ZooscapeRunner.Services;
 using System.Diagnostics;
 using System;
+using System.Linq;
 
 namespace ZooscapeRunner.ViewModels
 {
@@ -101,20 +102,34 @@ namespace ZooscapeRunner.ViewModels
         {
             try
             {
+                Console.WriteLine("=== StartAllAsync CALLED ===");
+                Debug.WriteLine("=== StartAllAsync CALLED ===");
+                
                 if (_processManager == null)
                 {
                     Debug.WriteLine("ProcessManager is null");
+                    Console.WriteLine("ProcessManager is null - CRITICAL ERROR");
+                    AutoRestartText = "Error: ProcessManager not initialized";
                     return;
                 }
 
                 Debug.WriteLine("Starting all processes...");
+                Console.WriteLine("Starting all processes...");
+                Console.WriteLine($"ProcessManager has {_processManager.GetProcesses().Count()} processes");
+                
+                AutoRestartText = "Starting all processes...";
+                
                 await _processManager.StartAllAsync();
                 _processManager.StartAutoRestart();
+                
                 Debug.WriteLine("Start all completed");
+                Console.WriteLine("Start all completed");
+                AutoRestartText = "All processes started - Auto-restart enabled";
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"StartAllAsync failed: {ex}");
+                Console.WriteLine($"StartAllAsync failed: {ex}");
                 AutoRestartText = $"Start Error: {ex.Message}";
             }
         }

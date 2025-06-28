@@ -12,6 +12,7 @@ using ZooscapeRunner.Models;
 using ZooscapeRunner.ViewModels;
 using Microsoft.UI.Dispatching;
 using System.Text;
+using System.Text.Json.Serialization.Metadata;
 
 #if WINDOWS
 // using System.Net.NetworkInformation; // Already included above
@@ -47,30 +48,66 @@ namespace ZooscapeRunner.Services
             {
                 var configPath = Path.Combine(Directory.GetCurrentDirectory(), "Assets", "processes.json");
                 Debug.WriteLine($"Loading process config from: {configPath}");
+                Console.WriteLine($"Loading process config from: {configPath}");
                 
                 if (!File.Exists(configPath))
                 {
                     Debug.WriteLine($"Process config file not found at: {configPath}");
+                    Console.WriteLine($"Process config file not found at: {configPath}");
                     return;
                 }
 
                 var json = await File.ReadAllTextAsync(configPath);
-                var configs = JsonSerializer.Deserialize<ProcessConfig[]>(json);
+                Debug.WriteLine($"Loaded JSON content: {json}");
+                Console.WriteLine($"Loaded JSON content length: {json.Length} characters");
+                
+                // Configure JsonSerializerOptions for trimmed applications
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    TypeInfoResolver = System.Text.Json.Serialization.Metadata.JsonTypeInfoResolver.Combine(
+                        ProcessConfigJsonContext.Default
+                    )
+                };
+                
+                var configs = JsonSerializer.Deserialize<ProcessConfig[]>(json, options);
+                Debug.WriteLine($"Deserialized {configs?.Length ?? 0} process configurations");
+                Console.WriteLine($"Deserialized {configs?.Length ?? 0} process configurations");
 
                 if (configs != null)
                 {
                     foreach (var config in configs)
                     {
+                        Debug.WriteLine($"Processing config: {config.Name}");
+                        Console.WriteLine($"Processing config: {config.Name}");
+                        
                         var workingDir = string.IsNullOrEmpty(config.WorkingDirectory) 
                             ? Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".."))
                             : Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", config.WorkingDirectory));
 
                         Debug.WriteLine($"Adding process: {config.Name}, WorkingDir: {workingDir}");
+                        Console.WriteLine($"Adding process: {config.Name}, WorkingDir: {workingDir}");
 
                         var processViewModel = new ProcessViewModel { Name = config.Name, Status = "Stopped" };
                         
                         // Add initial helpful information to logs
                         processViewModel.Logs = $"Process: {config.Name}\nCommand: {config.FileName} {config.Arguments}\nWorking Directory: {workingDir}\nStatus: Ready to build/start\n\n--- Build/Run logs will appear below ---\n";
+
+                        // Process environment variables and replace {{GUID}} placeholders
+                        var envVars = config.EnvironmentVariables ?? new Dictionary<string, string>();
+                        var processedEnvVars = new Dictionary<string, string>();
+                        
+                        foreach (var kvp in envVars)
+                        {
+                            var value = kvp.Value;
+                            if (value == "{{GUID}}")
+                            {
+                                value = Guid.NewGuid().ToString();
+                                Debug.WriteLine($"Generated GUID for {kvp.Key}: {value}");
+                                Console.WriteLine($"Generated GUID for {kvp.Key}: {value}");
+                            }
+                            processedEnvVars[kvp.Key] = value;
+                        }
 
                         _processes.Add(new ManagedProcess(
                             processViewModel,
@@ -85,13 +122,20 @@ namespace ZooscapeRunner.Services
                                 RedirectStandardError = true
                             },
                             workingDir,
-                            config.EnvironmentVariables));
+                            processedEnvVars));
+                            
+                        Debug.WriteLine($"Successfully added process: {config.Name}");
+                        Console.WriteLine($"Successfully added process: {config.Name}");
                     }
                 }
+                
+                Debug.WriteLine($"Total processes loaded: {_processes.Count}");
+                Console.WriteLine($"Total processes loaded: {_processes.Count}");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to load process configuration: {ex}");
+                Console.WriteLine($"Failed to load process configuration: {ex}");
                 // Don't crash the app - just log the error
             }
         }
@@ -103,30 +147,52 @@ namespace ZooscapeRunner.Services
             try
             {
                 Debug.WriteLine("StartAllAsync called");
+                Console.WriteLine("StartAllAsync called");
+                Console.WriteLine($"Total processes available: {_processes.Count}");
+                
+                foreach (var proc in _processes)
+                {
+                    Console.WriteLine($"Process: {proc.ViewModel.Name} - Status: {proc.ViewModel.Status}");
+                }
                 
                 var engineProcess = _processes.FirstOrDefault(p => p.ViewModel.Name == "Zooscape Engine");
                 if (engineProcess != null && !IsPortAvailable(5000))
                 {
                     UpdateProcessStatus(engineProcess.ViewModel, "Port 5000 in use");
+                    Console.WriteLine("Port 5000 is in use, aborting");
                     return;
                 }
 
-                await BuildBotsAsync();
+                Console.WriteLine("Starting build process...");
+                // Run build process on background thread to avoid UI hanging
+                await Task.Run(async () => await BuildBotsAsync());
 
+                Console.WriteLine("Starting processes...");
+                // Start processes in parallel to speed up startup
+                var startTasks = new List<Task>();
                 foreach (var managedProcess in _processes)
                 {
                     if (managedProcess.ViewModel.Status.Contains("Failed") || managedProcess.ViewModel.Status.Contains("Error"))
                     {
                         Debug.WriteLine($"Skipping {managedProcess.ViewModel.Name} due to build failure");
+                        Console.WriteLine($"Skipping {managedProcess.ViewModel.Name} due to build failure");
                         continue;
                     }
 
-                    await StartProcessSafelyAsync(managedProcess);
+                    Console.WriteLine($"Starting process: {managedProcess.ViewModel.Name}");
+                    // Start each process on a separate background task
+                    startTasks.Add(Task.Run(async () => await StartProcessSafelyAsync(managedProcess)));
                 }
+                
+                // Wait for all processes to start
+                await Task.WhenAll(startTasks);
+                
+                Console.WriteLine("StartAllAsync completed");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"StartAllAsync failed: {ex}");
+                Console.WriteLine($"StartAllAsync failed: {ex}");
                 // Don't crash - just log the error
             }
         }
@@ -135,30 +201,43 @@ namespace ZooscapeRunner.Services
         {
             try
             {
+                Console.WriteLine($"=== StartProcessSafelyAsync: {managedProcess.ViewModel.Name} ===");
+                Console.WriteLine($"Command: {managedProcess.StartInfo.FileName} {managedProcess.StartInfo.Arguments}");
+                Console.WriteLine($"Working Directory: {managedProcess.StartInfo.WorkingDirectory}");
+                
                 UpdateProcessStatus(managedProcess.ViewModel, "Starting...");
                 
 #if WINDOWS || MACCATALYST || ANDROID
+                Console.WriteLine($"Platform: WINDOWS - Starting process...");
                 managedProcess.ProcessInstance = Process.Start(managedProcess.StartInfo);
+                
                 if (managedProcess.ProcessInstance != null)
                 {
+                    Console.WriteLine($"Process started successfully - PID: {managedProcess.ProcessInstance.Id}");
                     managedProcess.ProcessInstance.EnableRaisingEvents = true;
                     managedProcess.ProcessInstance.Exited += (sender, args) =>
                     {
+                        Console.WriteLine($"Process {managedProcess.ViewModel.Name} exited");
                         UpdateProcessStatus(managedProcess.ViewModel, "Stopped");
                     };
                     UpdateProcessStatus(managedProcess.ViewModel, "Running");
+                    Console.WriteLine($"Process {managedProcess.ViewModel.Name} status updated to Running");
                 }
                 else
                 {
+                    Console.WriteLine($"Process.Start returned null for {managedProcess.ViewModel.Name}");
                     UpdateProcessStatus(managedProcess.ViewModel, "Failed to start");
                 }
 #else
+                Console.WriteLine($"Platform: NOT SUPPORTED - Skipping process start");
                 UpdateProcessStatus(managedProcess.ViewModel, "Not supported on this platform");
 #endif
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to start {managedProcess.ViewModel.Name}: {ex}");
+                Console.WriteLine($"Exception starting {managedProcess.ViewModel.Name}: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 UpdateProcessStatus(managedProcess.ViewModel, $"Error: {ex.Message}");
             }
         }
@@ -185,22 +264,53 @@ namespace ZooscapeRunner.Services
             try
             {
                 Debug.WriteLine("BuildBotsAsync started");
+                Console.WriteLine("=== BuildBotsAsync started ===");
                 var repoRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".."));
                 Debug.WriteLine($"Repository root: {repoRoot}");
+                Console.WriteLine($"Repository root: {repoRoot}");
 
-                var clingyBot = _processes.FirstOrDefault(p => p.ViewModel.Name == "ClingyHeuroBot2");
-                if (clingyBot != null)
+                // Build Zooscape Engine first
+                var engineProcess = _processes.FirstOrDefault(p => p.ViewModel.Name == "Zooscape Engine");
+                if (engineProcess != null)
                 {
+                    Console.WriteLine("=== Building Zooscape Engine ===");
                     await RunBuildCommandAsync(
                         "dotnet",
-                        "build Bots/ClingyHeuroBot2/ClingyHeuroBot2.csproj -c Release",
+                        "build engine/Zooscape/Zooscape.csproj -c Release",
                         repoRoot,
-                        clingyBot.ViewModel);
+                        engineProcess.ViewModel);
                 }
 
+                // Build all bot projects
+                var botBuilds = new[]
+                {
+                    ("ClingyHeuroBot2", "Bots/ClingyHeuroBot2/ClingyHeuroBot2.csproj"),
+                    ("ClingyHeuroBotExp", "Bots/ClingyHeuroBotExp/ClingyHeuroBotExp.csproj"),
+                    ("ClingyHeuroBot", "Bots/ClingyHeuroBot/ClingyHeuroBot.csproj"),
+                    ("DeepMCTS", "Bots/DeepMCTS/DeepMCTS.csproj"),
+                    ("MCTSo4", "Bots/MCTSo4/MCTSo4.csproj"),
+                    ("ReferenceBot", "Bots/ReferenceBot/ReferenceBot.csproj")
+                };
+
+                foreach (var (botName, projectPath) in botBuilds)
+                {
+                    var botProcess = _processes.FirstOrDefault(p => p.ViewModel.Name == botName);
+                    if (botProcess != null)
+                    {
+                        Console.WriteLine($"=== Building {botName} ===");
+                        await RunBuildCommandAsync(
+                            "dotnet",
+                            $"build {projectPath} -c Release",
+                            repoRoot,
+                            botProcess.ViewModel);
+                    }
+                }
+
+                // Special handling for AdvancedMCTSBot (C++/CMake)
                 var mctsBot = _processes.FirstOrDefault(p => p.ViewModel.Name == "AdvancedMCTSBot");
                 if (mctsBot != null)
                 {
+                    Console.WriteLine("=== Building AdvancedMCTSBot (CMake) ===");
                     // Create a custom build script that uses the full CMake path
                     var buildScript = Path.Combine(Path.GetTempPath(), "build_mcts_bot.bat");
                     var cmakePath = @"C:\Program Files\CMake\bin\cmake.exe";
@@ -274,10 +384,13 @@ if %BUILD_ERRORLEVEL% neq 0 (
                     // Clean up temp script
                     try { File.Delete(buildScript); } catch { }
                 }
+                
+                Console.WriteLine("=== BuildBotsAsync completed ===");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"BuildBotsAsync failed: {ex}");
+                Console.WriteLine($"BuildBotsAsync failed: {ex}");
                 // Don't crash - just log the error
             }
         }
@@ -386,14 +499,20 @@ if %BUILD_ERRORLEVEL% neq 0 (
                 Debug.WriteLine($"Build process exited with code: {process.ExitCode}");
                 Debug.WriteLine($"Build output length: {allOutput.Length} characters");
                 
+                Console.WriteLine($"Build process exited with code: {process.ExitCode} for {viewModel.Name}");
                 if (process.ExitCode == 0)
                 {
                     Debug.WriteLine($"Build succeeded for {viewModel.Name}");
+                    Console.WriteLine($"✅ Build succeeded for {viewModel.Name}");
                     UpdateProcessStatus(viewModel, "Build Succeeded");
                 }
                 else
                 {
                     Debug.WriteLine($"Build failed for {viewModel.Name} with exit code {process.ExitCode}");
+                    Console.WriteLine($"❌ Build failed for {viewModel.Name} with exit code {process.ExitCode}");
+                    Console.WriteLine($"Build output for {viewModel.Name}:");
+                    Console.WriteLine($"STDOUT: {outputBuilder}");
+                    Console.WriteLine($"STDERR: {errorBuilder}");
                     UpdateProcessStatus(viewModel, $"Build Failed (Exit Code: {process.ExitCode})");
                     
                     // If no output was captured, add a helpful message

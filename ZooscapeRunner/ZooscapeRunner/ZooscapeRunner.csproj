@@ -1,22 +1,37 @@
 <Project Sdk="Uno.Sdk">
   <PropertyGroup>
+    <!-- Target Framework Configuration -->
     <TargetFrameworks>net8.0-windows10.0.19041.0</TargetFrameworks>
-
     <OutputType>Exe</OutputType>
     <UnoSingleProject>true</UnoSingleProject>
     <Nullable>disable</Nullable>
-
-    <!-- Display name -->
-    <ApplicationTitle>ZooscapeRunner</ApplicationTitle>
-    <!-- App Identifier -->
-    <ApplicationId>com.companyname.zooscaperunner</ApplicationId>
-    <!-- Versions -->
-    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-    <ApplicationVersion>1</ApplicationVersion>
-    <!-- Package Publisher -->
-    <ApplicationPublisher>ZooscapeRunner</ApplicationPublisher>
-    <!-- Package Description -->
-    <Description>ZooscapeRunner powered by Uno Platform.</Description>
+    <UseWinUI>true</UseWinUI>
+    
+    <!-- Application Metadata -->
+    <ApplicationTitle>Zooscape Runner - Professional Bot Manager</ApplicationTitle>
+    <ApplicationId>com.marvijo.zooscaperunner</ApplicationId>
+    <ApplicationDisplayVersion>2.0.0</ApplicationDisplayVersion>
+    <ApplicationVersion>2</ApplicationVersion>
+    <ApplicationPublisher>Marvijo Development Team</ApplicationPublisher>
+    <Description>Professional Zooscape Bot Management System - Build, deploy, and monitor multiple bots with real-time logging, process management, and automated restart capabilities.</Description>
+    
+    <!-- Build Configuration -->
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsingPreview>enable</ImplicitUsingPreview>
+    
+    <!-- Performance Optimizations -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>link</TrimMode>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+    
+    <!-- Debug Configuration -->
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
 
     <!--
       UnoFeatures let's you quickly add and manage implicit package references based on the features you want to use.
@@ -26,14 +41,101 @@
       Material;
       Toolkit;
       Logging;
+      Hosting;
+      Configuration;
+      Http;
+      Serialization;
+      MVVM;
     </UnoFeatures>
   </PropertyGroup>
 
+  <!-- Core Dependencies -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+    <!-- Logging and Diagnostics -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.1" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    
+    <!-- Configuration and Dependency Injection -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
+    
+    <!-- Process Management and System Integration -->
+    <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.1" />
+    
+    <!-- Networking and Port Management -->
+    <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
+    <PackageReference Include="System.Net.Sockets" Version="4.3.0" />
+    
+    <!-- JSON Serialization and Data Handling -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    
+    <!-- File System and IO Operations -->
+    <PackageReference Include="System.IO.FileSystem.Watcher" Version="4.3.0" />
+    <PackageReference Include="System.IO.Pipelines" Version="8.0.0" />
+    
+    <!-- Threading and Task Management -->
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
+    <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
+    
+    <!-- Windows-specific Process and Terminal Integration -->
+    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'" />
+    <PackageReference Include="System.Security.Principal.Windows" Version="5.0.0" Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'" />
   </ItemGroup>
 
+  <!-- Build Assets and Content -->
   <ItemGroup>
     <UpToDateCheckInput Include="**/*.xaml" Exclude="bin/**/*.xaml;obj/**/*.xaml" />
+    <Content Include="Assets/**/*.*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets/processes.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <!-- Development Tools -->
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageReference Include="Microsoft.Extensions.Logging.EventSource" Version="8.0.1" />
+  </ItemGroup>
+
+  <!-- Release Optimizations -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
+    <TrimUnusedDependencies>true</TrimUnusedDependencies>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
+  <!-- Debug Configuration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+
+  <!-- Additional Compile-time Features -->
+  <PropertyGroup>
+    <Features>strict</Features>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <CodeAnalysisRuleSet>..\..\code-analysis.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+
+  <!-- Assembly Information -->
+  <PropertyGroup>
+    <AssemblyTitle>Zooscape Runner - Professional Bot Management System</AssemblyTitle>
+    <AssemblyDescription>Advanced process management system for Zooscape bots with real-time monitoring, automated builds, and intelligent restart capabilities.</AssemblyDescription>
+    <AssemblyConfiguration>$(Configuration)</AssemblyConfiguration>
+    <AssemblyCompany>Marvijo Development Team</AssemblyCompany>
+    <AssemblyProduct>Zooscape Runner</AssemblyProduct>
+    <AssemblyCopyright>Copyright © 2025 Marvijo Development Team</AssemblyCopyright>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <AssemblyFileVersion>2.0.0.0</AssemblyFileVersion>
+    <AssemblyInformationalVersion>2.0.0-professional</AssemblyInformationalVersion>
+  </PropertyGroup>
+
 </Project>

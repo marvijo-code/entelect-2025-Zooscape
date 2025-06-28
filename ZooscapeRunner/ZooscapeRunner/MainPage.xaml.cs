@@ -33,24 +33,30 @@ namespace ZooscapeRunner
             try
             {
                 Debug.WriteLine("MainPage constructor started");
+                Console.WriteLine("MainPage constructor started");
                 
                 this.InitializeComponent();
                 Debug.WriteLine("InitializeComponent completed");
+                Console.WriteLine("InitializeComponent completed");
                 
                 // Initialize ViewModel immediately with a placeholder
                 ViewModel = new MainViewModel(null);
                 Debug.WriteLine("ViewModel created");
+                Console.WriteLine("ViewModel created");
                 
                 this.DataContext = ViewModel;
                 Debug.WriteLine("DataContext set");
+                Console.WriteLine("DataContext set");
                 
                 // Load the actual ProcessManager asynchronously
                 this.Loaded += MainPage_Loaded;
                 Debug.WriteLine("MainPage constructor completed");
+                Console.WriteLine("MainPage constructor completed");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"MainPage constructor failed: {ex}");
+                Console.WriteLine($"MainPage constructor failed: {ex}");
                 throw;
             }
         }
@@ -60,23 +66,37 @@ namespace ZooscapeRunner
             try
             {
                 Debug.WriteLine("MainPage_Loaded started");
+                Console.WriteLine("MainPage_Loaded started");
                 
                 var processManager = await ProcessManager.CreateAsync();
                 Debug.WriteLine("ProcessManager created");
+                Console.WriteLine("ProcessManager created");
+                Console.WriteLine($"ProcessManager processes count: {processManager.GetProcesses().Count()}");
                 
                 // Update the existing ViewModel with the actual ProcessManager
                 ViewModel.UpdateProcessManager(processManager);
                 Debug.WriteLine("ViewModel updated with ProcessManager");
+                Console.WriteLine("ViewModel updated with ProcessManager");
+                Console.WriteLine($"ViewModel processes count: {ViewModel.Processes.Count}");
+                
+                // Update UI with success message
+                ViewModel.AutoRestartText = $"Loaded {ViewModel.Processes.Count} processes successfully";
+                
+                // Show processes in logs
+                var processNames = string.Join(", ", ViewModel.Processes.Select(p => p.Name));
+                LogsTextBlock.Text = $"Application Initialized Successfully!\n\nLoaded Processes ({ViewModel.Processes.Count}):\n{processNames}\n\nClick 'Start All' to begin building and running processes.";
+                LogsHeaderText.Text = "📱 Application Status";
             }
             catch (Exception ex)
             {
                 // Handle initialization errors gracefully
                 Debug.WriteLine($"Error initializing ProcessManager: {ex}");
+                Console.WriteLine($"Error initializing ProcessManager: {ex}");
                 
                 // Update UI to show error state
                 ViewModel.AutoRestartText = $"Error: {ex.Message}";
                 LogsTextBlock.Text = $"Initialization Error:\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}";
-                LogsHeaderText.Text = "Application Error";
+                LogsHeaderText.Text = "❌ Application Error";
             }
         }
 
