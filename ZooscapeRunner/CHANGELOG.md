@@ -18,15 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ⚪ White: Default text
 - **Process Type Classification**: Added ProcessType property to distinguish between Bot and Visualizer processes
 - **Dynamic Button States**: Buttons automatically update their appearance and command based on process status
-- **Professional Bash Script**: Created `rui-run-frontend.sh` with comprehensive features:
-  - Color-coded logging system (info, warn, error, debug, cyan)
-  - Cross-platform compatibility checks (WSL detection, GUI support)
-  - Absolute path resolution for all file operations
-  - Prerequisite validation (.NET SDK, project files, processes.json)
-  - Background process management with PID tracking
-  - Professional help system with feature overview
+- **Professional Scripts**: Created both PowerShell and Bash scripts for launching the application:
+  - `rui-run-frontend.ps1`: Windows PowerShell script with professional features
+  - `rui-run-frontend.sh`: Cross-platform Bash script (WSL compatible)
+  - Color-coded logging system and comprehensive error handling
+  - Absolute path resolution and prerequisite validation
 
 ### Fixed
+- **Critical COM Exception**: Fixed System.Runtime.InteropServices.COMException in UpdateButtonStates()
+  - Added safe resource dictionary access with null checks
+  - Implemented fallback behavior when styles aren't available
+  - Added proper exception handling to prevent application crashes
+- **PowerShell Script Path**: Fixed solution file path in rui-run-frontend.ps1
+  - Updated to use correct path: `ZooscapeRunner\ZooscapeRunner.sln`
+  - Added validation for both project and solution file existence
+  - Fixed executable path for proper application launching
 - **Layout Issues**: Fixed process list being cut off by logs panel
   - Changed process list row to use `Height="2*"` for more space
   - Set logs panel to `MaxHeight="250"` to prevent overflow
@@ -35,23 +41,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Visualizer API**: Confirmed API is working correctly on http://localhost:5008
 - **Rich Text Logs**: Replaced simple TextBlock with RichTextBlock for colored log display
 - **Process Status Detection**: Enhanced status checking to properly identify running processes
+- **Build Errors**: Removed problematic RLBot references that were causing compilation failures
 
 ### Changed
 - **UI Layout**: Modified grid layout to give more space to process list
 - **Button Behavior**: Single toggle buttons instead of separate start/stop buttons
 - **Log Display**: Enhanced with color coding and better formatting
 - **Process Management**: Added ProcessType property for better categorization
+- **Resource Access**: Added safe resource dictionary access patterns
+- **Initialization Timing**: Delayed toggle button setup to ensure UI is fully loaded
 
 ### Technical Details
-- **Files Modified**: MainPage.xaml, MainPage.xaml.cs, ProcessViewModel.cs, ProcessManager.cs, ManagedProcess.cs
+- **Files Modified**: MainPage.xaml, MainPage.xaml.cs, ProcessViewModel.cs, ProcessManager.cs, ManagedProcess.cs, rui-run-frontend.ps1, StandardBotTests.cs
 - **UI Enhancements**: 
   - Added `ToggleBotsButton` and `ToggleVisualizerButton` with dynamic state management
-  - Implemented `UpdateButtonStates()` method for real-time button updates
+  - Implemented `UpdateButtonStates()` method with safe resource access
   - Added `ParseAndDisplayColoredLogs()` for rich text formatting
   - Added `GetLogLineColor()` for intelligent color selection
+- **Error Handling**: Added comprehensive exception handling in UI initialization
 - **State Management**: Added `_areBotsRunning` and `_isVisualizerRunning` boolean fields
 - **Process Classification**: Added ProcessType property with "Bot" and "Visualizer" values
-- **Cross-Platform**: Bash script includes WSL detection and Windows executable launching
+- **Script Improvements**: Fixed paths and added better error handling in PowerShell script
 
 ## [Previous] - 2024-12-XX
 

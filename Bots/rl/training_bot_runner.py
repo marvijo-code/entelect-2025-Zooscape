@@ -1,76 +1,54 @@
-import os
+import asyncio
 import sys
-import time
 import json
-from signalr_client import SignalRClient
+from signalr_async.netcore import Hub, Client
 from fixed_rl_agent import RLBotService, CellContent
 
-class TrainingBotRunner:
-    def __init__(self, hub_url, bot_id="RLBot"):
-        self.hub_url = hub_url
+class RLBotHub(Hub):
+    def __init__(self, bot_id="RLBot"):
+        super().__init__("bothub")  # SignalR hub name
         self.bot_id = bot_id
-        self.client = SignalRClient(hub_url)
         self.rl_service = RLBotService()
-        self.is_registered = False
+        print(f"Initialized RL Bot Hub with ID: {self.bot_id}")
 
-        # Register hub methods
-        self.client.on("ReceiveGameState", self.on_receive_game_state)
-        self.client.on("Registered", self.on_registered)
-        self.client.on("ReceiveLastAction", lambda: print("Last action received."))
+    async def on_connect(self, connection_id: str) -> None:
+        """Called when connection is established"""
+        print(f"Connected to SignalR hub with connection ID: {connection_id}")
+        # Register the bot
+        await self.invoke("Register", self.bot_id)
+        print(f"Registration message sent for bot: {self.bot_id}")
 
+    async def on_disconnect(self) -> None:
+        """Called when disconnected"""
+        print("Disconnected from SignalR hub")
 
-    def start(self):
-        print(f"Starting bot {self.bot_id} and connecting to {self.hub_url}...")
-        self.client.start()
-        
-        # Wait for the connection to be established before registering
-        while not self.client.is_connected:
-            time.sleep(0.1)
-        
-        print("Connection established. Registering bot...")
-        self.client.send("Register", [self.bot_id])
+    def on_registered(self, bot_id: str) -> None:
+        """Called when bot registration is confirmed"""
+        print(f"Bot successfully registered: {bot_id}")
 
-        # Keep the script running
+    def on_receive_game_state(self, game_state_json: str) -> None:
+        """Called when game state is received - sync method"""
         try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            self.stop()
-
-    def stop(self):
-        print("Stopping bot...")
-        if self.client:
-            self.client.stop()
-
-    def on_registered(self, bot_id):
-        print(f"Bot successfully registered with ID: {bot_id}")
-        self.is_registered = True
-
-    def on_receive_game_state(self, game_state_json):
-        if not self.is_registered:
-            print("Received game state before being registered. Ignoring.")
-            return
-
-        try:
-            # The game state is received as a JSON string, so we parse it.
+            # Parse the JSON game state
             game_state_data = json.loads(game_state_json)
             
-            # We need to transform this data into the mock objects our RL agent expects.
+            # Transform into mock objects for RL agent
             game_state = self.create_mock_game_state(game_state_data)
             
-            # Get the next action from our RL service
+            # Get action from RL agent
             action = self.rl_service.get_next_action(game_state)
             
-            # The action from the RL service is an enum member, get its value
-            action_value = action.value
+            # Send action back to server (create async task)
+            asyncio.create_task(self.invoke("SendAction", self.bot_id, action.value))
             
-            # Send the action back to the engine
-            self.client.send("SendAction", [self.bot_id, action_value])
-
         except Exception as e:
-            print(f"An error occurred while processing game state: {e}")
-            # Optionally, send a default action to avoid timeout
-            self.client.send("SendAction", [self.bot_id, 1]) # Default to "Up"
+            print(f"Error processing game state: {e}")
+            # Send default action on error
+            asyncio.create_task(self.invoke("SendAction", self.bot_id, 1))
+
+    def on_receive_last_action(self) -> None:
+        """Called when last action is received"""
+        pass  # We don't need to handle this
 
     def create_mock_game_state(self, data):
         """Creates a mock game state object from dictionary data."""
@@ -98,7 +76,7 @@ class MockAnimal:
         self.X = data.get('X', 0)
         self.Y = data.get('Y', 0)
         self.BotId = data.get('BotId', '')
-        self.Score = data.get('Score', 0)  # Add Score field for reward calculation
+        self.Score = data.get('Score', 0)
         self.Position = MockPosition(self.X, self.Y)
 
 class MockZookeeper:
@@ -130,14 +108,34 @@ class MockMap:
         """Return flat 1D array of cells."""
         return self.cells_1d
 
-if __name__ == "__main__":
-    hub_url = "ws://localhost:5000/bothub"
+async def main():
+    """Main async function to run the RL bot"""
+    hub_url = "http://localhost:5000"
     bot_id = "RLBot"
     
     if len(sys.argv) > 1:
-        hub_url = sys.argv[1]
+        hub_url = sys.argv[1].replace("ws://", "http://").replace("wss://", "https://")
     if len(sys.argv) > 2:
         bot_id = sys.argv[2]
 
-    runner = TrainingBotRunner(hub_url, bot_id)
-    runner.start() 
+    print(f"Connecting to: {hub_url}")
+    print(f"Bot ID: {bot_id}")
+
+    # Create the hub
+    hub = RLBotHub(bot_id)
+    
+    try:
+        # Create client and connect
+        async with Client(hub_url, hub) as client:
+            print("Connected to SignalR. Waiting for game states...")
+            # Keep running indefinitely
+            while True:
+                await asyncio.sleep(1)
+    except KeyboardInterrupt:
+        print("Bot stopped by user")
+    except Exception as e:
+        print(f"Connection error: {e}")
+
+if __name__ == "__main__":
+    # Run the async main function
+    asyncio.run(main()) 

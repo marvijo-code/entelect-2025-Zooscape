@@ -93,8 +93,11 @@ namespace ZooscapeRunner
                 AddColoredLogText($"Application Initialized Successfully!\n\nLoaded Processes ({ViewModel.Processes.Count}):\n{processNames}\n\nClick 'Start All Bots' to begin building and running processes.", Colors.Green);
                 LogsHeaderText.Text = "📱 Application Status";
                 
-                // Set up command handlers for toggle buttons
-                SetupToggleButtons();
+                // Set up command handlers for toggle buttons with a small delay to ensure UI is loaded
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    SetupToggleButtons();
+                });
             }
             catch (Exception ex)
             {
@@ -131,39 +134,88 @@ namespace ZooscapeRunner
 
         private void UpdateButtonStates()
         {
-            // Check if any bots are running
-            var botProcesses = ViewModel.Processes.Where(p => p.ProcessType != "Visualizer").ToList();
-            var visualizerProcesses = ViewModel.Processes.Where(p => p.ProcessType == "Visualizer").ToList();
-            
-            _areBotsRunning = botProcesses.Any(p => p.Status.Contains("Running") || p.Status.Contains("Started"));
-            _isVisualizerRunning = visualizerProcesses.Any(p => p.Status.Contains("Running") || p.Status.Contains("Started"));
-            
-            // Update bot toggle button
-            if (_areBotsRunning)
+            try
             {
-                ToggleBotsButton.Content = "⏹️ Stop All Bots";
-                ToggleBotsButton.Style = (Style)Resources["ErrorButtonStyle"];
-                ToggleBotsButton.Command = ViewModel.StopAllCommand;
+                // Check if any bots are running
+                var botProcesses = ViewModel.Processes.Where(p => p.ProcessType != "Visualizer").ToList();
+                var visualizerProcesses = ViewModel.Processes.Where(p => p.ProcessType == "Visualizer").ToList();
+                
+                _areBotsRunning = botProcesses.Any(p => p.Status.Contains("Running") || p.Status.Contains("Started"));
+                _isVisualizerRunning = visualizerProcesses.Any(p => p.Status.Contains("Running") || p.Status.Contains("Started"));
+                
+                // Get styles safely
+                Style errorStyle = null;
+                Style successStyle = null;
+                
+                try
+                {
+                    if (Resources.ContainsKey("ErrorButtonStyle"))
+                        errorStyle = (Style)Resources["ErrorButtonStyle"];
+                    if (Resources.ContainsKey("SuccessButtonStyle"))
+                        successStyle = (Style)Resources["SuccessButtonStyle"];
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Could not access button styles: {ex.Message}");
+                }
+                
+                // Update bot toggle button
+                if (_areBotsRunning)
+                {
+                    ToggleBotsButton.Content = "⏹️ Stop All Bots";
+                    if (errorStyle != null)
+                        ToggleBotsButton.Style = errorStyle;
+                    ToggleBotsButton.Command = ViewModel.StopAllCommand;
+                }
+                else
+                {
+                    ToggleBotsButton.Content = "▶️ Start All Bots";
+                    if (successStyle != null)
+                        ToggleBotsButton.Style = successStyle;
+                    ToggleBotsButton.Command = ViewModel.StartAllCommand;
+                }
+                
+                // Update visualizer toggle button
+                if (_isVisualizerRunning)
+                {
+                    ToggleVisualizerButton.Content = "⏹️ Stop Visualizer";
+                    if (errorStyle != null)
+                        ToggleVisualizerButton.Style = errorStyle;
+                    ToggleVisualizerButton.Command = ViewModel.StopVisualizerCommand;
+                }
+                else
+                {
+                    ToggleVisualizerButton.Content = "▶️ Start Visualizer";
+                    if (successStyle != null)
+                        ToggleVisualizerButton.Style = successStyle;
+                    ToggleVisualizerButton.Command = ViewModel.StartVisualizerCommand;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                ToggleBotsButton.Content = "▶️ Start All Bots";
-                ToggleBotsButton.Style = (Style)Resources["SuccessButtonStyle"];
-                ToggleBotsButton.Command = ViewModel.StartAllCommand;
-            }
-            
-            // Update visualizer toggle button
-            if (_isVisualizerRunning)
-            {
-                ToggleVisualizerButton.Content = "⏹️ Stop Visualizer";
-                ToggleVisualizerButton.Style = (Style)Resources["ErrorButtonStyle"];
-                ToggleVisualizerButton.Command = ViewModel.StopVisualizerCommand;
-            }
-            else
-            {
-                ToggleVisualizerButton.Content = "▶️ Start Visualizer";
-                ToggleVisualizerButton.Style = (Style)Resources["SuccessButtonStyle"];
-                ToggleVisualizerButton.Command = ViewModel.StartVisualizerCommand;
+                Debug.WriteLine($"UpdateButtonStates failed: {ex}");
+                // Fallback - just update content without styles
+                if (_areBotsRunning)
+                {
+                    ToggleBotsButton.Content = "⏹️ Stop All Bots";
+                    ToggleBotsButton.Command = ViewModel.StopAllCommand;
+                }
+                else
+                {
+                    ToggleBotsButton.Content = "▶️ Start All Bots";
+                    ToggleBotsButton.Command = ViewModel.StartAllCommand;
+                }
+                
+                if (_isVisualizerRunning)
+                {
+                    ToggleVisualizerButton.Content = "⏹️ Stop Visualizer";
+                    ToggleVisualizerButton.Command = ViewModel.StopVisualizerCommand;
+                }
+                else
+                {
+                    ToggleVisualizerButton.Content = "▶️ Start Visualizer";
+                    ToggleVisualizerButton.Command = ViewModel.StartVisualizerCommand;
+                }
             }
         }
 

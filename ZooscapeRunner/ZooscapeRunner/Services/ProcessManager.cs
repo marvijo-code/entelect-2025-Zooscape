@@ -155,7 +155,7 @@ namespace ZooscapeRunner.Services
             try
             {
                 Debug.WriteLine("StartAllAsync called");
-                Console.WriteLine("StartAllAsync called");
+                Console.WriteLine("=== StartAllAsync called ===");
                 Console.WriteLine($"Total processes available: {_processes.Count}");
                 
                 foreach (var proc in _processes)
@@ -163,44 +163,79 @@ namespace ZooscapeRunner.Services
                     Console.WriteLine($"Process: {proc.ViewModel.Name} - Status: {proc.ViewModel.Status}");
                 }
                 
+                // Check if port 5000 is available for the engine
                 var engineProcess = _processes.FirstOrDefault(p => p.ViewModel.Name == "Zooscape Engine");
                 if (engineProcess != null && !IsPortAvailable(5000))
                 {
-                    UpdateProcessStatus(engineProcess.ViewModel, "Port 5000 in use");
-                    Console.WriteLine("Port 5000 is in use, aborting");
-                    return;
+                    Console.WriteLine("⚠️ Port 5000 is in use - attempting to stop existing process");
+                    await StopProcessOnPortAsync(5000, "Zooscape Engine");
+                    
+                    // Recheck after stopping
+                    if (!IsPortAvailable(5000))
+                    {
+                        UpdateProcessStatus(engineProcess.ViewModel, "Port 5000 still in use");
+                        Console.WriteLine("❌ Port 5000 is still in use after cleanup attempt, aborting start");
+                        return;
+                    }
                 }
 
-                Console.WriteLine("Starting build process...");
-                // Run build process on background thread to avoid UI hanging
-                await Task.Run(async () => await BuildBotsAsync());
+                Console.WriteLine("=== Starting build process ===");
+                // Run build process and wait for completion
+                await BuildBotsAsync();
 
-                Console.WriteLine("Starting processes...");
-                // Start processes in parallel to speed up startup
+                Console.WriteLine("=== Build process completed - Starting processes ===");
+                
+                // Start Engine first (it's a dependency for bots)
+                if (engineProcess != null && !engineProcess.ViewModel.Status.Contains("Failed") && !engineProcess.ViewModel.Status.Contains("Error"))
+                {
+                    Console.WriteLine("Starting Zooscape Engine first...");
+                    await StartProcessSafelyAsync(engineProcess);
+                    
+                    // Give the engine a moment to start up
+                    await Task.Delay(2000);
+                }
+                
+                // Start all other processes in parallel
+                var otherProcesses = _processes.Where(p => p.ViewModel.Name != "Zooscape Engine").ToList();
                 var startTasks = new List<Task>();
-                foreach (var managedProcess in _processes)
+                
+                foreach (var managedProcess in otherProcesses)
                 {
                     if (managedProcess.ViewModel.Status.Contains("Failed") || managedProcess.ViewModel.Status.Contains("Error"))
                     {
                         Debug.WriteLine($"Skipping {managedProcess.ViewModel.Name} due to build failure");
-                        Console.WriteLine($"Skipping {managedProcess.ViewModel.Name} due to build failure");
+                        Console.WriteLine($"⚠️ Skipping {managedProcess.ViewModel.Name} due to build failure");
                         continue;
                     }
 
-                    Console.WriteLine($"Starting process: {managedProcess.ViewModel.Name}");
+                    Console.WriteLine($"Queuing start for process: {managedProcess.ViewModel.Name}");
                     // Start each process on a separate background task
-                    startTasks.Add(Task.Run(async () => await StartProcessSafelyAsync(managedProcess)));
+                    startTasks.Add(Task.Run(async () => 
+                    {
+                        // Add a small delay to prevent overwhelming the system
+                        await Task.Delay(500);
+                        await StartProcessSafelyAsync(managedProcess);
+                    }));
                 }
                 
                 // Wait for all processes to start
+                Console.WriteLine($"Waiting for {startTasks.Count} processes to start...");
                 await Task.WhenAll(startTasks);
                 
-                Console.WriteLine("StartAllAsync completed");
+                Console.WriteLine("=== StartAllAsync completed ===");
+                
+                // Print final status
+                Console.WriteLine("=== Final Process Status ===");
+                foreach (var proc in _processes)
+                {
+                    Console.WriteLine($"  {proc.ViewModel.Name}: {proc.ViewModel.Status}");
+                }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"StartAllAsync failed: {ex}");
-                Console.WriteLine($"StartAllAsync failed: {ex}");
+                Console.WriteLine($"❌ StartAllAsync failed: {ex}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 // Don't crash - just log the error
             }
         }
@@ -213,38 +248,103 @@ namespace ZooscapeRunner.Services
                 Console.WriteLine($"Command: {managedProcess.StartInfo.FileName} {managedProcess.StartInfo.Arguments}");
                 Console.WriteLine($"Working Directory: {managedProcess.StartInfo.WorkingDirectory}");
                 
+                // Verify working directory exists
+                if (!Directory.Exists(managedProcess.StartInfo.WorkingDirectory))
+                {
+                    var errorMsg = $"Working directory does not exist: {managedProcess.StartInfo.WorkingDirectory}";
+                    Console.WriteLine($"❌ ERROR: {errorMsg}");
+                    UpdateProcessStatus(managedProcess.ViewModel, "Failed - Directory not found");
+                    return;
+                }
+                
+                // Display environment variables
+                Console.WriteLine($"Environment Variables:");
+                foreach (System.Collections.DictionaryEntry envVar in managedProcess.StartInfo.EnvironmentVariables)
+                {
+                    Console.WriteLine($"  {envVar.Key} = {envVar.Value}");
+                }
+                
                 UpdateProcessStatus(managedProcess.ViewModel, "Starting...");
                 
-#if WINDOWS || MACCATALYST || ANDROID
-                Console.WriteLine($"Platform: WINDOWS - Starting process...");
+                // Remove platform-specific compilation and try to start the process directly
+                Console.WriteLine($"Attempting to start process...");
+                
+                // Set up output redirection
+                managedProcess.StartInfo.RedirectStandardOutput = true;
+                managedProcess.StartInfo.RedirectStandardError = true;
+                managedProcess.StartInfo.UseShellExecute = false;
+                managedProcess.StartInfo.CreateNoWindow = true;
+                
                 managedProcess.ProcessInstance = Process.Start(managedProcess.StartInfo);
                 
                 if (managedProcess.ProcessInstance != null)
                 {
-                    Console.WriteLine($"Process started successfully - PID: {managedProcess.ProcessInstance.Id}");
+                    Console.WriteLine($"✅ Process started successfully - PID: {managedProcess.ProcessInstance.Id}");
+                    
+                    // Set up real-time output capture
+                    managedProcess.ProcessInstance.OutputDataReceived += (sender, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
+                        {
+                            Debug.WriteLine($"[{managedProcess.ViewModel.Name} OUTPUT] {e.Data}");
+                            if (_dispatcher != null)
+                            {
+                                _dispatcher.TryEnqueue(() =>
+                                {
+                                    managedProcess.ViewModel.Logs += $"{e.Data}\n";
+                                });
+                            }
+                            else
+                            {
+                                managedProcess.ViewModel.Logs += $"{e.Data}\n";
+                            }
+                        }
+                    };
+                    
+                    managedProcess.ProcessInstance.ErrorDataReceived += (sender, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
+                        {
+                            Debug.WriteLine($"[{managedProcess.ViewModel.Name} ERROR] {e.Data}");
+                            if (_dispatcher != null)
+                            {
+                                _dispatcher.TryEnqueue(() =>
+                                {
+                                    managedProcess.ViewModel.Logs += $"ERROR: {e.Data}\n";
+                                });
+                            }
+                            else
+                            {
+                                managedProcess.ViewModel.Logs += $"ERROR: {e.Data}\n";
+                            }
+                        }
+                    };
+                    
                     managedProcess.ProcessInstance.EnableRaisingEvents = true;
                     managedProcess.ProcessInstance.Exited += (sender, args) =>
                     {
-                        Console.WriteLine($"Process {managedProcess.ViewModel.Name} exited");
-                        UpdateProcessStatus(managedProcess.ViewModel, "Stopped");
+                        Console.WriteLine($"Process {managedProcess.ViewModel.Name} exited with code: {managedProcess.ProcessInstance.ExitCode}");
+                        UpdateProcessStatus(managedProcess.ViewModel, 
+                            managedProcess.ProcessInstance.ExitCode == 0 ? "Stopped" : $"Failed (Exit Code: {managedProcess.ProcessInstance.ExitCode})");
                     };
+                    
+                    // Start reading output
+                    managedProcess.ProcessInstance.BeginOutputReadLine();
+                    managedProcess.ProcessInstance.BeginErrorReadLine();
+                    
                     UpdateProcessStatus(managedProcess.ViewModel, "Running");
-                    Console.WriteLine($"Process {managedProcess.ViewModel.Name} status updated to Running");
+                    Console.WriteLine($"✅ Process {managedProcess.ViewModel.Name} status updated to Running");
                 }
                 else
                 {
-                    Console.WriteLine($"Process.Start returned null for {managedProcess.ViewModel.Name}");
+                    Console.WriteLine($"❌ Process.Start returned null for {managedProcess.ViewModel.Name}");
                     UpdateProcessStatus(managedProcess.ViewModel, "Failed to start");
                 }
-#else
-                Console.WriteLine($"Platform: NOT SUPPORTED - Skipping process start");
-                UpdateProcessStatus(managedProcess.ViewModel, "Not supported on this platform");
-#endif
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to start {managedProcess.ViewModel.Name}: {ex}");
-                Console.WriteLine($"Exception starting {managedProcess.ViewModel.Name}: {ex.Message}");
+                Console.WriteLine($"❌ Exception starting {managedProcess.ViewModel.Name}: {ex.Message}");
                 Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 UpdateProcessStatus(managedProcess.ViewModel, $"Error: {ex.Message}");
             }
