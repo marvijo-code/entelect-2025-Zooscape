@@ -23,5 +23,12 @@ namespace ZooscapeRunner.ViewModels
             get => _logs;
             set => SetProperty(ref _logs, value);
         }
+
+        private string _processType = "Bot";
+        public string ProcessType
+        {
+            get => _processType;
+            set => SetProperty(ref _processType, value);
+        }
     }
 }

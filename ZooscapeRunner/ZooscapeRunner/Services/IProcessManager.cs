@@ -12,6 +12,8 @@ namespace ZooscapeRunner.Services
         IEnumerable<ProcessViewModel> GetProcesses();
         Task StartAllAsync();
         Task StopAllAsync();
+        Task StartVisualizerAsync();
+        Task StopVisualizerAsync();
         void StartAutoRestart();
     }
 }

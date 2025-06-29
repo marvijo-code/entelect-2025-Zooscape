@@ -2,11 +2,11 @@
   "profiles": {
     "FunctionalTests": {
       "commandName": "Project",
-      "launchBrowser": true,
+      "launchBrowser": false,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "https://localhost:53767;http://localhost:53769"
+      "applicationUrl": "http://localhost:5008"
     }
   }
 }

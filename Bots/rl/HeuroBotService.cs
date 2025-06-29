@@ -1,7 +1,8 @@
 using System;
-using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
-using HeuroBot; // for WEIGHTS
+using System.Text.Json;
 using HeuroBot.Enums;
 using HeuroBot.Models;
 
@@ -10,158 +11,80 @@ namespace HeuroBot.Services;
 public class HeuroBotService
 {
     private Guid _botId;
-    private BotAction? _previousAction = null;
-
-    // Track visit counts per cell to discourage repeat visits
-    private Dictionary<(int x, int y), int> _visitCounts = new();
-
-    // Track visited quadrants for exploration incentive
-    private HashSet<int> _visitedQuadrants = new();
+    private readonly string _pythonExecutable = "python";
 
     public void SetBotId(Guid botId) => _botId = botId;
 
     public BotCommand ProcessState(GameState state)
     {
-        // Identify this bot's animal
-        var me = state.Animals.First(a => a.Id == _botId);
-
-        // Update visit count for current cell
-        var currentPos = (me.X, me.Y);
-        if (_visitCounts.ContainsKey(currentPos))
-            _visitCounts[currentPos]++;
-        else
-            _visitCounts[currentPos] = 1;
-        // Mark current quadrant visited
-        int currentQuadrant = GetQuadrant(me.X, me.Y, state);
-        if (!_visitedQuadrants.Contains(currentQuadrant))
-            _visitedQuadrants.Add(currentQuadrant);
-
-        // Enumerate all possible actions
-        var actions = Enum.GetValues<BotAction>().Cast<BotAction>();
-
-        // Filter legal moves: avoid walls
-        var legalActions = new List<BotAction>();
-        foreach (var a in actions)
+        try
         {
-            int nx = me.X,
-                ny = me.Y;
-            switch (a)
+            // Serialize game state to JSON
+            var gameStateJson = JsonSerializer.Serialize(state, new JsonSerializerOptions
             {
-                case BotAction.Up:
-                    ny--;
-                    break;
-                case BotAction.Down:
-                    ny++;
-                    break;
-                case BotAction.Left:
-                    nx--;
-                    break;
-                case BotAction.Right:
-                    nx++;
-                    break;
-            }
-            var cell = state.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
-            if (cell != null && cell.Content != CellContent.Wall)
-                legalActions.Add(a);
-        }
-        if (!legalActions.Any())
-            legalActions.Add(BotAction.Up);
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = false
+            });
 
-        BotAction bestAction = BotAction.Up;
-        decimal bestScore = decimal.MinValue;
+            // Create temporary file for game state
+            var tempFile = Path.GetTempFileName();
+            File.WriteAllText(tempFile, gameStateJson);
 
-        foreach (var action in legalActions)
-        {
-            var score = Heuristics.ScoreMove(state, me, action);
-            // Penalty for reversing the previous move
-            if (_previousAction.HasValue && IsOpposite(_previousAction.Value, action))
-                score += WEIGHTS.ReverseMovePenalty;
-            // Visit penalty and exploration bonuses
-            int nx = me.X,
-                ny = me.Y;
-            switch (action)
+            try
             {
-                case BotAction.Up:
-                    ny--;
-                    break;
-                case BotAction.Down:
-                    ny++;
-                    break;
-                case BotAction.Left:
-                    nx--;
-                    break;
-                case BotAction.Right:
-                    nx++;
-                    break;
+                // Call Python script
+                var pythonScript = Path.Combine(Directory.GetCurrentDirectory(), "python_caller.py");
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = _pythonExecutable,
+                    Arguments = $"\"{pythonScript}\" \"{tempFile}\" \"{_botId}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    WorkingDirectory = Directory.GetCurrentDirectory()
+                };
+
+                using var process = Process.Start(startInfo);
+                if (process == null)
+                {
+                    throw new InvalidOperationException("Failed to start Python process");
+                }
+
+                var output = process.StandardOutput.ReadToEnd();
+                var error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                if (process.ExitCode != 0)
+                {
+                    throw new InvalidOperationException($"Python script failed with exit code {process.ExitCode}: {error}");
+                }
+
+                // Parse action from output
+                var actionString = output.Trim();
+                if (Enum.TryParse<BotAction>(actionString, true, out var action))
+                {
+                    Console.WriteLine($"RL Bot chose action: {action}");
+                    return new BotCommand { Action = action };
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Failed to parse action from Python output: {output}");
+                }
             }
-            int visits = _visitCounts.TryGetValue((nx, ny), out var vc) ? vc : 0;
-            score += WEIGHTS.VisitPenalty * visits;
-            if (visits == 0)
-                score += WEIGHTS.UnexploredBonus;
-            int quad = GetQuadrant(nx, ny, state);
-            if (!_visitedQuadrants.Contains(quad))
-                score += WEIGHTS.UnexploredQuadrantBonus;
-            Console.WriteLine($"Action {action}: Score = {score}");
-            if (score > bestScore)
+            finally
             {
-                bestScore = score;
-                bestAction = action;
+                // Clean up temp file
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
             }
         }
-
-        // Store chosen action and mark new position to discourage oscillation and encourage exploration
-        _previousAction = bestAction;
-        int bx = me.X,
-            by = me.Y;
-        switch (bestAction)
+        catch (Exception ex)
         {
-            case BotAction.Up:
-                by--;
-                break;
-            case BotAction.Down:
-                by++;
-                break;
-            case BotAction.Left:
-                bx--;
-                break;
-            case BotAction.Right:
-                bx++;
-                break;
+            Console.WriteLine($"Error calling Python RL agent: {ex.Message}");
+            throw; // Re-throw the exception since we expect models to always be available
         }
-        var bestPos = (bx, by);
-        if (_visitCounts.ContainsKey(bestPos))
-            _visitCounts[bestPos]++;
-        else
-            _visitCounts[bestPos] = 1;
-        int bestQuad = GetQuadrant(bx, by, state);
-        if (!_visitedQuadrants.Contains(bestQuad))
-            _visitedQuadrants.Add(bestQuad);
-        return new BotCommand { Action = bestAction };
-    }
-
-    private static bool IsOpposite(BotAction a, BotAction b) =>
-        (a == BotAction.Left && b == BotAction.Right)
-        || (a == BotAction.Right && b == BotAction.Left)
-        || (a == BotAction.Up && b == BotAction.Down)
-        || (a == BotAction.Down && b == BotAction.Up);
-
-    // Determine quadrant based on map midpoints
-    private static int GetQuadrant(int x, int y, GameState state)
-    {
-        var xs = state.Cells.Select(c => c.X);
-        var ys = state.Cells.Select(c => c.Y);
-        int minX = xs.Min(),
-            maxX = xs.Max();
-        int minY = ys.Min(),
-            maxY = ys.Max();
-        int midX = (minX + maxX) / 2,
-            midY = (minY + maxY) / 2;
-        if (x > midX && y > midY)
-            return 1;
-        if (x <= midX && y > midY)
-            return 2;
-        if (x <= midX && y <= midY)
-            return 3;
-        return 4;
     }
 }

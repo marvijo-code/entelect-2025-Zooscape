@@ -28,7 +28,7 @@ namespace ZooscapeRunner.Models
         // Keep the old constructor for backward compatibility
         public ManagedProcess(string name, string fileName, string arguments, string workingDirectory, Dictionary<string, string>? environmentVariables)
         {
-            ViewModel = new ProcessViewModel { Name = name, Status = "Stopped" };
+            ViewModel = new ProcessViewModel { Name = name, Status = "Stopped", ProcessType = "Bot" };
 
             StartInfo = new ProcessStartInfo
             {

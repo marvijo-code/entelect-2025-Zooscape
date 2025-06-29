@@ -19,6 +19,8 @@ namespace ZooscapeRunner.ViewModels
         public RelayCommand StartAllCommand { get; }
         public RelayCommand StopAllCommand { get; }
         public RelayCommand RestartAllCommand { get; }
+        public RelayCommand StartVisualizerCommand { get; }
+        public RelayCommand StopVisualizerCommand { get; }
 
         public string AutoRestartText
         {
@@ -33,6 +35,8 @@ namespace ZooscapeRunner.ViewModels
             StartAllCommand = new RelayCommand(async () => await StartAllAsync(), () => _processManager != null);
             StopAllCommand = new RelayCommand(async () => await StopAllAsync(), () => _processManager != null);
             RestartAllCommand = new RelayCommand(async () => await RestartAllAsync(), () => _processManager != null);
+            StartVisualizerCommand = new RelayCommand(async () => await StartVisualizerAsync(), () => _processManager != null);
+            StopVisualizerCommand = new RelayCommand(async () => await StopVisualizerAsync(), () => _processManager != null);
 
             if (_processManager != null)
             {
@@ -51,6 +55,8 @@ namespace ZooscapeRunner.ViewModels
                 StartAllCommand.RaiseCanExecuteChanged();
                 StopAllCommand.RaiseCanExecuteChanged();
                 RestartAllCommand.RaiseCanExecuteChanged();
+                StartVisualizerCommand.RaiseCanExecuteChanged();
+                StopVisualizerCommand.RaiseCanExecuteChanged();
                 
                 Debug.WriteLine("ProcessManager updated successfully");
             }
@@ -176,6 +182,57 @@ namespace ZooscapeRunner.ViewModels
             {
                 Debug.WriteLine($"RestartAllAsync failed: {ex}");
                 AutoRestartText = $"Restart Error: {ex.Message}";
+            }
+        }
+
+        private async Task StartVisualizerAsync()
+        {
+            try
+            {
+                if (_processManager == null)
+                {
+                    Debug.WriteLine("ProcessManager is null");
+                    AutoRestartText = "Error: ProcessManager not initialized";
+                    return;
+                }
+
+                Debug.WriteLine("Starting visualizer...");
+                AutoRestartText = "Starting visualizer...";
+                
+                await _processManager.StartVisualizerAsync();
+                
+                Debug.WriteLine("Visualizer started");
+                AutoRestartText = "Visualizer started - API: http://localhost:5008, Frontend: http://localhost:5252";
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"StartVisualizerAsync failed: {ex}");
+                AutoRestartText = $"Visualizer Start Error: {ex.Message}";
+            }
+        }
+
+        private async Task StopVisualizerAsync()
+        {
+            try
+            {
+                if (_processManager == null)
+                {
+                    Debug.WriteLine("ProcessManager is null");
+                    return;
+                }
+
+                Debug.WriteLine("Stopping visualizer...");
+                AutoRestartText = "Stopping visualizer...";
+                
+                await _processManager.StopVisualizerAsync();
+                
+                Debug.WriteLine("Visualizer stopped");
+                AutoRestartText = "Visualizer stopped";
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"StopVisualizerAsync failed: {ex}");
+                AutoRestartText = $"Visualizer Stop Error: {ex.Message}";
             }
         }
     }

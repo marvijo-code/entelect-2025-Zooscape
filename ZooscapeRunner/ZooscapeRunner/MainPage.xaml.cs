@@ -9,6 +9,9 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
 using System.Diagnostics;
 using System.ComponentModel;
+using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI;
 
 #if WINDOWS
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -27,6 +30,9 @@ namespace ZooscapeRunner
     {
         public MainViewModel ViewModel { get; private set; }
         private ProcessViewModel _selectedProcess;
+        private bool _isLogsVisible = true;
+        private bool _areBotsRunning = false;
+        private bool _isVisualizerRunning = false;
 
         public MainPage()
         {
@@ -82,10 +88,13 @@ namespace ZooscapeRunner
                 // Update UI with success message
                 ViewModel.AutoRestartText = $"Loaded {ViewModel.Processes.Count} processes successfully";
                 
-                // Show processes in logs
+                // Show processes in logs with colored text
                 var processNames = string.Join(", ", ViewModel.Processes.Select(p => p.Name));
-                LogsTextBlock.Text = $"Application Initialized Successfully!\n\nLoaded Processes ({ViewModel.Processes.Count}):\n{processNames}\n\nClick 'Start All' to begin building and running processes.";
+                AddColoredLogText($"Application Initialized Successfully!\n\nLoaded Processes ({ViewModel.Processes.Count}):\n{processNames}\n\nClick 'Start All Bots' to begin building and running processes.", Colors.Green);
                 LogsHeaderText.Text = "📱 Application Status";
+                
+                // Set up command handlers for toggle buttons
+                SetupToggleButtons();
             }
             catch (Exception ex)
             {
@@ -95,8 +104,85 @@ namespace ZooscapeRunner
                 
                 // Update UI to show error state
                 ViewModel.AutoRestartText = $"Error: {ex.Message}";
-                LogsTextBlock.Text = $"Initialization Error:\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}";
+                AddColoredLogText($"Initialization Error:\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}", Colors.Red);
                 LogsHeaderText.Text = "❌ Application Error";
+            }
+        }
+
+        private void SetupToggleButtons()
+        {
+            // Update button states based on process status
+            UpdateButtonStates();
+            
+            // Subscribe to process status changes
+            foreach (var process in ViewModel.Processes)
+            {
+                process.PropertyChanged += Process_PropertyChanged;
+            }
+        }
+
+        private void Process_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ProcessViewModel.Status))
+            {
+                DispatcherQueue.TryEnqueue(() => UpdateButtonStates());
+            }
+        }
+
+        private void UpdateButtonStates()
+        {
+            // Check if any bots are running
+            var botProcesses = ViewModel.Processes.Where(p => p.ProcessType != "Visualizer").ToList();
+            var visualizerProcesses = ViewModel.Processes.Where(p => p.ProcessType == "Visualizer").ToList();
+            
+            _areBotsRunning = botProcesses.Any(p => p.Status.Contains("Running") || p.Status.Contains("Started"));
+            _isVisualizerRunning = visualizerProcesses.Any(p => p.Status.Contains("Running") || p.Status.Contains("Started"));
+            
+            // Update bot toggle button
+            if (_areBotsRunning)
+            {
+                ToggleBotsButton.Content = "⏹️ Stop All Bots";
+                ToggleBotsButton.Style = (Style)Resources["ErrorButtonStyle"];
+                ToggleBotsButton.Command = ViewModel.StopAllCommand;
+            }
+            else
+            {
+                ToggleBotsButton.Content = "▶️ Start All Bots";
+                ToggleBotsButton.Style = (Style)Resources["SuccessButtonStyle"];
+                ToggleBotsButton.Command = ViewModel.StartAllCommand;
+            }
+            
+            // Update visualizer toggle button
+            if (_isVisualizerRunning)
+            {
+                ToggleVisualizerButton.Content = "⏹️ Stop Visualizer";
+                ToggleVisualizerButton.Style = (Style)Resources["ErrorButtonStyle"];
+                ToggleVisualizerButton.Command = ViewModel.StopVisualizerCommand;
+            }
+            else
+            {
+                ToggleVisualizerButton.Content = "▶️ Start Visualizer";
+                ToggleVisualizerButton.Style = (Style)Resources["SuccessButtonStyle"];
+                ToggleVisualizerButton.Command = ViewModel.StartVisualizerCommand;
+            }
+        }
+
+        private void AddColoredLogText(string text, Windows.UI.Color color)
+        {
+            try
+            {
+                LogsRichTextBlock.Blocks.Clear();
+                var paragraph = new Paragraph();
+                var run = new Run { Text = text };
+                run.Foreground = new SolidColorBrush(color);
+                paragraph.Inlines.Add(run);
+                LogsRichTextBlock.Blocks.Add(paragraph);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"AddColoredLogText failed: {ex}");
+                // Fallback to simple text
+                LogsTextRun.Text = text;
             }
         }
 
@@ -108,12 +194,18 @@ namespace ZooscapeRunner
                 {
                     _selectedProcess = selectedProcess;
                     ShowLogsForProcess(selectedProcess);
+                    
+                    // Auto-show logs panel when a process is selected
+                    if (!_isLogsVisible)
+                    {
+                        ToggleLogsVisibility();
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"ProcessListView_SelectionChanged failed: {ex}");
-                LogsTextBlock.Text = $"Error displaying logs: {ex.Message}";
+                AddColoredLogText($"Error displaying logs: {ex.Message}", Colors.Red);
                 LogsHeaderText.Text = "Error";
             }
         }
@@ -129,13 +221,49 @@ namespace ZooscapeRunner
                     
                     // Also select the item in the list
                     ProcessListView.SelectedItem = process;
+                    
+                    // Auto-show logs panel when view logs is clicked
+                    if (!_isLogsVisible)
+                    {
+                        ToggleLogsVisibility();
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"ViewLogsButton_Click failed: {ex}");
-                LogsTextBlock.Text = $"Error displaying logs: {ex.Message}";
+                AddColoredLogText($"Error displaying logs: {ex.Message}", Colors.Red);
                 LogsHeaderText.Text = "Error";
+            }
+        }
+
+        private void ToggleLogsButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ToggleLogsVisibility();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"ToggleLogsButton_Click failed: {ex}");
+            }
+        }
+
+        private void ToggleLogsVisibility()
+        {
+            _isLogsVisible = !_isLogsVisible;
+            
+            if (_isLogsVisible)
+            {
+                // Show logs panel
+                LogsPanel.Visibility = Visibility.Visible;
+                ToggleLogsButton.Content = "🔽 Hide Logs";
+            }
+            else
+            {
+                // Hide logs panel
+                LogsPanel.Visibility = Visibility.Collapsed;
+                ToggleLogsButton.Content = "🔼 Show Logs";
             }
         }
 
@@ -147,15 +275,17 @@ namespace ZooscapeRunner
                 
                 if (string.IsNullOrEmpty(process.Logs))
                 {
-                    LogsTextBlock.Text = $"No logs available for {process.Name}\n\nCurrent Status: {process.Status}\n\nClick 'Start All' to begin building and running processes.\nLogs will appear here in real-time during build and execution.";
+                    var message = $"No logs available for {process.Name}\n\nCurrent Status: {process.Status}\n\nClick 'Start All Bots' to begin building and running processes.\nLogs will appear here in real-time during build and execution.";
+                    AddColoredLogText(message, Colors.Gray);
                 }
                 else
                 {
-                    LogsTextBlock.Text = process.Logs;
+                    // Parse logs and add colors based on content
+                    ParseAndDisplayColoredLogs(process.Logs);
                 }
                 
                 // Scroll to the bottom to show latest logs
-                if (LogsTextBlock.Parent is ScrollViewer scrollViewer)
+                if (LogsRichTextBlock.Parent is ScrollViewer scrollViewer)
                 {
                     scrollViewer.ChangeView(null, scrollViewer.ScrollableHeight, null);
                 }
@@ -171,9 +301,63 @@ namespace ZooscapeRunner
             catch (Exception ex)
             {
                 Debug.WriteLine($"ShowLogsForProcess failed: {ex}");
-                LogsTextBlock.Text = $"Error displaying logs: {ex.Message}";
+                AddColoredLogText($"Error displaying logs: {ex.Message}", Colors.Red);
                 LogsHeaderText.Text = "❌ Error";
             }
+        }
+
+        private void ParseAndDisplayColoredLogs(string logs)
+        {
+            try
+            {
+                LogsRichTextBlock.Blocks.Clear();
+                var paragraph = new Paragraph();
+                
+                var lines = logs.Split('\n');
+                foreach (var line in lines)
+                {
+                    var color = GetLogLineColor(line);
+                    var run = new Run { Text = line + "\n" };
+                    run.Foreground = new SolidColorBrush(color);
+                    paragraph.Inlines.Add(run);
+                }
+                
+                LogsRichTextBlock.Blocks.Add(paragraph);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"ParseAndDisplayColoredLogs failed: {ex}");
+                // Fallback to simple text
+                LogsTextRun.Text = logs;
+            }
+        }
+
+        private Windows.UI.Color GetLogLineColor(string line)
+        {
+            var lowerLine = line.ToLower();
+            
+            // Console output colors
+            if (lowerLine.Contains("console.writeline") || lowerLine.Contains("debug.writeline"))
+                return Colors.Cyan;
+            
+            // Error colors
+            if (lowerLine.Contains("error") || lowerLine.Contains("exception") || lowerLine.Contains("failed"))
+                return Colors.Red;
+            
+            // Warning colors
+            if (lowerLine.Contains("warning") || lowerLine.Contains("warn"))
+                return Colors.Orange;
+            
+            // Success colors
+            if (lowerLine.Contains("success") || lowerLine.Contains("completed") || lowerLine.Contains("started"))
+                return Colors.Green;
+            
+            // Info colors
+            if (lowerLine.Contains("info") || lowerLine.Contains("build") || lowerLine.Contains("restore"))
+                return Colors.LightBlue;
+            
+            // Default color
+            return Colors.White;
         }
 
         private void OnSelectedProcessPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -205,18 +389,60 @@ namespace ZooscapeRunner
                 if (_selectedProcess != null)
                 {
                     _selectedProcess.Logs = string.Empty;
-                    LogsTextBlock.Text = $"Logs cleared for {_selectedProcess.Name}";
+                    AddColoredLogText($"Logs cleared for {_selectedProcess.Name}", Colors.Yellow);
                 }
                 else
                 {
-                    LogsTextBlock.Text = "No process selected";
+                    AddColoredLogText("No process selected", Colors.Gray);
                     LogsHeaderText.Text = "Select a process to view logs";
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"ClearLogsButton_Click failed: {ex}");
-                LogsTextBlock.Text = $"Error clearing logs: {ex.Message}";
+                AddColoredLogText($"Error clearing logs: {ex.Message}", Colors.Red);
+            }
+        }
+
+        private async void OpenVisualizerButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string url = "http://localhost:5252";
+                Debug.WriteLine($"Opening visualizer in browser: {url}");
+                
+                // Try to open in default browser
+#if WINDOWS
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                };
+                System.Diagnostics.Process.Start(psi);
+#elif ANDROID
+                // For Android, use the Android-specific launcher
+                var intent = new Android.Content.Intent(Android.Content.Intent.ActionView, Android.Net.Uri.Parse(url));
+                intent.AddFlags(Android.Content.ActivityFlags.NewTask);
+                Platform.CurrentActivity?.StartActivity(intent);
+#elif IOS || MACCATALYST
+                // For iOS/macOS, use the system launcher
+                await Microsoft.Maui.ApplicationModel.Launcher.OpenAsync(url);
+#else
+                // Fallback for other platforms
+                await Microsoft.Maui.ApplicationModel.Launcher.OpenAsync(url);
+#endif
+                
+                Debug.WriteLine("Browser launched successfully");
+                AddColoredLogText($"Opened visualizer in browser: {url}", Colors.Green);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to open browser: {ex}");
+                
+                // Show user-friendly error message
+                string errorMessage = $"Failed to open visualizer in browser.\n\nYou can manually open: http://localhost:5252\n\nError: {ex.Message}";
+                AddColoredLogText(errorMessage, Colors.Red);
+                LogsHeaderText.Text = "❌ Browser Launch Error";
             }
         }
     }

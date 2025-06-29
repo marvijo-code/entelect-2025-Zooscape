@@ -74,6 +74,9 @@ namespace ZooscapeRunner.Services
                 Debug.WriteLine($"Deserialized {configs?.Length ?? 0} process configurations");
                 Console.WriteLine($"Deserialized {configs?.Length ?? 0} process configurations");
 
+                // Cache the configs for later use
+                _processConfigs = configs;
+
                 if (configs != null)
                 {
                     foreach (var config in configs)
@@ -88,7 +91,12 @@ namespace ZooscapeRunner.Services
                         Debug.WriteLine($"Adding process: {config.Name}, WorkingDir: {workingDir}");
                         Console.WriteLine($"Adding process: {config.Name}, WorkingDir: {workingDir}");
 
-                        var processViewModel = new ProcessViewModel { Name = config.Name, Status = "Stopped" };
+                        var processViewModel = new ProcessViewModel 
+                        { 
+                            Name = config.Name, 
+                            Status = "Stopped",
+                            ProcessType = config.ProcessType ?? "Bot"
+                        };
                         
                         // Add initial helpful information to logs
                         processViewModel.Logs = $"Process: {config.Name}\nCommand: {config.FileName} {config.Arguments}\nWorking Directory: {workingDir}\nStatus: Ready to build/start\n\n--- Build/Run logs will appear below ---\n";
@@ -556,6 +564,214 @@ if %BUILD_ERRORLEVEL% neq 0 (
             return true;
 #endif
         }
+
+        private async Task StopProcessOnPortAsync(int port, string serviceName)
+        {
+#if WINDOWS
+            try
+            {
+                Debug.WriteLine($"Attempting to stop {serviceName} on port {port}...");
+                Console.WriteLine($"Attempting to stop {serviceName} on port {port}...");
+
+                // Use netstat to find processes using the port
+                using var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "netstat",
+                        Arguments = "-ano",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                var output = await process.StandardOutput.ReadToEndAsync();
+                await process.WaitForExitAsync();
+
+                var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                var stoppedCount = 0;
+
+                foreach (var line in lines)
+                {
+                    if (line.Contains($":{port}") && line.Contains("LISTENING"))
+                    {
+                        var parts = line.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length > 0 && int.TryParse(parts[^1], out var processId))
+                        {
+                            try
+                            {
+                                var targetProcess = Process.GetProcessById(processId);
+                                if (targetProcess != null && !targetProcess.HasExited)
+                                {
+                                    Debug.WriteLine($"Found {serviceName} (PID: {processId}) listening on port {port}. Attempting to stop...");
+                                    Console.WriteLine($"Found {serviceName} (PID: {processId}) listening on port {port}. Attempting to stop...");
+
+                                    targetProcess.Kill(true);
+                                    
+                                    // Wait for process to exit
+                                    var maxRetries = 5;
+                                    var retryCount = 0;
+                                    while (retryCount < maxRetries && !targetProcess.HasExited)
+                                    {
+                                        await Task.Delay(200);
+                                        retryCount++;
+                                    }
+
+                                    if (targetProcess.HasExited)
+                                    {
+                                        Console.WriteLine($"Successfully stopped {serviceName} (PID: {processId}) on port {port}.");
+                                        stoppedCount++;
+                                    }
+                                    else
+                                    {
+                                        Debug.WriteLine($"Failed to terminate process {processId} after {maxRetries} retries");
+                                        Console.WriteLine($"Failed to terminate process {processId} after {maxRetries} retries");
+                                    }
+                                }
+                            }
+                            catch (ArgumentException)
+                            {
+                                // Process not found, already terminated
+                                Debug.WriteLine($"Process {processId} not found, already terminated?");
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"Failed to stop {serviceName} (PID: {processId}) on port {port}: {ex.Message}");
+                                Console.WriteLine($"Failed to stop {serviceName} (PID: {processId}) on port {port}: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+
+                if (stoppedCount > 0)
+                {
+                    Debug.WriteLine($"Stopped {stoppedCount} process(es) for {serviceName} on port {port}.");
+                    Console.WriteLine($"Stopped {stoppedCount} process(es) for {serviceName} on port {port}.");
+                }
+                else
+                {
+                    Debug.WriteLine($"No {serviceName} found listening on port {port}.");
+                    Console.WriteLine($"No {serviceName} found listening on port {port}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to stop processes on port {port}: {ex}");
+                Console.WriteLine($"Failed to stop processes on port {port}: {ex}");
+            }
+#else
+            Debug.WriteLine($"Port stopping not supported on this platform for {serviceName} on port {port}");
+            Console.WriteLine($"Port stopping not supported on this platform for {serviceName} on port {port}");
+#endif
+        }
+
+        public async Task StartVisualizerAsync()
+        {
+            try
+            {
+                Debug.WriteLine("StartVisualizerAsync called");
+                Console.WriteLine("Starting Zooscape Visualizer API and Frontend...");
+
+                // Stop existing visualizer processes first
+                await StopProcessOnPortAsync(5252, "Frontend");
+                await StopProcessOnPortAsync(5008, "Visualizer API");
+
+                // Wait for ports to be fully released
+                Debug.WriteLine("Waiting for ports to be fully released...");
+                Console.WriteLine("Waiting for ports to be fully released...");
+                await Task.Delay(3000);
+
+                // Get visualizer processes
+                var visualizerProcesses = _processes.Where(p => 
+                {
+                    // Check if this is a visualizer process by looking at the process configuration
+                    var config = GetProcessConfig(p.ViewModel.Name);
+                    return config?.ProcessType == "Visualizer";
+                }).ToList();
+
+                if (visualizerProcesses.Count == 0)
+                {
+                    Debug.WriteLine("No visualizer processes found in configuration");
+                    Console.WriteLine("No visualizer processes found in configuration");
+                    return;
+                }
+
+                Console.WriteLine($"Starting {visualizerProcesses.Count} visualizer processes...");
+
+                // Start visualizer processes in parallel
+                var startTasks = new List<Task>();
+                foreach (var managedProcess in visualizerProcesses)
+                {
+                    Console.WriteLine($"Starting visualizer process: {managedProcess.ViewModel.Name}");
+                    startTasks.Add(Task.Run(async () => await StartProcessSafelyAsync(managedProcess)));
+                }
+
+                await Task.WhenAll(startTasks);
+                Console.WriteLine("Visualizer startup completed");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"StartVisualizerAsync failed: {ex}");
+                Console.WriteLine($"StartVisualizerAsync failed: {ex}");
+            }
+        }
+
+        public async Task StopVisualizerAsync()
+        {
+            try
+            {
+                Debug.WriteLine("StopVisualizerAsync called");
+                Console.WriteLine("Stopping Zooscape Visualizer...");
+
+                // Stop visualizer processes first
+                var visualizerProcesses = _processes.Where(p => 
+                {
+                    var config = GetProcessConfig(p.ViewModel.Name);
+                    return config?.ProcessType == "Visualizer";
+                }).ToList();
+
+                foreach (var managedProcess in visualizerProcesses)
+                {
+                    try
+                    {
+#if WINDOWS || MACCATALYST || ANDROID
+                        if (managedProcess.ProcessInstance != null && !managedProcess.ProcessInstance.HasExited)
+                        {
+                            managedProcess.ProcessInstance.Kill(true);
+                            UpdateProcessStatus(managedProcess.ViewModel, "Stopped");
+                        }
+#endif
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to stop {managedProcess.ViewModel.Name}: {ex}");
+                        UpdateProcessStatus(managedProcess.ViewModel, $"Stop Error: {ex.Message}");
+                    }
+                }
+
+                // Also stop by port as cleanup
+                await StopProcessOnPortAsync(5008, "Visualizer API");
+                await StopProcessOnPortAsync(5252, "Frontend");
+
+                Console.WriteLine("Visualizer stopped");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"StopVisualizerAsync failed: {ex}");
+                Console.WriteLine($"StopVisualizerAsync failed: {ex}");
+            }
+        }
+
+        private ProcessConfig? GetProcessConfig(string processName)
+        {
+            // This is a helper method to get the original configuration for a process
+            // We'll need to cache the configs during LoadProcessesConfigAsync
+            return _processConfigs?.FirstOrDefault(c => c.Name == processName);
+        }
+
+        private ProcessConfig[]? _processConfigs;
 
         public Task StopAllAsync()
         {

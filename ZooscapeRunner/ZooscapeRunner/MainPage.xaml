@@ -13,9 +13,9 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="2*" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="300" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!--  Title  -->
@@ -33,20 +33,36 @@
             Grid.Row="1"
             Margin="0,0,0,24"
             HorizontalAlignment="Center"
-            Orientation="Horizontal"
-            Spacing="12">
-            <Button x:Name="StartAllButton" Content="▶️ Start All" Command="{Binding StartAllCommand}" 
-                    Style="{StaticResource SuccessButtonStyle}" />
-            <Button x:Name="StopAllButton" Content="⏹️ Stop All" Command="{Binding StopAllCommand}"
-                    Style="{StaticResource ErrorButtonStyle}" />
-            <Button x:Name="RestartAllButton" Content="🔄 Restart All" Command="{Binding RestartAllCommand}"
-                    Style="{StaticResource WarningButtonStyle}" />
+            Orientation="Vertical"
+            Spacing="16">
+            
+            <!-- Bot Controls -->
+            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="🤖 Bot Management:" VerticalAlignment="Center" FontWeight="SemiBold" 
+                           Style="{StaticResource HeaderTextStyle}" Margin="0,0,12,0"/>
+                <Button x:Name="ToggleBotsButton" Content="▶️ Start All Bots" Command="{Binding StartAllCommand}" 
+                        Style="{StaticResource SuccessButtonStyle}" />
+                <Button x:Name="RestartAllButton" Content="🔄 Restart All Bots" Command="{Binding RestartAllCommand}"
+                        Style="{StaticResource WarningButtonStyle}" />
+            </StackPanel>
+            
+            <!-- Visualizer Controls -->
+            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="📊 Visualizer:" VerticalAlignment="Center" FontWeight="SemiBold" 
+                           Style="{StaticResource HeaderTextStyle}" Margin="0,0,12,0"/>
+                <Button x:Name="ToggleVisualizerButton" Content="▶️ Start Visualizer" Command="{Binding StartVisualizerCommand}" 
+                        Style="{StaticResource SuccessButtonStyle}" />
+                <Button x:Name="OpenVisualizerButton" Content="🌐 Open in Browser" Click="OpenVisualizerButton_Click"
+                        Style="{StaticResource SecondaryButtonStyle}" />
+            </StackPanel>
+            
+            <!-- Status Display -->
             <Border Background="{StaticResource SurfaceBackgroundBrush}" 
                     BorderBrush="{StaticResource BorderBrush}" 
                     BorderThickness="1" 
                     CornerRadius="4" 
                     Padding="16,8" 
-                    Margin="20,0,0,0">
+                    HorizontalAlignment="Center">
                 <TextBlock
                     VerticalAlignment="Center"
                     FontWeight="SemiBold"
@@ -108,12 +124,20 @@
             </ListView>
         </Border>
 
-        <!--  Logs Section Header  -->
-        <TextBlock Grid.Row="3" Text="📋 Process Logs" Style="{StaticResource HeaderTextStyle}" Margin="0,0,0,12" />
+        <!--  Logs Section Header with Toggle  -->
+        <Grid Grid.Row="3" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="📋 Process Logs" Style="{StaticResource HeaderTextStyle}" />
+            <Button Grid.Column="1" x:Name="ToggleLogsButton" Content="🔽 Hide Logs" Click="ToggleLogsButton_Click"
+                    Style="{StaticResource SecondaryButtonStyle}" />
+        </Grid>
 
-        <!--  Logs Viewer  -->
-        <Border Grid.Row="4" Style="{StaticResource CardStyle}">
-            <Grid>
+        <!--  Logs Viewer (Collapsible)  -->
+        <Border Grid.Row="4" x:Name="LogsPanel" Style="{StaticResource CardStyle}">
+            <Grid MaxHeight="250">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
@@ -137,8 +161,11 @@
                 <ScrollViewer Grid.Row="1" Padding="16" ZoomMode="Disabled" 
                               HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                               Background="{StaticResource AppBackgroundBrush}">
-                    <TextBlock x:Name="LogsTextBlock" Text="No logs to display" 
-                               Style="{StaticResource LogTextStyle}" />
+                    <RichTextBlock x:Name="LogsRichTextBlock" IsTextSelectionEnabled="True">
+                        <Paragraph>
+                            <Run x:Name="LogsTextRun" Text="No logs to display" />
+                        </Paragraph>
+                    </RichTextBlock>
                 </ScrollViewer>
             </Grid>
         </Border>

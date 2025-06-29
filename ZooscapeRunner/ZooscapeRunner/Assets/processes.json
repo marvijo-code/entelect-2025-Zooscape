@@ -85,5 +85,28 @@
       "Token": "{{GUID}}",
       "BOT_TOKEN": "{{GUID}}"
     }
+  },
+  {
+    "Name": "Visualizer API",
+    "FileName": "dotnet",
+    "Arguments": "run --project FunctionalTests/FunctionalTests.csproj --configuration Release",
+    "WorkingDirectory": "",
+    "EnvironmentVariables": {
+      "ASPNETCORE_ENVIRONMENT": "Development",
+      "ASPNETCORE_URLS": "http://localhost:5008"
+    },
+    "RequiredPorts": [5008],
+    "ProcessType": "Visualizer"
+  },
+  {
+    "Name": "Visualizer Frontend",
+    "FileName": "cmd.exe",
+    "Arguments": "/c \"cd /d visualizer-2d && npm run dev\"",
+    "WorkingDirectory": "",
+    "EnvironmentVariables": {
+      "PORT": "5252"
+    },
+    "RequiredPorts": [5252],
+    "ProcessType": "Visualizer"
   }
 ]

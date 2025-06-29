@@ -10,5 +10,7 @@ namespace ZooscapeRunner.Models
         public string Arguments { get; set; } = string.Empty;
         public string WorkingDirectory { get; set; } = string.Empty;
         public Dictionary<string, string>? EnvironmentVariables { get; set; }
+        public int[]? RequiredPorts { get; set; }
+        public string? ProcessType { get; set; }
     }
 }

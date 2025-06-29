@@ -43,6 +43,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Bots\ClingyHeuroBot2\ClingyHeuroBot2.csproj" />
     <ProjectReference Include="..\Bots\ClingyHeuroBot\ClingyHeuroBot.csproj" />
+    <ProjectReference Include="..\Bots\rl\rl.csproj" />
     <ProjectReference Include="..\Marvijo.Zooscape.Bots.Common\Marvijo.Zooscape.Bots.Common.csproj" />
   </ItemGroup>
 
