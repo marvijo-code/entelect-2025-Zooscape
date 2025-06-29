@@ -1,7 +1,7 @@
 <Project Sdk="Uno.Sdk">
   <PropertyGroup>
-    <!-- Target Framework Configuration -->
-    <TargetFrameworks>net8.0-windows10.0.19041.0</TargetFrameworks>
+    <!-- Single Target Framework to avoid multi-framework issues -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <UnoSingleProject>true</UnoSingleProject>
     <Nullable>disable</Nullable>
@@ -23,11 +23,9 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsingPreview>enable</ImplicitUsingPreview>
     
-    <!-- Performance Optimizations -->
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>link</TrimMode>
-    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
-    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+    <!-- Disable problematic features for faster builds -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
     
     <!-- Debug Configuration -->
     <DebugType>portable</DebugType>
@@ -64,32 +62,22 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
     
     <!-- Process Management and System Integration -->
     <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
     <PackageReference Include="System.Management" Version="8.0.0" />
-    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.1" />
     
     <!-- Networking and Port Management -->
     <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
-    <PackageReference Include="System.Net.Sockets" Version="4.3.0" />
     
     <!-- JSON Serialization and Data Handling -->
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     
     <!-- File System and IO Operations -->
     <PackageReference Include="System.IO.FileSystem.Watcher" Version="4.3.0" />
-    <PackageReference Include="System.IO.Pipelines" Version="8.0.0" />
-    
-    <!-- Threading and Task Management -->
-    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
-    <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
     
     <!-- Windows-specific Process and Terminal Integration -->
-    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'" />
-    <PackageReference Include="System.Security.Principal.Windows" Version="5.0.0" Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'" />
+    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
   </ItemGroup>
 
   <!-- Build Assets and Content -->
@@ -99,30 +87,16 @@
     <None Include="Assets/processes.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- Development Tools -->
-  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <PackageReference Include="Microsoft.Extensions.Logging.EventSource" Version="8.0.1" />
-  </ItemGroup>
-
   <!-- Release Optimizations -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <Optimize>true</Optimize>
     <DefineConstants>TRACE</DefineConstants>
-    <TrimUnusedDependencies>true</TrimUnusedDependencies>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <!-- Debug Configuration -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <Optimize>false</Optimize>
-  </PropertyGroup>
-
-  <!-- Additional Compile-time Features -->
-  <PropertyGroup>
-    <Features>strict</Features>
-    <AnalysisLevel>latest</AnalysisLevel>
-    <CodeAnalysisRuleSet>..\..\code-analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
 
   <!-- Assembly Information -->

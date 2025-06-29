@@ -8,7 +8,8 @@ using Xunit;
 using Xunit.Abstractions;
 using ClingyHeuroBot2Service = ClingyHeuroBot2.Services.HeuroBotService;
 using ClingyHeuroBotService = HeuroBotV2.Services.HeuroBotService;
-using RLBotService = HeuroBot.Services.HeuroBotService;
+using FunctionalTests.Services;
+using Microsoft.Extensions.Logging;
 
 namespace FunctionalTests;
 
@@ -19,7 +20,6 @@ public class StandardBotTests : BotTestsBase
 {
     private readonly ClingyHeuroBot2Service _clingyHeuroBot2;
     private readonly ClingyHeuroBotService _clingyHeuroBot;
-    private readonly RLBotService _rlBot;
 
     public StandardBotTests(ITestOutputHelper outputHelper)
         : base(outputHelper)
@@ -28,7 +28,6 @@ public class StandardBotTests : BotTestsBase
         _clingyHeuroBot2.LogHeuristicScores = true;
 
         _clingyHeuroBot = new ClingyHeuroBotService();
-        _rlBot = new RLBotService();
     }
 
     protected override void TestBotFromArray(object bot, GameState gameState, TestParams testParams)

@@ -84,10 +84,40 @@ namespace ZooscapeRunner.Services
                         Debug.WriteLine($"Processing config: {config.Name}");
                         Console.WriteLine($"Processing config: {config.Name}");
                         
+                        // Fix working directory calculation - find the actual project root
+                        // Navigate from the application directory to the solution root
+                        var appDir = AppContext.BaseDirectory; // e.g., C:\dev\2025-Zooscape\ZooscapeRunner\ZooscapeRunner\bin\Debug\net8.0-windows10.0.19041.0\
+                        
+                        // Go up to find the solution root (look for directory containing engine/, Bots/, etc.)
+                        var currentDir = new DirectoryInfo(appDir);
+                        string projectRoot = null;
+                        
+                        // Go up until we find a directory that contains "engine" and "Bots" folders
+                        while (currentDir != null && projectRoot == null)
+                        {
+                            if (Directory.Exists(Path.Combine(currentDir.FullName, "engine")) && 
+                                Directory.Exists(Path.Combine(currentDir.FullName, "Bots")))
+                            {
+                                projectRoot = currentDir.FullName;
+                                break;
+                            }
+                            currentDir = currentDir.Parent;
+                        }
+                        
+                        // Fallback if we can't find it
+                        if (projectRoot == null)
+                        {
+                            projectRoot = Path.GetFullPath(Path.Combine(appDir, "..", "..", "..", "..", ".."));
+                        }
+                        
                         var workingDir = string.IsNullOrEmpty(config.WorkingDirectory) 
-                            ? Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".."))
-                            : Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", config.WorkingDirectory));
+                            ? projectRoot 
+                            : Path.GetFullPath(Path.Combine(projectRoot, config.WorkingDirectory));
 
+                        Debug.WriteLine($"App directory: {appDir}");
+                        Console.WriteLine($"App directory: {appDir}");
+                        Debug.WriteLine($"Found project root: {projectRoot}");
+                        Console.WriteLine($"Found project root: {projectRoot}");
                         Debug.WriteLine($"Adding process: {config.Name}, WorkingDir: {workingDir}");
                         Console.WriteLine($"Adding process: {config.Name}, WorkingDir: {workingDir}");
 

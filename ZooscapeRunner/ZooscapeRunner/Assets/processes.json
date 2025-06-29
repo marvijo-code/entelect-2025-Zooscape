@@ -89,7 +89,7 @@
   {
     "Name": "Visualizer API",
     "FileName": "dotnet",
-    "Arguments": "run --project FunctionalTests/FunctionalTests.csproj --configuration Release",
+    "Arguments": "run --project Zooscape.API/Zooscape.API.csproj --configuration Release",
     "WorkingDirectory": "",
     "EnvironmentVariables": {
       "ASPNETCORE_ENVIRONMENT": "Development",

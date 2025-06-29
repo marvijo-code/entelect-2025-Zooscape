@@ -83,7 +83,7 @@ function Stop-ProcessOnPort {
 
 # Stop existing processes
 Stop-ProcessOnPort -Port 5252 -ServiceName "Frontend"
-Stop-ProcessOnPort -Port 5008 -ServiceName "Visualizer API"
+Stop-ProcessOnPort -Port 5008 -ServiceName "FunctionalTests API"
 
 # Wait a moment for ports to be fully released
 Write-Host "Waiting for ports to be fully released..." -ForegroundColor Yellow
@@ -110,11 +110,12 @@ if (-not (Test-Path $FrontendDir)) {
 }
 
 # Start API server in a background job
-Write-Host "Starting .NET API server..."
+Write-Host "Starting FunctionalTests API server (with Leaderboard) on port 5008..."
 $apiJob = Start-Job -ScriptBlock {
     param($scriptDir, $project)
     Set-Location $scriptDir
-    dotnet watch --project $project
+    $env:ASPNETCORE_URLS = "http://localhost:5008"
+    dotnet run --project $project --configuration Release
 } -ArgumentList $ScriptDirectory, $FunctionalTestsProject
 
 # Start Frontend in background job
@@ -140,8 +141,8 @@ if (-not $frontendJob) {
 }
 
 Write-Host "All services are now running in background jobs." -ForegroundColor Green
-Write-Host ".NET API (Job $($apiJob.Id)) is starting on http://localhost:5008"
-Write-Host "Frontend (Job $($frontendJob.Id)) is starting on http://localhost:5252"
+Write-Host "FunctionalTests API with Leaderboard (Job $($apiJob.Id)) is starting on http://localhost:5008"
+Write-Host "Visualizer Frontend (Job $($frontendJob.Id)) is starting on http://localhost:5252"
 Write-Host "Press Ctrl+C to stop all services."
 
 # Display job output in real-time
@@ -157,12 +158,12 @@ try {
 
         $apiOutput = Receive-Job -Job $apiJob -ErrorAction SilentlyContinue
         if ($apiOutput) {
-            Write-Host "[API - .NET] $apiOutput" -ForegroundColor Cyan
+            Write-Host "[FunctionalTests API] $apiOutput" -ForegroundColor Cyan
         }
 
         $frontendOutput = Receive-Job -Job $frontendJob -ErrorAction SilentlyContinue
         if ($frontendOutput) {
-            Write-Host "[Frontend] $frontendOutput" -ForegroundColor Green
+            Write-Host "[Visualizer Frontend] $frontendOutput" -ForegroundColor Green
         }
         
         # If both jobs are completed/failed/stopped, exit the loop
@@ -183,8 +184,8 @@ finally {
     Get-Job | Remove-Job -Force -ErrorAction SilentlyContinue
 
     # Attempt to stop processes by port as a final cleanup
-    Stop-ProcessOnPort -Port 5008 -ServiceName "API"
-    Stop-ProcessOnPort -Port 5252 -ServiceName "Frontend"
+    Stop-ProcessOnPort -Port 5008 -ServiceName "FunctionalTests API"
+    Stop-ProcessOnPort -Port 5252 -ServiceName "Visualizer Frontend"
 
     Write-Host "All services and jobs should now be stopped." -ForegroundColor Yellow
 } 

@@ -45,8 +45,11 @@ function Stop-DotnetProcesses {
         if ($botDefinition.Language -eq "csharp") {
             $managedProjectFiles += (Split-Path $botDefinition.Path -Leaf)
         }
+        elseif ($botDefinition.Language -eq "python") {
+            $managedProjectFiles += "play_bot_runner.py"
+        }
     }
-    $managedExecutableNames = @("Zooscape", "AdvancedMCTSBot", "DeepMCTS", "ClingyHeuroBot", "mctso4", "ClingyHeuroBotExp") # Add other bot/engine executable names as needed
+    $managedExecutableNames = @("Zooscape", "AdvancedMCTSBot", "DeepMCTS", "ClingyHeuroBot", "mctso4", "python") # Add other bot/engine executable names as needed
 
     Write-Host "Identifying dotnet processes for managed projects: $($managedProjectFiles -join ', ')" -ForegroundColor DarkGray
 
@@ -124,11 +127,11 @@ $engineDir = Split-Path -Parent $engineCsproj
 
 $bots = @(
     @{ Name = "ClingyHeuroBot2"; Path = "Bots\ClingyHeuroBot2\ClingyHeuroBot2.csproj"; Language = "csharp" },
-    @{ Name = "AdvancedMCTSBot"; Path = "Bots\AdvancedMCTSBot"; Language = "cpp" },
+    @{ Name = "ReferenceBot"; Path = "engine\ReferenceBot\ReferenceBot.csproj"; Language = "csharp" },
+    @{ Name = "RLPlayBot"; Path = "Bots\rl"; Language = "python" },
+    # @{ Name = "AdvancedMCTSBot"; Path = "Bots\AdvancedMCTSBot"; Language = "cpp" },
     # @{ Name = "DeepMCTS"; Path = "Bots\DeepMCTS\DeepMCTS.csproj"; Language = "csharp" },
     # @{ Name = "MCTSo4"; Path = "Bots\MCTSo4\MCTSo4.csproj"; Language = "csharp" },
-    # @{ Name = "ReferenceBot"; Path = "Bots\ReferenceBot\ReferenceBot.csproj"; Language = "csharp" },
-    @{ Name = "ClingyHeuroBotExp"; Path = "Bots\ClingyHeuroBotExp\ClingyHeuroBotExp.csproj"; Language = "csharp" },
     @{ Name = "ClingyHeuroBot"; Path = "Bots\ClingyHeuroBot\ClingyHeuroBot.csproj"; Language = "csharp" }
 )
 
@@ -167,6 +170,17 @@ while ($keepRunningScript) {
             & .\build.bat
             if ($LASTEXITCODE -ne 0) { Pop-Location; Write-Error "Build failed for $($bot.Name)."; $buildFailed = $true; break }
             Pop-Location
+        }
+        elseif ($bot.Language -eq "python") {
+            $botDir = Join-Path $scriptRoot $bot.Path
+            Write-Host "Checking Python environment for $($bot.Name)..." -ForegroundColor DarkGray
+            # Check if virtual environment exists and has required packages
+            $venvPath = Join-Path $botDir ".venv"
+            if (-not (Test-Path $venvPath)) {
+                Write-Error "Python virtual environment not found at $venvPath for $($bot.Name). Please set up the virtual environment first."
+                $buildFailed = $true; break
+            }
+            Write-Host "Python environment OK for $($bot.Name)." -ForegroundColor Green
         }
         else {
             dotnet build $botProjectPath -c Release
@@ -259,6 +273,12 @@ while ($keepRunningScript) {
             $exePath = Join-Path $botDir "build\Release\AdvancedMCTSBot.exe"
             $botWorkingDirectory = (Split-Path $exePath -Parent)
             $botRunCommand = "& `"$exePath`""
+        }
+        elseif ($bot.Language -eq "python") {
+            $botDir = Join-Path $scriptRoot $bot.Path
+            $botWorkingDirectory = $botDir
+            $pythonExe = Join-Path $botDir ".venv\Scripts\python.exe"
+            $botRunCommand = "& `"$pythonExe`" play_bot_runner.py"
         }
         else {
             $botWorkingDirectory = (Split-Path $botProjectPath -Parent)
