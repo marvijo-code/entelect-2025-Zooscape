@@ -22,8 +22,8 @@ private:
         std::string hubName = "bothub";
         std::string botToken;
         std::string botNickname = "AdvancedMCTSBot";
-        int timeLimit = 50;
-        int maxIterations = 10000;
+        int timeLimit = 130;
+        int maxIterations = 100000;
     } config;
 
     void loadConfiguration();
@@ -32,6 +32,5 @@ private:
     std::optional<signalr::hub_connection> connection;
     std::promise<void> stop_task;
     std::atomic<int> lastProcessedTick{-1};
-    BotAction lastSentAction = BotAction::None;
 };
 

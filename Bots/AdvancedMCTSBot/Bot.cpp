@@ -276,18 +276,6 @@ Bot::Bot() {
             
             chosenActionType = mctsResult.bestAction;
 
-            // If the chosen action is a movement and is the same as last tick, skip sending
-            if ((chosenActionType == BotAction::Up || chosenActionType == BotAction::Down ||
-                 chosenActionType == BotAction::Left || chosenActionType == BotAction::Right) &&
-                chosenActionType == lastSentAction) {
-                auto tickEndTime = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(tickEndTime - tickStartTime);
-                fmt::println("TIMING: Tick {} - SKIPPED (redundant move {}) in {:.3f}ms (conversion: {:.3f}ms, mcts: {:.3f}ms)", 
-                           currentTick, static_cast<int>(chosenActionType), duration.count() / 1000.0, 
-                           conversionDuration.count() / 1000.0, mctsDuration.count() / 1000.0);
-                return; // redundant move
-            }
-
         } catch (const std::exception& e) {
             fmt::println("ERROR during MCTS calculation: {}. Sending default action.", e.what());
         } catch (...) {
@@ -302,9 +290,6 @@ Bot::Bot() {
 
         std::map<std::string, signalr::value> commandMap;
         commandMap["Action"] = signalr::value(static_cast<double>(commandToSend.actionType));
-
-        // Update last sent action only when we actually send
-        lastSentAction = chosenActionType;
         
         // Send the command and record timing when complete
         connection->send("BotCommand", std::vector<signalr::value>{commandMap}, [=](std::exception_ptr exc) {

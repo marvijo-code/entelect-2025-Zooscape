@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using System.Net.Sockets;
+using System.Diagnostics;
 
 namespace HeuroBot;
 
@@ -85,6 +86,10 @@ public class Program
         var botService = new HeuroBotService(Log.Logger);
         BotCommand? command = null;
         
+        // Timing variables for performance monitoring
+        Stopwatch? gameStateStopwatch = null;
+        DateTime? gameStateReceivedTime = null;
+        
         // Game tracking for evolution
         DateTime gameStartTime = DateTime.UtcNow;
         int initialScore = 0;
@@ -95,7 +100,25 @@ public class Program
         connection.On<Guid>("Registered", id => botService.SetBotId(id));
         connection.On<GameState>("GameState", state => 
         {
+            // Start timing when game state is received
+            gameStateReceivedTime = DateTime.UtcNow;
+            gameStateStopwatch = Stopwatch.StartNew();
+            Log.Debug("GameState received at {Timestamp}, starting processing...", gameStateReceivedTime.Value.ToString("HH:mm:ss.fff"));
+            
             command = botService.ProcessState(state);
+            
+            // Log processing time immediately after getting the command
+            gameStateStopwatch.Stop();
+            var processingTimeMs = gameStateStopwatch.ElapsedMilliseconds;
+            Log.Debug("GameState processed in {ProcessingTime}ms, command ready: {Action}", 
+                processingTimeMs, command?.Action ?? BotAction.Up);
+                
+            // Warn if processing took longer than expected (e.g., 50ms for quick decisions)
+            if (processingTimeMs > 50)
+            {
+                Log.Warning("SLOW PROCESSING: GameState processing took {ProcessingTime}ms (>{Threshold}ms)", 
+                    processingTimeMs, 50);
+            }
             
             // Track game performance for evolution
             try
@@ -186,8 +209,31 @@ public class Program
                 && command.Action <= BotAction.Right
             )
             {
+                // Calculate total time from game state received to action sent
+                var totalTimeMs = gameStateReceivedTime.HasValue ? 
+                    (DateTime.UtcNow - gameStateReceivedTime.Value).TotalMilliseconds : -1;
+                
                 await connection.SendAsync("BotCommand", command);
-                Log.Information($"Sent BotCommand: {command.Action}");
+                Log.Debug($"Sent BotCommand: {command.Action} at {DateTime.UtcNow:HH:mm:ss.fff}");
+                
+                if (totalTimeMs >= 0)
+                {
+                    Log.Debug("TOTAL RESPONSE TIME: {TotalTime}ms from GameState received to action sent", totalTimeMs);
+                    
+                    // Warn about potentially problematic response times
+                    if (totalTimeMs > 100)
+                    {
+                        Log.Warning("TIMEOUT RISK: Total response time {TotalTime}ms exceeds 100ms threshold", totalTimeMs);
+                    }
+                    else if (totalTimeMs > 200)
+                    {
+                        Log.Error("CRITICAL TIMEOUT: Total response time {TotalTime}ms exceeds 200ms - bot may be stuck!", totalTimeMs);
+                    }
+                }
+                
+                // Reset timing variables after sending
+                gameStateReceivedTime = null;
+                gameStateStopwatch = null;
             }
             command = null;
             await Task.Delay(100);

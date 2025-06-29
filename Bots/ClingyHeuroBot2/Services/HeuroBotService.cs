@@ -5,6 +5,7 @@ using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 using Serilog.Core; // For Logger.None
+using System.Diagnostics; // Added for timing
 
 namespace ClingyHeuroBot2.Services;
 
@@ -59,6 +60,9 @@ public class HeuroBotService : IBot<HeuroBotService>
         Dictionary<BotAction, decimal> ActionScores
     ) GetActionWithScores(GameState gameState)
     {
+        var totalStopwatch = Stopwatch.StartNew();
+        _logger.Debug("GetActionWithScores started for Bot {BotId}", BotId);
+        
         if (_logger != null && LogHeuristicScores)
         {
             _logger.Information("\n===== Evaluating Potential Moves for Bot {BotId} ====", BotId);
@@ -157,6 +161,9 @@ public class HeuroBotService : IBot<HeuroBotService>
         decimal bestScore = decimal.MinValue;
         var actionScores = new Dictionary<BotAction, decimal>();
         var moveScoreLogs = new List<ScoreLog>();
+
+        var heuristicStopwatch = Stopwatch.StartNew();
+        _logger.Debug("Starting heuristic evaluation loop for {ActionCount} legal actions", legalActions.Count);
 
         foreach (var action in legalActions)
         {
@@ -270,6 +277,17 @@ public class HeuroBotService : IBot<HeuroBotService>
                 bestAction = action;
             }
         }
+        
+        heuristicStopwatch.Stop();
+        var heuristicTimeMs = heuristicStopwatch.ElapsedMilliseconds;
+        _logger.Debug("Heuristic evaluation completed in {ElapsedTime}ms for {ActionCount} actions", 
+            heuristicTimeMs, legalActions.Count);
+            
+        if (heuristicTimeMs > 20)
+        {
+            _logger.Warning("Heuristic evaluation took {ElapsedTime}ms (>{Threshold}ms) for {ActionCount} actions - performance issue detected", 
+                heuristicTimeMs, 20, legalActions.Count);
+        }
 
         if (_logger != null && LogHeuristicScores)
         {
@@ -348,12 +366,39 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         _animalLastDirectionsHistory[animalId] = bestAction; // Update last committed direction
         _previousAction = bestAction;
+
+        totalStopwatch.Stop();
+        var totalTimeMs = totalStopwatch.ElapsedMilliseconds;
+        _logger.Debug("GetActionWithScores completed for Bot {BotId} in {TotalTime}ms, chosen action: {Action}", 
+            BotId, totalTimeMs, bestAction);
+            
+        if (totalTimeMs > 25)
+        {
+            _logger.Warning("GetActionWithScores took {TotalTime}ms (>{Threshold}ms) - potential stuck behavior", 
+                totalTimeMs, 25);
+        }
+
         return (bestAction, actionScores);
     }
 
     public BotCommand ProcessState(GameState state)
     {
+        var stopwatch = Stopwatch.StartNew();
+        _logger.Information("ProcessState started for Bot {BotId}", BotId);
+        
         var action = GetAction(state);
+        
+        stopwatch.Stop();
+        var elapsedMs = stopwatch.ElapsedMilliseconds;
+        _logger.Information("ProcessState completed for Bot {BotId} in {ElapsedTime}ms, action: {Action}", 
+            BotId, elapsedMs, action);
+            
+        if (elapsedMs > 25)
+        {
+            _logger.Warning("ProcessState took {ElapsedTime}ms (>{Threshold}ms) - potential performance issue", 
+                elapsedMs, 25);
+        }
+        
         return new BotCommand { Action = action };
     }
 
