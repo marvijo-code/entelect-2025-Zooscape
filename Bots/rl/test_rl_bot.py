@@ -18,26 +18,26 @@ except ImportError:
     # Fallback for testing
     from rl_agent import RLBotService
 
-class TestGameState:
+class MockGameState:
     """Mock game state class for testing"""
     def __init__(self, data):
         self.TimeStamp = data.get('TimeStamp', '')
         self.Tick = data.get('Tick', 0)
-        self.Cells = [TestCell(cell) for cell in data.get('Cells', [])]
-        self.Animals = [TestAnimal(animal) for animal in data.get('Animals', [])]
-        self.Zookeepers = [TestZookeeper(zk) for zk in data.get('Zookeepers', [])]
+        self.Cells = [MockCell(cell) for cell in data.get('Cells', [])]
+        self.Animals = [MockAnimal(animal) for animal in data.get('Animals', [])]
+        self.Zookeepers = [MockZookeeper(zk) for zk in data.get('Zookeepers', [])]
         
         # Create a mock Map object for compatibility with the RL agent
-        self.Map = TestMap(data.get('Cells', []))
+        self.Map = MockMap(data.get('Cells', []))
 
-class TestCell:
+class MockCell:
     """Mock cell class for testing"""
     def __init__(self, data):
         self.X = data.get('X', 0)
         self.Y = data.get('Y', 0)
         self.Content = data.get('Content', 0)
 
-class TestAnimal:
+class MockAnimal:
     """Mock animal class for testing"""
     def __init__(self, data):
         self.Id = data.get('Id', '')
@@ -47,23 +47,23 @@ class TestAnimal:
         self.CapturedCounter = data.get('CapturedCounter', 0)
         self.Nickname = data.get('Nickname', '')
         self.BotId = "RLBot"  # Set to what the RL agent expects
-        self.Position = TestPosition(self.X, self.Y)
+        self.Position = MockPosition(self.X, self.Y)
 
-class TestZookeeper:
+class MockZookeeper:
     """Mock zookeeper class for testing"""
     def __init__(self, data):
         self.Id = data.get('Id', '')
         self.X = data.get('X', 0)
         self.Y = data.get('Y', 0)
-        self.Position = TestPosition(self.X, self.Y)
+        self.Position = MockPosition(self.X, self.Y)
 
-class TestPosition:
+class MockPosition:
     """Mock position class for testing"""
     def __init__(self, x, y):
         self.X = x
         self.Y = y
 
-class TestMap:
+class MockMap:
     """Mock map class for testing"""
     def __init__(self, cells_data):
         self.cells_2d = {}
@@ -79,24 +79,22 @@ class TestMap:
             
             if y not in self.cells_2d:
                 self.cells_2d[y] = {}
-            self.cells_2d[y][x] = TestCell(cell_data)
+            self.cells_2d[y][x] = MockCell(cell_data)
         
         self.Width = max_x + 1
         self.Height = max_y + 1
     
     @property 
     def Cells(self):
-        """Return 2D array of cells for compatibility"""
+        """Return flat 1D array of cells for compatibility with RL agent"""
         result = []
         for y in range(self.Height):
-            row = []
             for x in range(self.Width):
                 if y in self.cells_2d and x in self.cells_2d[y]:
-                    row.append(self.cells_2d[y][x])
+                    result.append(self.cells_2d[y][x])
                 else:
                     # Create empty cell if not found
-                    row.append(TestCell({'X': x, 'Y': y, 'Content': 0}))
-            result.append(row)
+                    result.append(MockCell({'X': x, 'Y': y, 'Content': 0}))
         return result
 
 def load_game_state(filename):
@@ -113,7 +111,7 @@ def load_game_state(filename):
         if os.path.exists(path):
             with open(path, 'r') as f:
                 data = json.load(f)
-                return TestGameState(data)
+                return MockGameState(data)
     
     raise FileNotFoundError(f"Could not find game state file: {filename}")
 
@@ -162,8 +160,8 @@ class TestRLBot:
         
         # Validate action
         assert action is not None
-        valid_actions = [0, 1, 2, 3, "Up", "Down", "Left", "Right"]
-        assert action in valid_actions or (isinstance(action, int) and 0 <= action <= 3)
+        valid_actions = [1, 2, 3, 4, 5, "Up", "Down", "Left", "Right", "UseItem"]
+        assert action in valid_actions or (isinstance(action, int) and 1 <= action <= 5)
         
         print(f"RL Bot chose action: {action} for game state 162")
     
@@ -190,8 +188,8 @@ class TestRLBot:
             actions.append(action)
             
             # Validate each action
-            valid_actions = [0, 1, 2, 3, "Up", "Down", "Left", "Right"]
-            assert action in valid_actions or (isinstance(action, int) and 0 <= action <= 3)
+            valid_actions = [1, 2, 3, 4, 5, "Up", "Down", "Left", "Right", "UseItem"]
+            assert action in valid_actions or (isinstance(action, int) and 1 <= action <= 5)
         
         print(f"RL Bot actions over 5 runs: {actions}")
     
@@ -215,8 +213,8 @@ class TestRLBot:
                 action = command.Action if hasattr(command, 'Action') else command
             
             # Validate action
-            valid_actions = [0, 1, 2, 3, "Up", "Down", "Left", "Right"]
-            assert action in valid_actions or (isinstance(action, int) and 0 <= action <= 3)
+            valid_actions = [1, 2, 3, 4, 5, "Up", "Down", "Left", "Right", "UseItem"]
+            assert action in valid_actions or (isinstance(action, int) and 1 <= action <= 5)
             
             print(f"Bot ID {bot_id} -> Action: {action}")
 

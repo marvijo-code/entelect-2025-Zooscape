@@ -5,6 +5,33 @@ import os
 import random
 from collections import deque
 
+class CellContent:
+    """Cell content enum - matches C# enum values"""
+    Empty = 0
+    Wall = 1
+    Pellet = 2
+    ZookeeperSpawn = 3
+    AnimalSpawn = 4
+    PowerPellet = 5
+    ChameleonCloak = 6
+    Scavenger = 7
+    BigMooseJuice = 8
+
+class BotAction:
+    """Bot action enum - matches C# enum values"""
+    Up = 1
+    Down = 2
+    Left = 3
+    Right = 4
+    UseItem = 5
+
+class PowerUpType:
+    """Power up type enum - matches C# enum values"""
+    PowerPellet = 0
+    ChameleonCloak = 1
+    Scavenger = 2
+    BigMooseJuice = 3
+
 class StateProcessor:
     """
     Processes the game state into a format suitable for the RL model
@@ -37,7 +64,9 @@ class StateProcessor:
         # Process map cells
         for y in range(min(game_state.Map.Height, self.grid_size)):
             for x in range(min(game_state.Map.Width, self.grid_size)):
-                cell = game_state.Map.Cells[y][x]
+                # Convert 2D index to 1D index for flat cells array
+                cell_index = y * game_state.Map.Width + x
+                cell = game_state.Map.Cells[cell_index]
                 
                 # Walls
                 if cell.Content == CellContent.Wall:
@@ -118,25 +147,27 @@ class StateProcessor:
 
 class RewardCalculator:
     """
-    Calculates rewards for reinforcement learning
+    Calculates rewards for reinforcement learning based on score optimization
     """
     def __init__(self):
-        self.previous_state = None
-        self.previous_pellet_count = 0
-        self.previous_position = None
+        self.previous_score = 0
+        self.previous_tick = 0
         self.capture_count = 0
+        self.game_start_tick = 0
+        self.game_start_score = 0
         
     def calculate_reward(self, game_state):
         """
-        Calculate reward based on game state
+        Calculate reward based on score per tick optimization
         
         Args:
             game_state: GameState object from the engine
             
         Returns:
-            float: Reward value
+            float: Reward value based on score efficiency
         """
         reward = 0.0
+        current_tick = game_state.Tick
         
         # Find our animal
         our_animal = None
@@ -146,48 +177,55 @@ class RewardCalculator:
                 break
         
         if our_animal is None:
-            # We've been captured
+            # We've been captured - major penalty
             self.capture_count += 1
-            return -5.0  # Heavy penalty if we're not in the game
+            return -10.0  # Heavy penalty for being captured
         
-        # Count pellets
-        current_pellet_count = 0
-        for y in range(game_state.Map.Height):
-            for x in range(game_state.Map.Width):
-                if game_state.Map.Cells[y, x].Content == CellContent.Pellet:
-                    current_pellet_count += 1
+        # Get current score
+        current_score = getattr(our_animal, 'Score', 0)
         
-        # Reward for collecting pellets
-        if self.previous_pellet_count > 0:
-            pellets_collected = self.previous_pellet_count - current_pellet_count
-            if pellets_collected > 0:
-                reward += pellets_collected * 1.0
+        # Initialize on first call
+        if self.previous_tick == 0:
+            self.previous_score = current_score
+            self.previous_tick = current_tick
+            self.game_start_tick = current_tick
+            self.game_start_score = current_score
+            return 0.0
         
-        # Penalty for being near zookeepers
-        for zookeeper in game_state.Zookeepers:
-            distance = abs(our_animal.Position.X - zookeeper.Position.X) + \
-                      abs(our_animal.Position.Y - zookeeper.Position.Y)
-            if distance <= 2:
-                reward -= (3 - distance) * 0.5  # Closer zookeepers are worse
+        # Calculate score increase since last action
+        score_increase = current_score - self.previous_score
         
-        # Small reward for exploration (moving to new cells)
-        if self.previous_position is not None:
-            if (our_animal.Position.X != self.previous_position.X or 
-                our_animal.Position.Y != self.previous_position.Y):
-                reward += 0.05
+        # Primary reward: score increase (immediate feedback)
+        reward += score_increase
         
-        # Update previous state
-        self.previous_pellet_count = current_pellet_count
-        self.previous_position = our_animal.Position
+        # Secondary reward: score efficiency (score per tick)
+        # Calculate score per tick for this session
+        if current_tick > self.game_start_tick:
+            ticks_elapsed = current_tick - self.game_start_tick
+            total_score_gained = current_score - self.game_start_score
+            score_per_tick = total_score_gained / ticks_elapsed
+            
+            # Reward for maintaining good score efficiency
+            # Scale by 0.1 to make it a smaller component than immediate score
+            reward += score_per_tick * 0.1
+        
+        # Small penalty for not making progress (encourages action)
+        if score_increase == 0:
+            reward -= 0.01
+        
+        # Update tracking variables
+        self.previous_score = current_score
+        self.previous_tick = current_tick
         
         return reward
     
     def reset(self):
         """Reset the reward calculator for a new episode"""
-        self.previous_state = None
-        self.previous_pellet_count = 0
-        self.previous_position = None
+        self.previous_score = 0
+        self.previous_tick = 0
         self.capture_count = 0
+        self.game_start_tick = 0
+        self.game_start_score = 0
 
 class DQNAgent:
     """
@@ -398,7 +436,7 @@ class SimpleHeuristicFallback:
                 break
         
         if our_animal is None:
-            return random.randint(0, 3)
+            raise ValueError("Could not find our animal with BotId 'RLBot' in the game state")
         
         # Initialize scores for each direction
         scores = [0, 0, 0, 0]  # UP, DOWN, LEFT, RIGHT
@@ -420,13 +458,14 @@ class SimpleHeuristicFallback:
                 scores[i] = -100  # Heavily penalize out of bounds
                 continue
             
-            # Check if wall
-            if game_state.Map.Cells[ny, nx].Content == CellContent.Wall:
+            # Check if wall - convert 2D index to 1D index
+            cell_index = ny * game_state.Map.Width + nx
+            if game_state.Map.Cells[cell_index].Content == CellContent.Wall:
                 scores[i] = -100  # Heavily penalize walls
                 continue
             
-            # Reward for pellets
-            if game_state.Map.Cells[ny, nx].Content == CellContent.Pellet:
+            # Reward for pellets - use the cell_index from above
+            if game_state.Map.Cells[cell_index].Content == CellContent.Pellet:
                 scores[i] += 10
             
             # Penalty for zookeepers
@@ -448,12 +487,13 @@ class SimpleHeuristicFallback:
                     check_x < 0 or check_x >= game_state.Map.Width):
                     break
                 
-                # Check for walls
-                if game_state.Map.Cells[check_y, check_x].Content == CellContent.Wall:
+                # Check for walls - convert 2D index to 1D
+                check_cell_index = check_y * game_state.Map.Width + check_x
+                if game_state.Map.Cells[check_cell_index].Content == CellContent.Wall:
                     break
                 
                 # Reward for pellets (closer ones are better)
-                if game_state.Map.Cells[check_y, check_x].Content == CellContent.Pellet:
+                if game_state.Map.Cells[check_cell_index].Content == CellContent.Pellet:
                     scores[i] += 5 / dist
         
         # Avoid repeating the same action too many times
@@ -465,11 +505,13 @@ class SimpleHeuristicFallback:
             else:
                 self.action_count = 0
         
-        # Choose best action
-        best_action = np.argmax(scores)
-        self.previous_action = best_action
+        # Get best action index and convert to C# BotAction enum values (1-4)
+        best_action_index = np.argmax(scores)
+        self.previous_action = best_action_index
         
-        return best_action
+        # Convert 0-based index to BotAction enum values
+        action_map = {0: BotAction.Up, 1: BotAction.Down, 2: BotAction.Left, 3: BotAction.Right}
+        return action_map[best_action_index]
 
 class RLBotService:
     """

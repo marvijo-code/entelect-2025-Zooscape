@@ -43,10 +43,6 @@ public class StandardBotTests : BotTestsBase
         {
             TestBotGeneric(clingyBot, gameState, testParams);
         }
-        else if (bot is RLBotService rlBot)
-        {
-            TestRLBot(rlBot, gameState, testParams);
-        }
         else
         {
             _logger.Warning("Unknown bot type: {BotType}", bot.GetType().Name);

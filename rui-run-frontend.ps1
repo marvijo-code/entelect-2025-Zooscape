@@ -65,6 +65,8 @@ try {
 
 # Check if project exists
 $ProjectPath = "ZooscapeRunner\ZooscapeRunner\ZooscapeRunner.csproj"
+$SolutionPath = "ZooscapeRunner\ZooscapeRunner.sln"
+
 if (-not (Test-Path $ProjectPath)) {
     Write-Error "❌ ZooscapeRunner project not found at: $ProjectPath"
     Write-Host "📁 Current directory contents:" -ForegroundColor Yellow
@@ -72,7 +74,15 @@ if (-not (Test-Path $ProjectPath)) {
     exit 1
 }
 
+if (-not (Test-Path $SolutionPath)) {
+    Write-Error "❌ ZooscapeRunner solution not found at: $SolutionPath"
+    Write-Host "📁 Current directory contents:" -ForegroundColor Yellow
+    Get-ChildItem | Format-Table Name, LastWriteTime -AutoSize
+    exit 1
+}
+
 Write-Host "✅ Found ZooscapeRunner project: $ProjectPath" -ForegroundColor Green
+Write-Host "✅ Found ZooscapeRunner solution: $SolutionPath" -ForegroundColor Green
 
 # Function to run dotnet command with proper error handling
 function Invoke-DotNetCommand {
@@ -104,20 +114,20 @@ try {
     # Clean build if requested
     if ($Clean) {
         Write-Host "🧹 Cleaning solution..." -ForegroundColor Yellow
-        if (-not (Invoke-DotNetCommand "clean ZooscapeRunner.sln --configuration $Configuration" "Clean")) {
+        if (-not (Invoke-DotNetCommand "clean `"$SolutionPath`" --configuration $Configuration" "Clean")) {
             throw "Clean operation failed"
         }
     }
 
     # Restore packages
     Write-Host "📦 Restoring NuGet packages..." -ForegroundColor Yellow
-    if (-not (Invoke-DotNetCommand "restore ZooscapeRunner.sln" "Package restore")) {
+    if (-not (Invoke-DotNetCommand "restore `"$SolutionPath`"" "Package restore")) {
         throw "Package restore failed"
     }
 
     # Build the application
     Write-Host "🔨 Building ZooscapeRunner..." -ForegroundColor Yellow
-    if (-not (Invoke-DotNetCommand "build ZooscapeRunner.sln --configuration $Configuration --no-restore" "Build")) {
+    if (-not (Invoke-DotNetCommand "build `"$SolutionPath`" --configuration $Configuration --no-restore" "Build")) {
         throw "Build failed"
     }
 
@@ -139,7 +149,7 @@ FEATURES AVAILABLE:
     Write-Host "▶️  Launching application..." -ForegroundColor Cyan
     
     # Use Start-Process to run the GUI application without blocking the PowerShell window
-    $AppPath = "ZooscapeRunner\bin\$Configuration\net8.0-windows10.0.19041.0\ZooscapeRunner.exe"
+    $AppPath = "ZooscapeRunner\ZooscapeRunner\bin\$Configuration\net8.0-windows10.0.19041.0\ZooscapeRunner.exe"
     
     if (Test-Path $AppPath) {
         Write-Host "✅ Found application executable: $AppPath" -ForegroundColor Green
@@ -173,7 +183,7 @@ FEATURES AVAILABLE:
         Write-Host "⚠️  Executable not found, using 'dotnet run' instead..." -ForegroundColor Yellow
         Write-Host "🚀 Starting with dotnet run..." -ForegroundColor Cyan
         
-        Set-Location "ZooscapeRunner"
+        Set-Location "ZooscapeRunner\ZooscapeRunner"
         
         # Use dotnet run for development
         Write-Host "▶️  Running: dotnet run --project ZooscapeRunner.csproj --configuration $Configuration" -ForegroundColor DarkGray

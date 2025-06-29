@@ -93,10 +93,10 @@ def main():
             action = command.Action if hasattr(command, 'Action') else command
         else:
             # Fallback
-            action = 0  # Up
+            action = 1  # Up (using C# BotAction enum value)
         
-        # Convert action to string
-        action_names = {0: "Up", 1: "Down", 2: "Left", 3: "Right"}
+        # Convert action to string - using C# BotAction enum values
+        action_names = {1: "Up", 2: "Down", 3: "Left", 4: "Right", 5: "UseItem"}
         if isinstance(action, int):
             action_str = action_names.get(action, "Up")
         else:
