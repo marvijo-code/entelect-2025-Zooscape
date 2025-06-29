@@ -127,9 +127,10 @@ $engineDir = Split-Path -Parent $engineCsproj
 
 $bots = @(
     @{ Name = "ClingyHeuroBot2"; Path = "Bots\ClingyHeuroBot2\ClingyHeuroBot2.csproj"; Language = "csharp" },
-    @{ Name = "ReferenceBot"; Path = "engine\ReferenceBot\ReferenceBot.csproj"; Language = "csharp" },
-    @{ Name = "RLPlayBot"; Path = "Bots\rl"; Language = "python" },
-    # @{ Name = "AdvancedMCTSBot"; Path = "Bots\AdvancedMCTSBot"; Language = "cpp" },
+    @{ Name = "ClingyHeuroBotExp"; Path = "Bots\ClingyHeuroBotExp\ClingyHeuroBotExp.csproj"; Language = "csharp" },
+    # @{ Name = "ReferenceBot"; Path = "engine\ReferenceBot\ReferenceBot.csproj"; Language = "csharp" },
+    # @{ Name = "RLPlayBot"; Path = "Bots\rl"; Language = "python" },
+    @{ Name = "AdvancedMCTSBot"; Path = "Bots\AdvancedMCTSBot"; Language = "cpp" },
     # @{ Name = "DeepMCTS"; Path = "Bots\DeepMCTS\DeepMCTS.csproj"; Language = "csharp" },
     # @{ Name = "MCTSo4"; Path = "Bots\MCTSo4\MCTSo4.csproj"; Language = "csharp" },
     @{ Name = "ClingyHeuroBot"; Path = "Bots\ClingyHeuroBot\ClingyHeuroBot.csproj"; Language = "csharp" }

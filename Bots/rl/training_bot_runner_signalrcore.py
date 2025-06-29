@@ -34,17 +34,20 @@ class RLBotSignalRCore:
             self.connection.on_close(self._on_disconnect)
             self.connection.on_error(self._on_error)
             
-            # Set up game state handler
-            self.connection.on("ReceiveGameState", self._on_receive_game_state)
+            # Set up game state handler (match C# bot event names)
+            self.connection.on("GameState", self._on_receive_game_state)
             self.connection.on("Registered", self._on_registered)
+            self.connection.on("Disconnect", self._on_disconnect_reason)
             
             # Start the connection
             self.connection.start()
             print("Connected to SignalR hub: {}".format(hub_url))
             
-            # Register the bot
-            self.connection.send("Register", [self.bot_id])
-            print("Registration message sent for bot: {}".format(self.bot_id))
+            # Register the bot with token and nickname (like C# bots do)
+            import uuid
+            token = str(uuid.uuid4())
+            self.connection.send("Register", [token, self.bot_id])
+            print("Registration message sent for bot: {} with token: {}".format(self.bot_id, token))
             
             self.connected = True
             return True
@@ -69,7 +72,12 @@ class RLBotSignalRCore:
 
     def _on_registered(self, bot_id):
         """Called when bot registration is confirmed"""
-        print("Bot successfully registered: {}".format(bot_id))
+        print("Bot successfully registered with ID: {}".format(bot_id))
+    
+    def _on_disconnect_reason(self, reason):
+        """Called when server sends disconnect"""
+        print("Server disconnect reason: {}".format(reason))
+        self.connected = False
 
     def _on_receive_game_state(self, game_state_json):
         """Called when game state is received"""
@@ -86,14 +94,22 @@ class RLBotSignalRCore:
             # Get action from RL agent
             action = self.rl_service.get_next_action(game_state)
             
-            # Send action back to server
-            self.connection.send("SendAction", [self.bot_id, action.value])
+            # Create BotCommand object and send (like C# bots do)
+            bot_command = {
+                "BotId": self.bot_id,
+                "Action": action.value
+            }
+            self.connection.send("BotCommand", [bot_command])
             
         except Exception as e:
             print("Error processing game state: {}".format(e))
             # Send default action on error
             try:
-                self.connection.send("SendAction", [self.bot_id, 1])
+                bot_command = {
+                    "BotId": self.bot_id,
+                    "Action": 1  # UP action
+                }
+                self.connection.send("BotCommand", [bot_command])
             except Exception:
                 pass
 
