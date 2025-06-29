@@ -1,0 +1,5 @@
+# High Scores for Evolved ClingyHeuroBot2
+# Format: [Timestamp] Gen:XXXX | ID:individual-id | Score:XXXX | Fitness:XX.XX | Survival:XXXs | Captures:X | Rank:X/X | Method:EvolutionMethod
+# Generated automatically by the Genetic Algorithm Evolution System
+
+[2025-01-27 00:00:00] Gen:0000 | ID:00000000-0000-0000-0000-000000000000 | Score:0 | Fitness:0.00 | Survival:0.0s | Captures:0 | Rank:1/1 | Method:Initial 

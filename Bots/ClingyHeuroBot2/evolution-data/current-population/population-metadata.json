@@ -1,0 +1,20 @@
+{
+  "Generation": 0,
+  "MaxSize": 20,
+  "CreatedAt": "2025-06-29T19:53:45.6724184Z",
+  "LastEvolvedAt": "2025-06-29T19:53:45.7987272Z",
+  "Statistics": {
+    "Generation": 0,
+    "PopulationSize": 20,
+    "MaxSize": 20,
+    "AverageFitness": 0,
+    "BestFitness": 0,
+    "WorstFitness": 0,
+    "FitnessStandardDeviation": 0,
+    "PopulationDiversity": 18.324133957315716,
+    "AverageAge": 0,
+    "OldestAge": 0,
+    "TotalGamesPlayed": 0,
+    "LastEvolvedAt": "2025-06-29T19:53:45.7987272Z"
+  }
+}

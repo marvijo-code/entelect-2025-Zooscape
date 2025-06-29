@@ -1,3 +1,4 @@
+using ClingyHeuroBot2;
 using ClingyHeuroBot2.Services;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
@@ -76,16 +77,70 @@ public class Program
             .WithAutomaticReconnect()
             .Build();
 
+        // Initialize evolution system
+        var evolutionCoordinator = EvolutionCoordinator.Instance;
+        var individualId = evolutionCoordinator.RegisterBot(botNickname);
+        Log.Information($"Bot '{botNickname}' registered with individual ID: {individualId}");
+
         var botService = new HeuroBotService(Log.Logger);
         BotCommand? command = null;
+        
+        // Game tracking for evolution
+        DateTime gameStartTime = DateTime.UtcNow;
+        int initialScore = 0;
+        int finalScore = 0;
+        int currentRank = 1;
+        int totalPlayers = 1;
 
         connection.On<Guid>("Registered", id => botService.SetBotId(id));
-        connection.On<GameState>("GameState", state => command = botService.ProcessState(state));
+        connection.On<GameState>("GameState", state => 
+        {
+            command = botService.ProcessState(state);
+            
+            // Track game performance for evolution
+            try
+            {
+                var myAnimal = state.Animals.FirstOrDefault(a => a.Id == botService.BotId);
+                if (myAnimal != null)
+                {
+                    finalScore = myAnimal.Score;
+                    totalPlayers = state.Animals.Count;
+                    
+                    // Calculate rank (1 = best)
+                    var sortedByScore = state.Animals.OrderByDescending(a => a.Score).ToList();
+                    currentRank = sortedByScore.FindIndex(a => a.Id == botService.BotId) + 1;
+                    
+                    // Reset game start time if this is a new game (score reset)
+                    if (myAnimal.Score < initialScore)
+                    {
+                        gameStartTime = DateTime.UtcNow;
+                        initialScore = myAnimal.Score;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"Error tracking game performance: {ex.Message}");
+            }
+        });
         connection.On<string>(
             "Disconnect",
             async reason =>
             {
                 Log.Information($"Disconnected: {reason}");
+                
+                // Record game performance before disconnecting
+                try
+                {
+                    var gameTime = DateTime.UtcNow - gameStartTime;
+                    await evolutionCoordinator.RecordPerformanceAsync(botNickname, finalScore, gameTime, currentRank, totalPlayers);
+                    Log.Information($"Game performance recorded: Score={finalScore}, Rank={currentRank}/{totalPlayers}, Time={gameTime.TotalSeconds:F1}s");
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning($"Failed to record game performance: {ex.Message}");
+                }
+                
                 await connection.StopAsync();
             }
         );

@@ -242,23 +242,49 @@ Bot::Bot() {
 
     if (connection) {
         connection->on("GameState", [this](const std::vector<signalr::value>& args) {
+        // Record timing: Start of tick processing
+        auto tickStartTime = std::chrono::high_resolution_clock::now();
+        
         BotAction chosenActionType = BotAction::None; // Default/fallback action
+        int currentTick = -1;
+        
+        // Initialize timing variables with defaults
+        auto conversionDuration = std::chrono::microseconds(0);
+        auto mctsDuration = std::chrono::microseconds(0);
 
         try {
+            auto conversionStartTime = std::chrono::high_resolution_clock::now();
             GameState gameState = convertGameState(args);
-            int currentTick = gameState.tick;
+            auto conversionEndTime = std::chrono::high_resolution_clock::now();
+            conversionDuration = std::chrono::duration_cast<std::chrono::microseconds>(conversionEndTime - conversionStartTime);
+            
+            currentTick = gameState.tick;
             // Ensure we process at most one action per game tick
             if (currentTick == lastProcessedTick.load()) {
+                auto tickEndTime = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(tickEndTime - tickStartTime);
+                fmt::println("TIMING: Tick {} - SKIPPED (already processed) in {:.3f}ms (conversion: {:.3f}ms)", 
+                           currentTick, duration.count() / 1000.0, conversionDuration.count() / 1000.0);
                 return; // already handled this tick
             }
             lastProcessedTick = currentTick;
+            
+            auto mctsStartTime = std::chrono::high_resolution_clock::now();
             MCTSResult mctsResult = mctsService->GetBestAction(gameState);
+            auto mctsEndTime = std::chrono::high_resolution_clock::now();
+            mctsDuration = std::chrono::duration_cast<std::chrono::microseconds>(mctsEndTime - mctsStartTime);
+            
             chosenActionType = mctsResult.bestAction;
 
             // If the chosen action is a movement and is the same as last tick, skip sending
             if ((chosenActionType == BotAction::Up || chosenActionType == BotAction::Down ||
                  chosenActionType == BotAction::Left || chosenActionType == BotAction::Right) &&
                 chosenActionType == lastSentAction) {
+                auto tickEndTime = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(tickEndTime - tickStartTime);
+                fmt::println("TIMING: Tick {} - SKIPPED (redundant move {}) in {:.3f}ms (conversion: {:.3f}ms, mcts: {:.3f}ms)", 
+                           currentTick, static_cast<int>(chosenActionType), duration.count() / 1000.0, 
+                           conversionDuration.count() / 1000.0, mctsDuration.count() / 1000.0);
                 return; // redundant move
             }
 
@@ -279,7 +305,21 @@ Bot::Bot() {
 
         // Update last sent action only when we actually send
         lastSentAction = chosenActionType;
-        connection->send("BotCommand", std::vector<signalr::value>{commandMap}, [](std::exception_ptr exc) {
+        
+        // Send the command and record timing when complete
+        connection->send("BotCommand", std::vector<signalr::value>{commandMap}, [=](std::exception_ptr exc) {
+            // Record timing: End of tick processing (action sent)
+            auto tickEndTime = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(tickEndTime - tickStartTime);
+            
+            fmt::println("TIMING: Tick {} - Action {} sent in {:.3f}ms (conversion: {:.3f}ms, mcts: {:.3f}ms, send: {:.3f}ms)", 
+                        currentTick, 
+                        static_cast<int>(chosenActionType), 
+                        duration.count() / 1000.0,
+                        conversionDuration.count() / 1000.0,
+                        mctsDuration.count() / 1000.0,
+                        (duration - conversionDuration - mctsDuration).count() / 1000.0);
+            
             handleExceptionPtr("BotCommand", exc);
         });
     });
