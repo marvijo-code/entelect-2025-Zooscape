@@ -22,6 +22,9 @@ namespace ZooscapeRunner.ViewModels
         public RelayCommand StartVisualizerCommand { get; }
         public RelayCommand StopVisualizerCommand { get; }
 
+        // Event to notify UI when StartAll begins
+        public event Action StartAllBegun;
+
         public string AutoRestartText
         {
             get => _autoRestartText;
@@ -124,6 +127,9 @@ namespace ZooscapeRunner.ViewModels
                 Console.WriteLine($"ProcessManager has {_processManager.GetProcesses().Count()} processes");
                 
                 AutoRestartText = "Starting all processes...";
+                
+                // Notify UI that StartAll has begun so it can auto-select a process for log viewing
+                StartAllBegun?.Invoke();
                 
                 await _processManager.StartAllAsync();
                 _processManager.StartAutoRestart();

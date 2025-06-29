@@ -90,8 +90,8 @@ namespace ZooscapeRunner
                 
                 // Show processes in logs with colored text
                 var processNames = string.Join(", ", ViewModel.Processes.Select(p => p.Name));
-                AddColoredLogText($"Application Initialized Successfully!\n\nLoaded Processes ({ViewModel.Processes.Count}):\n{processNames}\n\nClick 'Start All Bots' to begin building and running processes.", Colors.Green);
-                LogsHeaderText.Text = "📱 Application Status";
+                AddColoredLogText($"🚀 Zooscape Runner Initialized Successfully!\n\n📋 Loaded Processes ({ViewModel.Processes.Count}):\n{processNames}\n\n💡 Quick Start:\n1. Click '▶️ Start All Bots' to begin building and running all processes\n2. Logs will appear here automatically during build and execution\n3. Select any process above to view its specific logs\n4. Use '📊 Start Visualizer' to launch the game visualizer\n\n⏳ Ready to start when you are!", Colors.LightBlue);
+                LogsHeaderText.Text = "📱 Application Ready";
                 
                 // Set up command handlers for toggle buttons with a small delay to ensure UI is loaded
                 DispatcherQueue.TryEnqueue(() =>
@@ -122,6 +122,9 @@ namespace ZooscapeRunner
             {
                 process.PropertyChanged += Process_PropertyChanged;
             }
+            
+            // Subscribe to StartAllBegun event to auto-select process for log viewing
+            ViewModel.StartAllBegun += OnStartAllBegun;
         }
 
         private void Process_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -495,6 +498,42 @@ namespace ZooscapeRunner
                 string errorMessage = $"Failed to open visualizer in browser.\n\nYou can manually open: http://localhost:5252\n\nError: {ex.Message}";
                 AddColoredLogText(errorMessage, Colors.Red);
                 LogsHeaderText.Text = "❌ Browser Launch Error";
+            }
+        }
+
+        private void OnStartAllBegun()
+        {
+            try
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    // Auto-select the Zooscape Engine process (or first process) for log viewing
+                    var engineProcess = ViewModel.Processes.FirstOrDefault(p => p.Name == "Zooscape Engine");
+                    var processToSelect = engineProcess ?? ViewModel.Processes.FirstOrDefault();
+                    
+                    if (processToSelect != null)
+                    {
+                        Console.WriteLine($"Auto-selecting process for log viewing: {processToSelect.Name}");
+                        Debug.WriteLine($"Auto-selecting process for log viewing: {processToSelect.Name}");
+                        
+                        // Select the process in the ListView
+                        ProcessListView.SelectedItem = processToSelect;
+                        
+                        // Show logs for the selected process
+                        ShowLogsForProcess(processToSelect);
+                        
+                        // Ensure logs panel is visible
+                        if (!_isLogsVisible)
+                        {
+                            ToggleLogsVisibility();
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"OnStartAllBegun failed: {ex}");
+                Console.WriteLine($"OnStartAllBegun failed: {ex}");
             }
         }
     }
