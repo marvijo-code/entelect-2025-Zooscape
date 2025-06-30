@@ -36,12 +36,12 @@ public class EvolutionCoordinator
             initTask.Wait(TimeSpan.FromSeconds(10)); // Wait up to 10 seconds for initialization
             Console.WriteLine("Evolution system initialized successfully!");
             
-            // Start the evolution process in background
+            // Start the evolution process in background (now waits for performance data)
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    Console.WriteLine("Starting evolution process...");
+                    Console.WriteLine("Starting evolution process - will wait for game performance data...");
                     await StartEvolutionProcessAsync();
                 }
                 catch (Exception ex)
@@ -65,7 +65,7 @@ public class EvolutionCoordinator
     }
 
     /// <summary>
-    /// Starts the evolution process in the background
+    /// Starts the evolution process in the background - now waits for performance data
     /// </summary>
     private async Task StartEvolutionProcessAsync()
     {
@@ -75,7 +75,7 @@ public class EvolutionCoordinator
                 return;
                 
             _isEvolutionRunning = true;
-            Console.WriteLine("Evolution process started in background");
+            Console.WriteLine("Evolution process started - waiting for game performance data");
             
             // Start evolution with a cancellation token for graceful shutdown
             var cts = new CancellationTokenSource();
@@ -330,6 +330,22 @@ public class EvolutionCoordinator
     /// Gets the current population
     /// </summary>
     public Population CurrentPopulation => _evolutionManager.CurrentPopulation;
+
+    /// <summary>
+    /// Exports the best individuals to a committable file
+    /// </summary>
+    public async Task ExportBestIndividualsAsync(int count = 5)
+    {
+        try
+        {
+            await _evolutionManager.ExportBestIndividualsAsync(count);
+            Console.WriteLine($"Exported top {count} individuals to best-individuals.json");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting best individuals: {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// Prints current evolution statistics to console

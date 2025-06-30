@@ -8,7 +8,7 @@ MctsService::MctsService(int maxIterations, int timeLimit, int numThreads, int m
     }
 
     mctsEngine = std::make_unique<MCTSEngine>(
-        2.0, // Increased exploration constant for better exploration
+        1.8, // Balanced exploration for pellet-focused strategy
         maxIterations,
         maxDepth,
         timeLimit,

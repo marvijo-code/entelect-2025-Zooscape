@@ -18,13 +18,21 @@ public class Program
     public static async Task Main(string[] args)
     {
         Console.WriteLine("TEST: Program.Main has started.");
-        // Configure Serilog
+        
+        // Configure Serilog first
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Information()
             .WriteTo.Console()
             .CreateLogger();
 
         Log.Information("TEST: Serilog configured and attempting to log to console.");
+        
+        // Check if we should just export best individuals
+        if (args.Length > 0 && args[0] == "--export-best")
+        {
+            await ExportBestIndividuals();
+            return;
+        }
 
         try
         {
@@ -143,21 +151,25 @@ public class Program
             // Track game performance for evolution
             try
             {
-                var myAnimal = state.Animals.FirstOrDefault(a => a.Id == botService.BotId);
-                if (myAnimal != null)
+                // Only track performance if bot is registered and has valid ID
+                if (botService.BotId != Guid.Empty && state.Animals != null)
                 {
-                    finalScore = myAnimal.Score;
-                    totalPlayers = state.Animals.Count;
-                    
-                    // Calculate rank (1 = best)
-                    var sortedByScore = state.Animals.OrderByDescending(a => a.Score).ToList();
-                    currentRank = sortedByScore.FindIndex(a => a.Id == botService.BotId) + 1;
-                    
-                    // Reset game start time if this is a new game (score reset)
-                    if (myAnimal.Score < initialScore)
+                    var myAnimal = state.Animals.FirstOrDefault(a => a.Id == botService.BotId);
+                    if (myAnimal != null)
                     {
-                        gameStartTime = DateTime.UtcNow;
-                        initialScore = myAnimal.Score;
+                        finalScore = myAnimal.Score;
+                        totalPlayers = state.Animals.Count;
+                        
+                        // Calculate rank (1 = best)
+                        var sortedByScore = state.Animals.OrderByDescending(a => a.Score).ToList();
+                        currentRank = sortedByScore.FindIndex(a => a.Id == botService.BotId) + 1;
+                        
+                        // Reset game start time if this is a new game (score reset)
+                        if (myAnimal.Score < initialScore)
+                        {
+                            gameStartTime = DateTime.UtcNow;
+                            initialScore = myAnimal.Score;
+                        }
                     }
                 }
             }
@@ -166,18 +178,36 @@ public class Program
                 Log.Warning($"Error tracking game performance: {ex.Message}");
             }
         });
+        // Handler for game completion
+        connection.On<int, int>("EndGame", async (seed, totalTicks) =>
+        {
+            Log.Information($"EndGame received: Seed={seed}, TotalTicks={totalTicks}");
+            
+            // Record game performance when game ends
+            try
+            {
+                var gameTime = DateTime.UtcNow - gameStartTime;
+                await evolutionCoordinator.RecordPerformanceAsync(botNickname, finalScore, gameTime, currentRank, totalPlayers);
+                Log.Information($"Game performance recorded: Score={finalScore}, Rank={currentRank}/{totalPlayers}, Time={gameTime.TotalSeconds:F1}s, TotalTicks={totalTicks}");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"Failed to record game performance: {ex.Message}");
+            }
+        });
+        
         connection.On<string>(
             "Disconnect",
             async reason =>
             {
                 Log.Information($"Disconnected: {reason}");
                 
-                // Record game performance before disconnecting
+                // Record game performance before disconnecting (backup in case EndGame wasn't called)
                 try
                 {
                     var gameTime = DateTime.UtcNow - gameStartTime;
                     await evolutionCoordinator.RecordPerformanceAsync(botNickname, finalScore, gameTime, currentRank, totalPlayers);
-                    Log.Information($"Game performance recorded: Score={finalScore}, Rank={currentRank}/{totalPlayers}, Time={gameTime.TotalSeconds:F1}s");
+                    Log.Information($"Game performance recorded on disconnect: Score={finalScore}, Rank={currentRank}/{totalPlayers}, Time={gameTime.TotalSeconds:F1}s");
                 }
                 catch (Exception ex)
                 {
@@ -268,6 +298,40 @@ public class Program
         finally
         {
             Log.CloseAndFlush();
+        }
+    }
+
+    /// <summary>
+    /// Exports the best individuals from current evolution data
+    /// </summary>
+    private static async Task ExportBestIndividuals()
+    {
+        try
+        {
+            Console.WriteLine("Exporting best individuals from current evolution data...");
+            
+            var coordinator = EvolutionCoordinator.Instance;
+            
+            // Give the system a moment to initialize
+            await Task.Delay(2000);
+            
+            var stats = coordinator.GetStatistics();
+            Console.WriteLine($"Current generation: {stats.Generation}");
+            Console.WriteLine($"Population size: {stats.PopulationStatistics.PopulationSize}");
+            Console.WriteLine($"Best fitness: {stats.PopulationStatistics.BestFitness:F2}");
+            
+            // Export top 5 individuals
+            await coordinator.ExportBestIndividualsAsync(5);
+            
+            Console.WriteLine("Export complete!");
+            Console.WriteLine("Files created:");
+            Console.WriteLine("- best-individuals.json (for git)");
+            Console.WriteLine("- best-individuals-genXXXX-timestamp.json (backup)");
+            
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
         }
     }
 }

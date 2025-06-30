@@ -34,7 +34,16 @@ public class HeuristicsManager
     public HeuristicsManager(ILogger logger, HeuristicWeights weights)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _weights = weights ?? throw new ArgumentNullException(nameof(weights));
+        
+        if (weights == null)
+        {
+            Console.WriteLine("ERROR: HeuristicsManager received null weights! Creating default weights.");
+            _weights = new HeuristicWeights();
+        }
+        else
+        {
+            _weights = weights;
+        }
 
         _heuristics =
         [

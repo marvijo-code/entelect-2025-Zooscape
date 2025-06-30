@@ -25,6 +25,18 @@ public static class WeightManager
         {
             try
             {
+                // Ensure static weights are loaded first (thread-safe)
+                lock (_lock)
+                {
+                    if (_staticWeights == null)
+                    {
+                        LoadStaticWeights();
+                    }
+                }
+
+                // Always ensure we have valid fallback weights first
+                var fallbackWeights = _staticWeights ?? new HeuristicWeights();
+
                 // Check if we need to update weights
                 if (DateTime.UtcNow - _lastWeightsUpdate > _updateInterval)
                 {
@@ -50,15 +62,20 @@ public static class WeightManager
                 }
 
                 // Fallback to static weights if evolution system isn't available
-                var fallbackWeights = _staticWeights ?? new HeuristicWeights();
                 Console.WriteLine("Using fallback weights - evolution system not ready yet");
                 return fallbackWeights;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error getting evolved weights, using static weights: {ex.Message}");
-                var safeWeights = _staticWeights ?? new HeuristicWeights();
-                return safeWeights;
+                Console.WriteLine($"Error getting evolved weights, using fallback: {ex.Message}");
+                // Ensure we NEVER return null - create a new instance if needed
+                var fallback = _staticWeights ?? new HeuristicWeights();
+                if (fallback == null) // Extra paranoid check
+                {
+                    Console.WriteLine("CRITICAL: Creating emergency default weights!");
+                    fallback = new HeuristicWeights();
+                }
+                return fallback;
             }
         }
     }

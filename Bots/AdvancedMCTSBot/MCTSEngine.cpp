@@ -6,8 +6,139 @@
 #include <future>
 #include <iostream>
 #include <random>
+#include <sstream>
+#include <functional>
 
 thread_local std::mt19937 MCTSEngine::rng(static_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count()));
+
+// Modern MCTS Enhancement Implementations
+
+// TranspositionTable Implementation
+std::shared_ptr<MCTSNode> TranspositionTable::lookup(const std::string& stateHash) {
+    std::lock_guard<std::mutex> lock(tableMutex);
+    auto it = table.find(stateHash);
+    if (it != table.end()) {
+        it->second.lastAccessed = std::chrono::steady_clock::now();
+        return it->second.node.lock(); // May return nullptr if expired
+    }
+    return nullptr;
+}
+
+void TranspositionTable::store(const std::string& stateHash, std::shared_ptr<MCTSNode> node) {
+    std::lock_guard<std::mutex> lock(tableMutex);
+    if (table.size() >= maxSize) {
+        cleanup();
+    }
+    table[stateHash] = {stateHash, node, node->getVisits(), node->getAverageReward(), 
+                       std::chrono::steady_clock::now()};
+}
+
+void TranspositionTable::cleanup() {
+    auto now = std::chrono::steady_clock::now();
+    auto it = table.begin();
+    while (it != table.end()) {
+        if (it->second.node.expired() || 
+            std::chrono::duration_cast<std::chrono::minutes>(now - it->second.lastAccessed).count() > 5) {
+            it = table.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+// VirtualLoss Implementation
+void VirtualLoss::addVirtualLoss(MCTSNode* node) {
+    std::lock_guard<std::mutex> lock(lossMapMutex);
+    auto& atomicValue = virtualLosses[node];
+    double currentValue = atomicValue.load();
+    atomicValue.store(currentValue + virtualLossValue);
+}
+
+void VirtualLoss::removeVirtualLoss(MCTSNode* node) {
+    std::lock_guard<std::mutex> lock(lossMapMutex);
+    auto it = virtualLosses.find(node);
+    if (it != virtualLosses.end()) {
+        double currentValue = it->second.load();
+        double newValue = currentValue - virtualLossValue;
+        if (newValue <= 0) {
+            virtualLosses.erase(it);
+        } else {
+            it->second.store(newValue);
+        }
+    }
+}
+
+double VirtualLoss::getVirtualLoss(MCTSNode* node) const {
+    std::lock_guard<std::mutex> lock(lossMapMutex);
+    auto it = virtualLosses.find(node);
+    return it != virtualLosses.end() ? it->second.load() : 0.0;
+}
+
+// AMAF Implementation
+void AMAF::updateAMAF(const std::vector<BotAction>& sequence, double finalReward) {
+    std::lock_guard<std::mutex> lock(statsMutex);
+    for (BotAction action : sequence) {
+        auto& stats = globalStats[action];
+        double currentReward = stats.totalReward.load();
+        stats.totalReward.store(currentReward + finalReward);
+        int currentVisits = stats.visits.load();
+        stats.visits.store(currentVisits + 1);
+    }
+}
+
+double AMAF::getAMAFValue(BotAction action) const {
+    std::lock_guard<std::mutex> lock(statsMutex);
+    auto it = globalStats.find(action);
+    if (it != globalStats.end() && it->second.visits > 0) {
+        return it->second.totalReward / it->second.visits;
+    }
+    return 0.0;
+}
+
+double AMAF::combinedValue(double mctsValue, BotAction action, int mctsVisits) const {
+    double amafValue = getAMAFValue(action);
+    if (mctsVisits == 0) return amafValue;
+    
+    double combinationWeight = mctsVisits / (mctsVisits + beta * mctsVisits + beta);
+    return combinationWeight * mctsValue + (1 - combinationWeight) * amafValue;
+}
+
+// Enhanced Bandit Algorithm Implementations
+double EnhancedUCB1::calculateValue(const MCTSNode* node, const MCTSNode* parent) const {
+    if (node->getVisits() == 0) {
+        return std::numeric_limits<double>::infinity();
+    }
+    
+    double exploitation = node->getAverageReward();
+    double exploration = explorationConstant * std::sqrt(std::log(parent->getVisits()) / node->getVisits());
+    
+    // Progressive bias based on domain knowledge
+    double bias = 0.0;
+    if (progressiveBiasWeight > 0.0) {
+        // Add heuristic-based bias that decreases with visits
+        const GameState& state = node->getGameState();
+        // Simple heuristic: prefer actions that lead to better positions
+        bias = progressiveBiasWeight / (1.0 + node->getVisits() * 0.1);
+    }
+    
+    return exploitation + exploration + bias;
+}
+
+double UCB_V::calculateValue(const MCTSNode* node, const MCTSNode* parent) const {
+    if (node->getVisits() == 0) {
+        return std::numeric_limits<double>::infinity();
+    }
+    
+    double exploitation = node->getAverageReward();
+    double variance = node->getRewardVariance();
+    double logParentVisits = std::log(parent->getVisits());
+    double nodeVisits = node->getVisits();
+    
+    double exploration = explorationConstant * std::sqrt(logParentVisits / nodeVisits);
+    double varianceTerm = std::sqrt(variance * logParentVisits / nodeVisits);
+    
+    return exploitation + exploration + varianceScale * varianceTerm;
+}
 
 MCTSEngine::MCTSEngine(double explorationConstant, int maxIterations, int maxSimulationDepth, 
                        int timeLimit, int numThreads)
@@ -19,18 +150,176 @@ MCTSEngine::MCTSEngine(double explorationConstant, int maxIterations, int maxSim
     , shouldStop(false)
     , totalSimulations(0)
     , totalExpansions(0)
-    , heuristicsEngine(false) { // Initialize HeuristicsEngine
+    , heuristicsEngine(false)
+    , useTranspositionTable(true)
+    , useVirtualLoss(true)
+    , useAMAF(true)
+    , useProgressiveWidening(false)
+    , useRAVE(true)
+    , heuristicWeight(0.5) {
     
     heuristicsEngine.loadBalancedPreset();
+    
+    // Initialize modern MCTS enhancements
+    transpositionTable = std::make_unique<TranspositionTable>(50000);
+    virtualLoss = std::make_unique<VirtualLoss>(5.0);
+    amaf = std::make_unique<AMAF>(0.3);
+    banditAlgorithm = std::make_unique<UCB_V>(1.0, 0.25); // Default to UCB-V
 }
 
 MCTSEngine::~MCTSEngine() {
     shouldStop = true;
 }
 
+std::string MCTSEngine::hashGameState(const GameState& state, const std::string& playerId) const {
+    std::ostringstream oss;
+    
+    // Hash key game state components
+    oss << "tick:" << state.tick << "|";
+    oss << "player:" << playerId << "|";
+    
+    // Player position and state
+    const Animal* animal = state.getAnimal(playerId);
+    if (animal) {
+        oss << "pos:" << animal->position.x << "," << animal->position.y << "|";
+        oss << "score:" << animal->score << "|";
+        oss << "streak:" << animal->scoreStreak << "|";
+        oss << "lastPellet:" << animal->ticksSinceLastPellet << "|";
+        oss << "powerUp:" << static_cast<int>(animal->heldPowerUp) << "|";
+        oss << "powerUpDur:" << animal->powerUpDuration << "|";
+    }
+    
+    // Pellet board (simplified - only nearby pellets)
+    if (animal) {
+        for (int dx = -3; dx <= 3; ++dx) {
+            for (int dy = -3; dy <= 3; ++dy) {
+                int x = animal->position.x + dx;
+                int y = animal->position.y + dy;
+                if (x >= 0 && x < state.getWidth() && y >= 0 && y < state.getHeight()) {
+                    if (state.pelletBoard.get(x, y)) {
+                        oss << "p:" << x << "," << y << "|";
+                    }
+                }
+            }
+        }
+    }
+    
+    // Zookeeper positions (simplified)
+    for (const auto& zk : state.zookeepers) {
+        oss << "zk:" << zk.position.x << "," << zk.position.y << "|";
+    }
+    
+    return oss.str();
+}
+
+void MCTSEngine::initializeMoveOrdering(const GameState& state, const std::string& playerId) {
+    moveOrdering = {BotAction::Up, BotAction::Down, BotAction::Left, BotAction::Right};
+    
+    // Order moves based on simple heuristics
+    const Animal* animal = state.getAnimal(playerId);
+    if (animal) {
+        // Find nearest pellet direction
+        int nearestPelletDist = std::numeric_limits<int>::max();
+        Position nearestPelletPos{-1, -1};
+        
+        for (int y = 0; y < state.getHeight(); ++y) {
+            for (int x = 0; x < state.getWidth(); ++x) {
+                if (state.pelletBoard.get(x, y)) {
+                    int dist = std::abs(animal->position.x - x) + std::abs(animal->position.y - y);
+                    if (dist < nearestPelletDist) {
+                        nearestPelletDist = dist;
+                        nearestPelletPos = {x, y};
+                    }
+                }
+            }
+        }
+        
+        if (nearestPelletPos.x >= 0) {
+            // Reorder moves to prioritize directions toward nearest pellet
+            std::sort(moveOrdering.begin(), moveOrdering.end(), 
+                [this, animal, nearestPelletPos](BotAction a, BotAction b) {
+                    Position newPosA = this->getNewPosition(animal->position, a);
+                    Position newPosB = this->getNewPosition(animal->position, b);
+                    
+                    int distA = std::abs(newPosA.x - nearestPelletPos.x) + std::abs(newPosA.y - nearestPelletPos.y);
+                    int distB = std::abs(newPosB.x - nearestPelletPos.x) + std::abs(newPosB.y - nearestPelletPos.y);
+                    
+                    return distA < distB;
+                });
+        }
+    }
+}
+
+std::vector<BotAction> MCTSEngine::getOrderedMoves(const GameState& state, const std::string& playerId) {
+    auto legalMoves = state.getLegalActions(playerId);
+    std::vector<BotAction> orderedMoves;
+    
+    // First add moves in our preferred order
+    for (BotAction action : moveOrdering) {
+        if (std::find(legalMoves.begin(), legalMoves.end(), action) != legalMoves.end()) {
+            orderedMoves.push_back(action);
+        }
+    }
+    
+    // Add any remaining legal moves
+    for (BotAction action : legalMoves) {
+        if (std::find(orderedMoves.begin(), orderedMoves.end(), action) == orderedMoves.end()) {
+            orderedMoves.push_back(action);
+        }
+    }
+    
+    return orderedMoves;
+}
+
+bool MCTSEngine::shouldPruneMove(BotAction action, const GameState& state, const std::string& playerId) {
+    const Animal* animal = state.getAnimal(playerId);
+    if (!animal) return false;
+    
+    Position newPos = this->getNewPosition(animal->position, action);
+    
+    // Prune moves that lead directly into zookeepers
+    for (const auto& zk : state.zookeepers) {
+        if (newPos == zk.position) {
+            return true;
+        }
+    }
+    
+    // Prune moves that lead to dead ends when being chased
+    double threat = state.getZookeeperThreat(newPos);
+    if (threat > 0.8) {
+        // Simple dead end check - if it's out of bounds or into a wall
+        if (newPos.x < 0 || newPos.x >= state.getWidth() || 
+            newPos.y < 0 || newPos.y >= state.getHeight() ||
+            !state.isTraversable(newPos.x, newPos.y)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+Position MCTSEngine::getNewPosition(const Position& currentPos, BotAction action) const {
+    Position newPos = currentPos;
+    switch (action) {
+        case BotAction::Up: newPos.y--; break;
+        case BotAction::Down: newPos.y++; break;
+        case BotAction::Left: newPos.x--; break;
+        case BotAction::Right: newPos.x++; break;
+        default: break;
+    }
+    return newPos;
+}
+
+bool MCTSEngine::shouldContinueSearch(std::chrono::steady_clock::time_point startTime) const {
+    auto elapsed = std::chrono::steady_clock::now() - startTime;
+    return elapsed < timeLimit * 0.95; // Use 95% of time limit for safety
+}
+
 MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string& playerId) {
     resetStatistics();
     shouldStop = false;
+    
+    initializeMoveOrdering(state, playerId);
     
     auto rootState = state.clone();
     auto root = std::make_unique<MCTSNode>(std::move(rootState), nullptr, BotAction::Up, playerId);
@@ -38,10 +327,9 @@ MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string&
     auto startTime = std::chrono::steady_clock::now();
     
     if (numThreads <= 1) {
-        // Single-threaded MCTS
+        // Single-threaded MCTS with modern enhancements
         for (int iteration = 0; iteration < maxIterations && !shouldStop; ++iteration) {
-            auto currentTime = std::chrono::steady_clock::now();
-            if (currentTime - startTime >= timeLimit) {
+            if (!shouldContinueSearch(startTime)) {
                 break;
             }
             
@@ -52,21 +340,22 @@ MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string&
             MCTSNode* nodeToSimulate = selectedNode;
             if (!selectedNode->isTerminalNode()) {
                 MCTSNode* expandedNode = expand(selectedNode);
-                if (expandedNode != selectedNode) { // Check if a new node was created
+                if (expandedNode != selectedNode) {
                     nodeToSimulate = expandedNode;
                     totalExpansions++;
                 }
             }
             
-            // Simulation
-            double reward = simulate(nodeToSimulate->getGameState(), playerId);
+            // Simulation with action sequence tracking
+            std::vector<BotAction> actionSequence;
+            double reward = simulate(nodeToSimulate->getGameState(), playerId, actionSequence);
             totalSimulations++;
             
-            // Backpropagation
-            backpropagate(nodeToSimulate, reward);
+            // Backpropagation with AMAF update
+            backpropagate(nodeToSimulate, reward, actionSequence);
         }
     } else {
-        // Multi-threaded MCTS
+        // Multi-threaded MCTS with virtual loss
         std::vector<std::future<void>> futures;
         
         for (int threadId = 0; threadId < numThreads; ++threadId) {
@@ -85,17 +374,31 @@ MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string&
             future.wait();
         }
     }
-    
+
 #ifdef ENABLE_MCTS_DEBUG
-    // Print final statistics for debugging
-    fmt::println("\nTick: {} | Sims: {} | Children: {}", state.tick, totalSimulations.load(), root->getChildren().size());
-    fmt::println("{:<12} | {:>10} | {:>15} | {:>15}", "Action", "Visits", "Avg Reward", "UCB1");
+    // Print enhanced debugging information
+    fmt::println("\nAdvanced MCTS Statistics:");
+    fmt::println("Tick: {} | Sims: {} | Children: {} | Algorithm: {}", 
+                 state.tick, totalSimulations.load(), root->getChildren().size(),
+                 banditAlgorithm ? banditAlgorithm->getName() : "Standard UCB1");
+    if (useTranspositionTable) {
+        fmt::println("Transposition Table Size: {}", transpositionTable->size());
+    }
+    fmt::println("{:<12} | {:>10} | {:>15} | {:>15} | {:>15}", 
+                 "Action", "Visits", "Avg Reward", "UCB Value", "AMAF Value");
+    
     for (const auto& child : root->getChildren()) {
-        fmt::println("{:<12} | {:>10} | {:>15.4f} | {:>15.4f}", 
+        double ucbValue = banditAlgorithm ? 
+            banditAlgorithm->calculateValue(child.get(), root.get()) :
+            calculateUCB1(child.get(), root.get());
+        double amafValue = useAMAF ? amaf->getAMAFValue(child->getAction()) : 0.0;
+        
+        fmt::println("{:<12} | {:>10} | {:>15.4f} | {:>15.4f} | {:>15.4f}", 
                      static_cast<int>(child->getAction()),
                      child->getVisits(), 
                      child->getAverageReward(),
-                     calculateUCB1(child.get(), root.get()));
+                     ucbValue,
+                     amafValue);
     }
 #endif
 
@@ -120,7 +423,7 @@ MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string&
         // Fallback if no children were explored
         auto possibleMoves = state.getLegalActions(playerId);
         if (!possibleMoves.empty()) {
-            result.bestAction = possibleMoves[0]; // Or some other default
+            result.bestAction = possibleMoves[0];
         }
     }
 
@@ -132,16 +435,38 @@ MCTSNode* MCTSEngine::select(MCTSNode* root) {
     
     while (!current->isTerminalNode() && current->isFullyExpandedNode()) {
         constexpr double EPS = 1e-9;
-        double bestUCB = -std::numeric_limits<double>::infinity();
+        double bestValue = -std::numeric_limits<double>::infinity();
         std::vector<MCTSNode*> bestChildren;
 
         for (const auto& child : current->getChildren()) {
-            double ucb = calculateUCB1(child.get(), current);
-            if (ucb > bestUCB + EPS) {
-                bestUCB = ucb;
+            double value;
+            
+            if (banditAlgorithm) {
+                // Use the configured bandit algorithm
+                value = banditAlgorithm->calculateValue(child.get(), current);
+            } else {
+                // Fallback to standard UCB1
+                value = calculateUCB1(child.get(), current);
+            }
+            
+            // Apply AMAF if enabled
+            if (useAMAF) {
+                double mctsValue = child->getAverageReward();
+                double combinedValue = amaf->combinedValue(mctsValue, child->getAction(), child->getVisits());
+                value = 0.7 * value + 0.3 * combinedValue; // Weighted combination
+            }
+            
+            // Apply virtual loss if enabled (for multi-threading)
+            if (useVirtualLoss && numThreads > 1) {
+                double virtualLossValue = virtualLoss->getVirtualLoss(child.get());
+                value -= virtualLossValue;
+            }
+            
+            if (value > bestValue + EPS) {
+                bestValue = value;
                 bestChildren.clear();
                 bestChildren.push_back(child.get());
-            } else if (std::abs(ucb - bestUCB) <= EPS) {
+            } else if (std::abs(value - bestValue) <= EPS) {
                 bestChildren.push_back(child.get());
             }
         }
@@ -150,9 +475,14 @@ MCTSNode* MCTSEngine::select(MCTSNode* root) {
             break; // Should not happen but safety first
         }
 
-        // Randomised tie-break among equally good children
+        // Randomized tie-break among equally good children
         std::uniform_int_distribution<size_t> dist(0, bestChildren.size() - 1);
         current = bestChildren[dist(rng)];
+        
+        // Apply virtual loss to selected node
+        if (useVirtualLoss && numThreads > 1) {
+            virtualLoss->addVirtualLoss(current);
+        }
     }
     
     return current;
@@ -170,10 +500,30 @@ MCTSNode* MCTSEngine::expand(MCTSNode* node) {
         return node;
     }
     
-    return node->expand();
+    // Check transposition table first
+    if (useTranspositionTable) {
+        std::string stateHash = hashGameState(node->getGameState(), node->getPlayerId());
+        auto existingNode = transpositionTable->lookup(stateHash);
+        if (existingNode) {
+            // Merge statistics if we find an existing equivalent state
+            // For now, just return the expanded node normally
+        }
+    }
+    
+    // Use the existing expand method
+    MCTSNode* expandedNode = node->expand();
+    
+    // Store in transposition table if new node was created
+    if (expandedNode && expandedNode != node && useTranspositionTable) {
+        std::string stateHash = hashGameState(expandedNode->getGameState(), expandedNode->getPlayerId());
+        // Note: Cannot use shared_ptr directly here due to unique_ptr ownership
+        // Transposition table integration would need to be redesigned for this architecture
+    }
+    
+    return expandedNode;
 }
 
-double MCTSEngine::simulate(const GameState& state, const std::string& playerId) {
+double MCTSEngine::simulate(const GameState& state, const std::string& playerId, std::vector<BotAction>& actionSequence) {
     GameState simState = state;
     int depth = 0;
     double cumulativeReward = 0.0;
@@ -198,8 +548,9 @@ double MCTSEngine::simulate(const GameState& state, const std::string& playerId)
         if (newAnimal) {
             int scoreDelta = newAnimal->score - scoreBeforeAction;
             if (scoreDelta > 0) {
-                // Immediate reward for pellet collection, decayed by depth
-                cumulativeReward += scoreDelta * 50.0 * std::pow(decayFactor, depth);
+                // MASSIVE immediate reward for pellet collection, with streak multiplier
+                double pelletReward = scoreDelta * 800.0 * std::max(1, newAnimal->scoreStreak);
+                cumulativeReward += pelletReward * std::pow(decayFactor, depth);
             }
         }
 
@@ -214,13 +565,14 @@ double MCTSEngine::simulate(const GameState& state, const std::string& playerId)
             }
         }
         
-        // Terminate rollout early if captured, but apply penalty
+        // Terminate rollout early if captured, but apply MASSIVE penalty
         if (simState.isPlayerCaught(playerId)) {
-            cumulativeReward -= 2000.0 * std::pow(decayFactor, depth);
+            cumulativeReward -= 15000.0 * std::pow(decayFactor, depth);
             break;
         }
 
         depth++;
+        actionSequence.push_back(action);
     }
     
     // Combine cumulative step rewards with final state evaluation
@@ -228,7 +580,7 @@ double MCTSEngine::simulate(const GameState& state, const std::string& playerId)
     return cumulativeReward + terminalReward * std::pow(decayFactor, depth);
 }
 
-void MCTSEngine::backpropagate(MCTSNode* node, double reward) {
+void MCTSEngine::backpropagate(MCTSNode* node, double reward, const std::vector<BotAction>& actionSequence) {
     MCTSNode* current = node;
     
     while (current != nullptr) {
@@ -238,6 +590,11 @@ void MCTSEngine::backpropagate(MCTSNode* node, double reward) {
         // Alternate reward for opponent modeling (if needed)
         // reward = -reward;
     }
+
+    // Update AMAF
+    if (useAMAF) {
+        amaf->updateAMAF(actionSequence, reward);
+    }
 }
 
 double MCTSEngine::calculateUCB1(const MCTSNode* node, const MCTSNode* parent) const {
@@ -245,17 +602,43 @@ double MCTSEngine::calculateUCB1(const MCTSNode* node, const MCTSNode* parent) c
         return std::numeric_limits<double>::infinity(); // Prioritize unvisited nodes
     }
 
-    double exploitation = node->getAverageReward();
-    double exploration = explorationConstant * 
-                        std::sqrt(std::log(static_cast<double>(parent->getVisits())) / node->getVisits());
-    
-    // Small first-play urgency bonus to help break ties for new nodes
-    double firstPlayUrgency = 0.0;
-    if (node->getVisits() < 3) {
-        firstPlayUrgency = 100.0 / (node->getVisits() + 1);
+    // Enhanced UCB1 with strong progressive bias toward pellet collection
+    const GameState& childState = node->getGameState();
+    const Animal* childAnimal = childState.getAnimal(childState.myAnimalId);
+    double heuristicBias = 0.0;
+    if (childAnimal) {
+        int dist = childState.distanceToNearestPellet(childAnimal->position);
+        if (dist >= 0) {
+            if (dist == 0) {
+                heuristicBias = 10.0; // HUGE bias for moves that collect pellets
+            } else if (dist == 1) {
+                heuristicBias = 5.0; // Strong bias for moves toward pellets
+            } else {
+                heuristicBias = 2.0 / dist; // Good bias for getting closer
+            }
+        }
+        
+        // Additional bias for maintaining streaks
+        if (childAnimal->ticksSinceLastPellet >= 3) {
+            heuristicBias *= 2.0; // Double bias when streak is at risk
+        }
+        
+        // Check if move leads to immediate pellet collection
+        CellContent cellAtPos = childState.getCell(childAnimal->position.x, childAnimal->position.y);
+        if (cellAtPos == CellContent::Pellet) {
+            heuristicBias += 15.0; // Massive bias for pellet collection moves
+        } else if (cellAtPos == CellContent::PowerPellet) {
+            heuristicBias += 25.0; // Even bigger bias for power pellets
+        }
     }
+    // Progressive bias that decays more slowly for important moves
+    const double biasWeight = 8.0; // Much stronger bias weight
+    double progressiveBias = biasWeight * heuristicBias / (1.0 + std::pow(node->getVisits(), 0.5));
 
-    return exploitation + exploration + firstPlayUrgency;
+    double exploitation = node->getAverageReward();
+    double exploration = explorationConstant * std::sqrt(std::log(parent->getVisits()) / node->getVisits());
+    
+    return exploitation + exploration + progressiveBias;
 }
 
 double MCTSEngine::calculateRAVE(const MCTSNode* node) const {
@@ -286,7 +669,7 @@ BotAction MCTSEngine::selectSimulationAction(const GameState& state, const std::
         return legalActions[dist(rng)];
     }
     
-    // Fast greedy policy for simulation - focus on immediate goals
+    // Aggressive pellet-focused policy for simulation
     BotAction bestAction = legalActions[0];
     double bestScore = -std::numeric_limits<double>::infinity();
     
@@ -300,55 +683,90 @@ BotAction MCTSEngine::selectSimulationAction(const GameState& state, const std::
             case BotAction::Left: newPos.x--; break;
             case BotAction::Right: newPos.x++; break;
             case BotAction::UseItem:
-                // Favor using power-ups when beneficial
+                // Strongly favor using power-ups when beneficial
                 if (animal->heldPowerUp == PowerUpType::Scavenger) {
-                    score += 500.0; // High value for scavenger
+                    score += 2000.0; // Very high value for scavenger
                 } else if (animal->heldPowerUp == PowerUpType::ChameleonCloak && 
-                          state.getZookeeperThreat(animal->position) > 5.0) {
-                    score += 400.0; // Use cloak when threatened
+                          state.getZookeeperThreat(animal->position) > 3.0) {
+                    score += 1500.0; // Use cloak when threatened
+                } else if (animal->heldPowerUp == PowerUpType::BigMooseJuice && 
+                          state.getZookeeperThreat(animal->position) > 2.0) {
+                    score += 1000.0; // Use juice when threatened
                 }
                 continue;
         }
         
         if (!state.isTraversable(newPos.x, newPos.y)) {
-            score = -1000.0; // Invalid move
-        } else {
-            // Check what's at the destination
-            CellContent cellContent = state.getCell(newPos.x, newPos.y);
-            switch (cellContent) {
-                case CellContent::Pellet:
-                    score += 300.0 * animal->scoreStreak; // Value pellets highly
-                    break;
-                case CellContent::PowerPellet:
-                    score += 600.0 * animal->scoreStreak; // Power pellets even more
-                    break;
-                case CellContent::Scavenger:
-                    score += 250.0; // Valuable power-up
-                    break;
-                case CellContent::ChameleonCloak:
-                    score += 200.0 + state.getZookeeperThreat(newPos) * 10.0; // More valuable when threatened
-                    break;
-                case CellContent::BigMooseJuice:
-                    score += 150.0;
-                    break;
-                default:
-                    break;
-            }
-            
-            // Distance to nearest pellet
-            int distToPellet = state.distanceToNearestPellet(newPos);
-            if (distToPellet >= 0) {
-                score += 50.0 / (distToPellet + 1); // Closer is better
-            }
-            
-            // Avoid zookeepers
-            double threat = state.getZookeeperThreat(newPos);
-            score -= threat * 20.0;
-            
-            // Slight randomization to avoid deterministic patterns
-            std::uniform_real_distribution<double> noise(-5.0, 5.0);
-            score += noise(rng);
+            score = -10000.0; // Strongly penalize invalid moves
+            continue;
         }
+        
+        // CRITICAL: Check for immediate zookeeper threats
+        double currentThreat = state.getZookeeperThreat(newPos);
+        if (currentThreat > 8.0) {
+            score -= 5000.0; // Massive penalty for dangerous moves
+        } else if (currentThreat > 5.0) {
+            score -= 2000.0; // High penalty for risky moves
+        } else if (currentThreat > 2.0) {
+            score -= 500.0 * currentThreat; // Scaled penalty
+        }
+        
+        // Check for zookeeper collision in next move
+        for (const auto& zk : state.zookeepers) {
+            Position zkNextPos = state.predictZookeeperPosition(zk, 1);
+            if (zkNextPos == newPos) {
+                score -= 8000.0; // Huge penalty for walking into zookeeper
+            }
+            
+            // Check proximity to predicted zookeeper position
+            int distToZk = std::abs(newPos.x - zkNextPos.x) + std::abs(newPos.y - zkNextPos.y);
+            if (distToZk == 1) {
+                score -= 3000.0; // High penalty for being adjacent to zookeeper
+            } else if (distToZk == 2) {
+                score -= 1000.0; // Medium penalty for being close
+            }
+        }
+        
+        // Check what's at the destination - MASSIVELY favor pellets
+        CellContent cellContent = state.getCell(newPos.x, newPos.y);
+        switch (cellContent) {
+            case CellContent::Pellet:
+                score += 1500.0 * std::max(1, animal->scoreStreak); // HUGE pellet value
+                break;
+            case CellContent::PowerPellet:
+                score += 3000.0 * std::max(1, animal->scoreStreak); // Massive power pellet value
+                break;
+            case CellContent::Scavenger:
+                score += 1000.0; // Very valuable power-up
+                break;
+            case CellContent::ChameleonCloak:
+                score += 800.0 + currentThreat * 50.0; // More valuable when threatened
+                break;
+            case CellContent::BigMooseJuice:
+                score += 600.0;
+                break;
+            default:
+                break;
+        }
+        
+        // Strong bias toward nearest pellet
+        int distToPellet = state.distanceToNearestPellet(newPos);
+        if (distToPellet >= 0) {
+            if (distToPellet == 0) {
+                score += 2000.0; // Bonus for being on pellet
+            } else {
+                score += 400.0 / distToPellet; // Strong inverse distance bonus
+            }
+        }
+        
+        // Maintain streak urgency
+        if (animal->ticksSinceLastPellet >= 3) {
+            score -= 500.0 * animal->ticksSinceLastPellet; // Penalty for not collecting
+        }
+        
+        // Small randomization to break ties
+        std::uniform_real_distribution<double> noise(-10.0, 10.0);
+        score += noise(rng);
         
         if (score > bestScore) {
             bestScore = score;
@@ -365,83 +783,112 @@ double MCTSEngine::evaluateTerminalState(const GameState& state, const std::stri
         return 0.0; // Should not happen
     }
 
-    // Immediate failure conditions
+    // Immediate failure conditions - MASSIVE penalty
     if (state.isPlayerCaught(playerId)) {
-        return -10000.0; // Severe penalty for being caught
+        return -50000.0; // Absolutely avoid being caught
     }
 
-    // 1. Pellet Score (Primary Reward) - Weight heavily as it's the main objective
-    double pelletScore = static_cast<double>(animal->score) * 100.0; // Increased weight
+    // 1. Pellet Score (Primary Reward) - This is THE most important factor
+    double pelletScore = static_cast<double>(animal->score) * 500.0; // MASSIVELY increased weight
 
-    // 2. Distance to nearest pellet (encourage moving towards pellets)
+    // 2. Distance to nearest pellet - very strong incentive to get close
     int distToPellet = state.distanceToNearestPellet(animal->position);
     double distanceReward = 0.0;
     if (distToPellet >= 0) {
-        // Exponential decay for distance - being close is much more valuable
-        distanceReward = 50.0 * std::exp(-0.3 * distToPellet);
+        if (distToPellet == 0) {
+            distanceReward = 1000.0; // Huge bonus for being on a pellet
+        } else if (distToPellet == 1) {
+            distanceReward = 400.0; // Very close is very good
+        } else {
+            distanceReward = 200.0 / distToPellet; // Strong inverse distance reward
+        }
     }
 
-    // 3. Score streak bonus - maintaining streaks is critical
-    double streakBonus = animal->scoreStreak * 25.0;
+    // 3. Score streak bonus - exponentially more valuable
+    double streakBonus = animal->scoreStreak * animal->scoreStreak * 50.0;
     
-    // 4. Immediate pellet collection bonus
+    // 4. Immediate pellet collection bonus - HUGE reward
     double immediateBonus = 0.0;
     if (animal->ticksSinceLastPellet == 0) {
-        immediateBonus = 200.0 * animal->scoreStreak; // Bonus for fresh pellet collection
+        immediateBonus = 1500.0 * std::max(1, animal->scoreStreak); // Massive bonus for fresh collection
     }
 
-    // 5. Streak preservation penalty - avoid moves that reset streak
+    // 5. Streak preservation penalty - very harsh for risking streaks
     double streakPenalty = 0.0;
-    if (animal->ticksSinceLastPellet >= 2) {
-        streakPenalty = 100.0 * animal->scoreStreak; // Penalty proportional to streak risk
+    if (animal->ticksSinceLastPellet >= 3) {
+        streakPenalty = 800.0 * animal->scoreStreak; // Harsh penalty for risky streak behavior
+    } else if (animal->ticksSinceLastPellet >= 2) {
+        streakPenalty = 300.0 * animal->scoreStreak; // Medium penalty
     }
 
-    // 6. Threat penalty (avoid zookeepers) - but don't make it overwhelming
-    double threatPenalty = state.getZookeeperThreat(animal->position) * 15.0;
+    // 6. Threat penalty - much stronger zookeeper avoidance
+    double threatPenalty = 0.0;
+    double currentThreat = state.getZookeeperThreat(animal->position);
+    if (currentThreat > 8.0) {
+        threatPenalty = 8000.0; // Massive penalty for extreme danger
+    } else if (currentThreat > 5.0) {
+        threatPenalty = 3000.0; // High penalty for high danger
+    } else if (currentThreat > 2.0) {
+        threatPenalty = 800.0 * currentThreat; // Scaled penalty
+    } else {
+        threatPenalty = 50.0 * currentThreat; // Small penalty for low threat
+    }
 
-    // 7. Power-up value
+    // 7. Power-up value - much more valuable
     double powerUpValue = 0.0;
     if (animal->heldPowerUp != PowerUpType::None) {
         switch (animal->heldPowerUp) {
             case PowerUpType::Scavenger:
-                powerUpValue = 80.0; // Very valuable for pellet collection
+                powerUpValue = 500.0; // Extremely valuable for pellet collection
                 break;
             case PowerUpType::ChameleonCloak:
-                powerUpValue = 60.0 + threatPenalty; // More valuable when threatened
+                powerUpValue = 300.0 + currentThreat * 20.0; // More valuable when threatened
                 break;
             case PowerUpType::BigMooseJuice:
-                powerUpValue = 50.0;
+                powerUpValue = 200.0 + currentThreat * 10.0; // More valuable when threatened
                 break;
             default:
                 break;
         }
     }
     if (animal->powerUpDuration > 0) {
-        powerUpValue += animal->powerUpDuration * 5.0; // Active power-up bonus
+        powerUpValue += animal->powerUpDuration * 50.0; // Active power-up bonus
     }
 
-    // 8. Position quality - favor center and avoid corners
-    double positionBonus = 0.0;
-    if (state.getWidth() > 0 && state.getHeight() > 0) {
-        double centerX = state.getWidth() / 2.0;
-        double centerY = state.getHeight() / 2.0;
-        double distFromCenter = std::sqrt(std::pow(animal->position.x - centerX, 2) + 
-                                         std::pow(animal->position.y - centerY, 2));
-        positionBonus = std::max(0.0, 20.0 - distFromCenter * 2.0);
+    // 8. Check proximity to power-ups
+    double powerUpProximity = 0.0;
+    for (int dx = -3; dx <= 3; ++dx) {
+        for (int dy = -3; dy <= 3; ++dy) {
+            int x = animal->position.x + dx;
+            int y = animal->position.y + dy;
+            if (x >= 0 && x < state.getWidth() && y >= 0 && y < state.getHeight()) {
+                CellContent content = state.getCell(x, y);
+                int distance = std::abs(dx) + std::abs(dy);
+                if (distance > 0) {
+                    if (content == CellContent::Scavenger) {
+                        powerUpProximity += 200.0 / distance;
+                    } else if (content == CellContent::ChameleonCloak && currentThreat > 2.0) {
+                        powerUpProximity += 150.0 / distance;
+                    } else if (content == CellContent::BigMooseJuice && currentThreat > 1.0) {
+                        powerUpProximity += 100.0 / distance;
+                    }
+                }
+            }
+        }
     }
 
-    // Final score calculation - no tanh compression to maintain discrimination
+    // Final score calculation with much stronger weighting toward pellets
     double finalScore = pelletScore + distanceReward + streakBonus + immediateBonus 
-                       - streakPenalty - threatPenalty + powerUpValue + positionBonus;
+                       - streakPenalty - threatPenalty + powerUpValue + powerUpProximity;
 
     return finalScore;
 }
 
 void MCTSEngine::runParallelMCTS(MCTSNode* root, const std::string& playerId, int threadId) {
-        std::mt19937 localRng(static_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count() + threadId));
+    std::mt19937 localRng(static_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count() + threadId));
     
     while (!shouldStop.load()) {
-        // Selection
+        // Selection with virtual loss
         MCTSNode* selectedNode = select(root);
         
         // Expansion
@@ -449,7 +896,7 @@ void MCTSEngine::runParallelMCTS(MCTSNode* root, const std::string& playerId, in
         if (!selectedNode->isTerminalNode()) {
             if (selectedNode->tryLockExpansion()) {
                 if (!selectedNode->isFullyExpandedNode()) { // Double check after lock
-                    MCTSNode* expandedNode = selectedNode->expand();
+                    MCTSNode* expandedNode = expand(selectedNode);
                     if (expandedNode != selectedNode) { // Check if a *new* node was created
                         nodeToSimulate = expandedNode;
                         totalExpansions++;
@@ -459,12 +906,22 @@ void MCTSEngine::runParallelMCTS(MCTSNode* root, const std::string& playerId, in
             }
         }
         
-        // Simulation
-        double reward = simulate(nodeToSimulate->getGameState(), playerId);
+        // Simulation with action sequence tracking
+        std::vector<BotAction> actionSequence;
+        double reward = simulate(nodeToSimulate->getGameState(), playerId, actionSequence);
         totalSimulations++;
         
-        // Backpropagation
-        backpropagate(nodeToSimulate, reward);
+        // Backpropagation with AMAF update
+        backpropagate(nodeToSimulate, reward, actionSequence);
+        
+        // Remove virtual loss from the path
+        if (useVirtualLoss) {
+            MCTSNode* current = nodeToSimulate;
+            while (current && current != root) {
+                virtualLoss->removeVirtualLoss(current);
+                current = current->getParent();
+            }
+        }
     }
 }
 
@@ -478,57 +935,4 @@ void MCTSEngine::enableRAVE(bool enable) {
 
 void MCTSEngine::setHeuristicWeight(double weight) {
     // Implementation for setting heuristic weight in simulations
-}
-
-// UCB1-Tuned implementation
-double UCB1Tuned::calculate(const MCTSNode* node, const MCTSNode* parent, double explorationConstant) {
-    if (node->getVisits() == 0) {
-        return std::numeric_limits<double>::infinity();
-    }
-    
-    double exploitation = node->getAverageReward();
-    double logParentVisits = std::log(parent->getVisits());
-    double nodeVisits = node->getVisits();
-    
-    double variance = node->getRewardVariance();
-    double varianceBound = variance + std::sqrt(2 * logParentVisits / nodeVisits);
-    double exploration = explorationConstant * std::sqrt(logParentVisits / nodeVisits * 
-                                                        std::min(CONFIDENCE_BOUND, varianceBound));
-    
-    return exploitation + exploration;
-}
-
-// RAVE implementation
-void RAVE::updateActionValue(BotAction action, double reward) {
-    auto& [totalReward, visits] = actionValues[action];
-    totalReward += reward;
-    visits++;
-}
-
-double RAVE::getActionValue(BotAction action) const {
-    auto it = actionValues.find(action);
-    if (it != actionValues.end() && it->second.second > 0) {
-        return it->second.first / it->second.second;
-    }
-    return 0.0;
-}
-
-double RAVE::calculateRAVEValue(const MCTSNode* node) const {
-    // Combine MCTS value with RAVE value using beta parameter
-    double mctsValue = node->getAverageReward();
-    double raveValue = getActionValue(node->getAction());
-    
-    int visits = node->getVisits();
-    double betaValue = visits / (visits + beta * visits + beta);
-    
-    return (1 - betaValue) * raveValue + betaValue * mctsValue;
-}
-
-// Progressive Widening implementation
-bool ProgressiveWidening::shouldExpand(int visits, int children) const {
-    return std::pow(visits, alpha) > children + threshold;
-}
-
-int ProgressiveWidening::getMaxChildren(int visits) const {
-    return static_cast<int>(std::pow(visits, alpha));
 }

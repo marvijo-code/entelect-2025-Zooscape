@@ -364,9 +364,9 @@ void Bot::loadConfiguration() {
             config.timeLimit = std::stoi(*timeLimitEnv);
             fmt::println("Info: MCTS_TIME_LIMIT_MS environment variable set to: {}", config.timeLimit);
         } catch (const std::invalid_argument& e) {
-            fmt::println("Warning: Invalid MCTS_TIME_LIMIT_MS value '{}'. Using default {}.", *timeLimitEnv, config.timeLimit);
+            fmt::println("Warning: Invalid MCTS_TIME_LIMIT_MS value '{}' ({}). Using default {}.", *timeLimitEnv, e.what(), config.timeLimit);
         } catch (const std::out_of_range& e) {
-            fmt::println("Warning: MCTS_TIME_LIMIT_MS value '{}' is out of range. Using default {}.", *timeLimitEnv, config.timeLimit);
+            fmt::println("Warning: MCTS_TIME_LIMIT_MS value '{}' is out of range ({}). Using default {}.", *timeLimitEnv, e.what(), config.timeLimit);
         }
     }
 

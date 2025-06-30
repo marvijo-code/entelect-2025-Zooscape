@@ -86,10 +86,10 @@ function Stop-DotnetProcesses {
             $parts = $line -split '\s+'
             if ($parts.Length -ge 5) {
                 $processId = $parts[-1]
-                if ($processId -match '^\d+$') {
+                if ($processId -match '^\d+$' -and [int]$processId -ne 0) {
                     try {
                         $processOnPort = Get-Process -Id $processId -ErrorAction SilentlyContinue
-                        if ($processOnPort) {
+                        if ($processOnPort -and $processOnPort.ProcessName -ne "Idle") {
                             Write-Host "Found process $($processOnPort.ProcessName) (ID: $($processOnPort.Id)) using port 5000. Stopping it." -ForegroundColor Gray
                             $processOnPort | Stop-Process -Force -ErrorAction Stop
                             $stoppedProcesses += [int]$processId
@@ -364,8 +364,8 @@ while ($keepRunningScript) {
     # Combine engine and bot commands into a single wt invocation
     $allWtArgs = @("-w", $windowName) + $engineTabArgs + $allTabCommands
     
-    # Start all processes in the background to avoid focus stealing
-    Start-Process wt -ArgumentList $allWtArgs -WindowStyle Hidden
+    # Start all processes in a visible window
+    Start-Process wt -ArgumentList $allWtArgs -WindowStyle Normal
     
     # Give the applications a moment to start
     Write-Host "Waiting for all applications to initialize..." -ForegroundColor DarkGray

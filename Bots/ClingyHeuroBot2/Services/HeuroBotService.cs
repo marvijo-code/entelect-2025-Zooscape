@@ -18,7 +18,16 @@ public class HeuroBotService : IBot<HeuroBotService>
     public HeuroBotService(ILogger? logger = null)
     {
         _logger = logger ?? Logger.None;
-        _heuristics = new HeuristicsManager(_logger, WeightManager.Instance);
+        
+        // Get weights with null safety
+        var weights = WeightManager.Instance;
+        if (weights == null)
+        {
+            Console.WriteLine("CRITICAL: WeightManager.Instance returned null! Creating emergency weights.");
+            weights = new HeuristicWeights();
+        }
+        
+        _heuristics = new HeuristicsManager(_logger, weights);
     }
 
     public Guid BotId { get; set; }

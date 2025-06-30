@@ -2,6 +2,7 @@
 
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using Marvijo.Zooscape.Bots.Common.Models;
 
 namespace ClingyHeuroBot2.GeneticAlgorithm;
 
@@ -65,12 +66,18 @@ public class EvolutionaryBotManager
             {
                 _logger.LogWarning(ex, "Failed to load existing population, creating new one");
                 CurrentPopulation.InitializeRandom();
+                
+                // Try to import best individuals from git if available
+                await ImportBestIndividualsAsync();
             }
         }
         else
         {
             CurrentPopulation.InitializeRandom();
             _logger.LogInformation($"Created new random population with {CurrentPopulation.Individuals.Count} individuals");
+            
+            // Try to import best individuals from git if available
+            await ImportBestIndividualsAsync();
         }
 
         // Save initial population
@@ -80,20 +87,55 @@ public class EvolutionaryBotManager
     }
 
     /// <summary>
-    /// Starts the evolution process
+    /// Checks if the population has sufficient performance data to evolve
+    /// </summary>
+    private bool HasSufficientPerformanceData()
+    {
+        // Require at least 50% of population to have non-zero fitness
+        var individualsWithFitness = CurrentPopulation.Individuals.Count(i => i.Fitness > 0);
+        var minRequired = Math.Max(1, CurrentPopulation.Individuals.Count / 2);
+        
+        return individualsWithFitness >= minRequired;
+    }
+
+    /// <summary>
+    /// Starts the evolution process (now waits for sufficient performance data)
     /// </summary>
     public async Task StartEvolutionAsync(CancellationToken cancellationToken = default)
     {
         IsRunning = true;
-        _logger.LogInformation("Starting evolution process...");
+        _logger.LogInformation("Starting evolution process - waiting for game performance data...");
 
         try
         {
             int stagnationCount = 0;
             double lastBestFitness = 0;
+            int waitCycles = 0;
 
             while (IsRunning && CurrentGeneration < _config.MaxGenerations && !cancellationToken.IsCancellationRequested)
             {
+                // Check if we have sufficient performance data before evolving
+                if (!HasSufficientPerformanceData())
+                {
+                    waitCycles++;
+                    if (waitCycles % 100 == 0) // Log every 10 seconds
+                    {
+                        var individualsWithFitness = CurrentPopulation.Individuals.Count(i => i.Fitness > 0);
+                        var minRequired = Math.Max(1, CurrentPopulation.Individuals.Count / 2);
+                        _logger.LogInformation($"Waiting for performance data: {individualsWithFitness}/{CurrentPopulation.Individuals.Count} individuals have fitness data (need {minRequired})");
+                    }
+                    
+                    await Task.Delay(100, cancellationToken); // Wait for games to complete
+                    continue;
+                }
+
+                // Reset wait counter once we have data
+                if (waitCycles > 0)
+                {
+                    _logger.LogInformation("Sufficient performance data available, starting evolution...");
+                    waitCycles = 0;
+                }
+
                 await EvolveOneGenerationAsync();
                 
                 var currentBestFitness = CurrentPopulation.BestFitness;
@@ -113,13 +155,19 @@ public class EvolutionaryBotManager
                 {
                     stagnationCount = 0;
                     NotifyNewBestIndividual();
+                    
+                    // Auto-export best individuals when significant improvement is made
+                    if (improvement > 0.1) // Export on meaningful improvements
+                    {
+                        _ = Task.Run(async () => await ExportBestIndividualsAsync());
+                    }
                 }
 
                 lastBestFitness = currentBestFitness;
                 LastEvolutionTime = DateTime.UtcNow;
 
-                // Small delay between generations
-                await Task.Delay(100, cancellationToken);
+                // Longer delay between generations to allow for more games
+                await Task.Delay(5000, cancellationToken); // 5 second delay
             }
         }
         catch (OperationCanceledException)
@@ -363,6 +411,122 @@ public class EvolutionaryBotManager
                 ["MutationRate"] = _config.MutationRate
             }
         };
+    }
+
+    /// <summary>
+    /// Exports the best individuals to a committable file
+    /// </summary>
+    public async Task ExportBestIndividualsAsync(int topCount = 5)
+    {
+        try
+        {
+            var bestIndividuals = CurrentPopulation.GetTopIndividuals(topCount);
+            var exportData = new
+            {
+                ExportedAt = DateTime.UtcNow,
+                Generation = CurrentGeneration,
+                TotalGenerations = CurrentGeneration,
+                PopulationSize = CurrentPopulation.Individuals.Count,
+                BestFitness = CurrentPopulation.BestFitness,
+                Individuals = bestIndividuals.Select(ind => new
+                {
+                    Id = ind.Id,
+                    Generation = ind.Generation,
+                    Fitness = ind.Fitness,
+                    GamesPlayed = ind.GamesPlayed,
+                    Age = ind.Age,
+                    EvolutionMethod = ind.EvolutionMethod,
+                    PerformanceSummary = ind.GetPerformanceSummary(),
+                    Genome = ind.Genome,
+                    BestPerformance = ind.PerformanceHistory.OrderByDescending(p => p.Fitness).FirstOrDefault()
+                }).ToList()
+            };
+
+            var exportPath = "best-individuals.json";
+            var json = JsonSerializer.Serialize(exportData, new JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(exportPath, json);
+
+            _logger.LogInformation($"Exported top {bestIndividuals.Count} individuals to {exportPath}");
+            
+            // Also create a backup with timestamp
+            var timestampedPath = $"best-individuals-gen{CurrentGeneration:D4}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+            await File.WriteAllTextAsync(timestampedPath, json);
+            _logger.LogInformation($"Created timestamped backup: {timestampedPath}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to export best individuals");
+        }
+    }
+
+    /// <summary>
+    /// Imports best individuals from a file to seed the population
+    /// </summary>
+    public async Task ImportBestIndividualsAsync(string filePath = "best-individuals.json")
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                _logger.LogInformation($"No import file found at {filePath}");
+                return;
+            }
+
+            var json = await File.ReadAllTextAsync(filePath);
+            var importData = JsonSerializer.Deserialize<JsonElement>(json);
+            
+            if (!importData.TryGetProperty("Individuals", out var individualsArray))
+            {
+                _logger.LogWarning("Invalid import file format - missing Individuals array");
+                return;
+            }
+
+            var importedCount = 0;
+            foreach (var indElement in individualsArray.EnumerateArray())
+            {
+                try
+                {
+                    if (indElement.TryGetProperty("Genome", out var genomeElement))
+                    {
+                        var genome = JsonSerializer.Deserialize<HeuristicWeights>(genomeElement.GetRawText());
+                        if (genome != null)
+                        {
+                            var individual = new Individual(genome)
+                            {
+                                EvolutionMethod = "Imported"
+                            };
+                            
+                            // Try to restore fitness if available
+                            if (indElement.TryGetProperty("Fitness", out var fitnessElement))
+                            {
+                                individual.Fitness = fitnessElement.GetDouble();
+                            }
+
+                            CurrentPopulation.Individuals.Add(individual);
+                            importedCount++;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to import individual");
+                }
+            }
+
+            _logger.LogInformation($"Imported {importedCount} best individuals from {filePath}");
+            
+            // If we imported individuals, trim population to max size
+            if (importedCount > 0 && CurrentPopulation.Individuals.Count > _config.PopulationSize)
+            {
+                var excess = CurrentPopulation.Individuals.Count - _config.PopulationSize;
+                CurrentPopulation.Individuals.RemoveRange(_config.PopulationSize, excess);
+                _logger.LogInformation($"Trimmed population to {_config.PopulationSize} individuals");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failed to import best individuals from {filePath}");
+        }
     }
 }
 

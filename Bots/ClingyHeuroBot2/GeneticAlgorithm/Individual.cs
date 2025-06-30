@@ -193,12 +193,29 @@ public class Individual
             Metadata
         };
 
-        var json = JsonSerializer.Serialize(data, new JsonSerializerOptions 
-        { 
-            WriteIndented = true 
-        });
+        var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
         
-        File.WriteAllText(filePath, json);
+        // Retry logic to handle file locking issues
+        int maxRetries = 3;
+        for (int retry = 0; retry < maxRetries; retry++)
+        {
+            try
+            {
+                File.WriteAllText(filePath, json);
+                return; // Success, exit retry loop
+            }
+            catch (IOException ex) when (retry < maxRetries - 1)
+            {
+                // File is locked, wait and retry
+                Thread.Sleep(100 * (retry + 1)); // Increasing delay: 100ms, 200ms, 300ms
+            }
+            catch (IOException ex) when (retry == maxRetries - 1)
+            {
+                // Final retry failed, log error but don't crash
+                Console.WriteLine($"Failed to save individual {Id} after {maxRetries} attempts: {ex.Message}");
+                throw; // Re-throw on final attempt
+            }
+        }
     }
 
     /// <summary>

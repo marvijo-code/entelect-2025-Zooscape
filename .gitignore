@@ -54,6 +54,7 @@ riderModule.iml
 publish/
 logs.bak-*/
 logs.bak/
+backups/
 *-logs/
 .aider*
 .env*

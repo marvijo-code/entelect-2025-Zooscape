@@ -1,3 +1,8 @@
-# High Scores for Evolved ClingyHeuroBot2
-# Format: [Timestamp] Gen:XXXX | ID:individual-id | Score:XXXX | Fitness:XX.XX | Survival:XXXs | Captures:X | Rank:X/X | Method:EvolutionMethod
-# Generated automatically by the Genetic Algorithm Evolution System
+{
+  "metadata": {
+    "description": "High Scores for Evolved ClingyHeuroBot2",
+    "format": "[Timestamp] Gen:XXXX | ID:individual-id | Score:XXXX | Fitness:XX.XX | Survival:XXXs | Captures:X | Rank:X/X | Method:EvolutionMethod",
+    "generated_by": "Genetic Algorithm Evolution System"
+  },
+  "high_scores": []
+}
