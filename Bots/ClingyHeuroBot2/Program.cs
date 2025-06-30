@@ -20,7 +20,7 @@ public class Program
         Console.WriteLine("TEST: Program.Main has started.");
         // Configure Serilog
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
+            .MinimumLevel.Information()
             .WriteTo.Console()
             .CreateLogger();
 
@@ -89,6 +89,7 @@ public class Program
         // Timing variables for performance monitoring
         Stopwatch? gameStateStopwatch = null;
         DateTime? gameStateReceivedTime = null;
+        int currentTick = -1; // Track current game tick
         
         // Game tracking for evolution
         DateTime gameStartTime = DateTime.UtcNow;
@@ -100,24 +101,43 @@ public class Program
         connection.On<Guid>("Registered", id => botService.SetBotId(id));
         connection.On<GameState>("GameState", state => 
         {
+            // Add null check for GameState
+            if (state == null)
+            {
+                Log.Error("Received null GameState from SignalR connection");
+                return;
+            }
+
             // Start timing when game state is received
             gameStateReceivedTime = DateTime.UtcNow;
             gameStateStopwatch = Stopwatch.StartNew();
-            Log.Debug("GameState received at {Timestamp}, starting processing...", gameStateReceivedTime.Value.ToString("HH:mm:ss.fff"));
+            currentTick = state.Tick; // Capture current tick
+            Log.Debug("GameState received at {Timestamp} for tick {Tick}, starting processing...", gameStateReceivedTime.Value.ToString("HH:mm:ss.fff"), currentTick);
             
-            command = botService.ProcessState(state);
+            try
+            {
+                command = botService.ProcessState(state);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error processing GameState for tick {Tick}. BotId: {BotId}, Animals count: {AnimalsCount}, Cells count: {CellsCount}", 
+                    currentTick, botService.BotId, state.Animals?.Count ?? -1, state.Cells?.Count ?? -1);
+                command = new BotCommand { Action = BotAction.Up }; // Default fallback action
+            }
             
             // Log processing time immediately after getting the command
             gameStateStopwatch.Stop();
             var processingTimeMs = gameStateStopwatch.ElapsedMilliseconds;
-            Log.Debug("GameState processed in {ProcessingTime}ms, command ready: {Action}", 
-                processingTimeMs, command?.Action ?? BotAction.Up);
+            Log.Information("Tick {Tick}: Action {Action} decided in {ProcessingTime}ms", 
+                currentTick, command?.Action ?? BotAction.Up, processingTimeMs);
+            Log.Debug("GameState processed in {ProcessingTime}ms for tick {Tick}, command ready: {Action}", 
+                processingTimeMs, currentTick, command?.Action ?? BotAction.Up);
                 
-            // Warn if processing took longer than expected (e.g., 50ms for quick decisions)
-            if (processingTimeMs > 50)
+            // Warn if processing took longer than expected (170ms threshold)
+            if (processingTimeMs > 170)
             {
-                Log.Warning("SLOW PROCESSING: GameState processing took {ProcessingTime}ms (>{Threshold}ms)", 
-                    processingTimeMs, 50);
+                Log.Warning("SLOW PROCESSING: GameState processing took {ProcessingTime}ms (>{Threshold}ms) for tick {Tick}, action: {Action}", 
+                    processingTimeMs, 170, currentTick, command?.Action ?? BotAction.Up);
             }
             
             // Track game performance for evolution
@@ -214,20 +234,20 @@ public class Program
                     (DateTime.UtcNow - gameStateReceivedTime.Value).TotalMilliseconds : -1;
                 
                 await connection.SendAsync("BotCommand", command);
-                Log.Debug($"Sent BotCommand: {command.Action} at {DateTime.UtcNow:HH:mm:ss.fff}");
+                Log.Debug($"Sent BotCommand: {command.Action} at {DateTime.UtcNow:HH:mm:ss.fff} for tick {currentTick}");
                 
                 if (totalTimeMs >= 0)
                 {
-                    Log.Debug("TOTAL RESPONSE TIME: {TotalTime}ms from GameState received to action sent", totalTimeMs);
+                    Log.Debug("TOTAL RESPONSE TIME: {TotalTime}ms from GameState received to action sent for tick {Tick}", totalTimeMs, currentTick);
                     
-                    // Warn about potentially problematic response times
-                    if (totalTimeMs > 100)
+                    // Warn about potentially problematic response times (170ms threshold)
+                    if (totalTimeMs > 170)
                     {
-                        Log.Warning("TIMEOUT RISK: Total response time {TotalTime}ms exceeds 100ms threshold", totalTimeMs);
+                        Log.Warning("TIMEOUT RISK: Total response time {TotalTime}ms exceeds 170ms threshold for tick {Tick}, action: {Action}", totalTimeMs, currentTick, command.Action);
                     }
-                    else if (totalTimeMs > 200)
+                    if (totalTimeMs > 250)
                     {
-                        Log.Error("CRITICAL TIMEOUT: Total response time {TotalTime}ms exceeds 200ms - bot may be stuck!", totalTimeMs);
+                        Log.Error("CRITICAL TIMEOUT: Total response time {TotalTime}ms exceeds 250ms - bot may be stuck on tick {Tick}, action: {Action}!", totalTimeMs, currentTick, command.Action);
                     }
                 }
                 

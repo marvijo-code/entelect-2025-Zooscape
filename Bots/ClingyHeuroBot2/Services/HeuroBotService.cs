@@ -61,11 +61,25 @@ public class HeuroBotService : IBot<HeuroBotService>
     ) GetActionWithScores(GameState gameState)
     {
         var totalStopwatch = Stopwatch.StartNew();
-        _logger.Debug("GetActionWithScores started for Bot {BotId}", BotId);
+        int currentTick = gameState.Tick;
+        _logger.Debug("GetActionWithScores started for Bot {BotId} on tick {Tick}", BotId, currentTick);
         
         if (_logger != null && LogHeuristicScores)
         {
-            _logger.Information("\n===== Evaluating Potential Moves for Bot {BotId} ====", BotId);
+            _logger.Information("\n===== Evaluating Potential Moves for Bot {BotId} on tick {Tick} ====", BotId, currentTick);
+        }
+
+        // Additional safety checks
+        if (gameState?.Animals == null)
+        {
+            _logger.Error("GameState.Animals is null for Bot {BotId} on tick {Tick}. Returning default action.", BotId, currentTick);
+            return (BotAction.Up, new Dictionary<BotAction, decimal>());
+        }
+
+        if (gameState?.Cells == null)
+        {
+            _logger.Error("GameState.Cells is null for Bot {BotId} on tick {Tick}. Returning default action.", BotId, currentTick);
+            return (BotAction.Up, new Dictionary<BotAction, decimal>());
         }
 
         // Identify this bot's animal
@@ -73,7 +87,8 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         if (me == null)
         {
-            _logger.Error("Bot's animal with ID {BotId} not found in current game state. Skipping turn.", BotId);
+            _logger.Error("Bot's animal with ID {BotId} not found in current game state on tick {Tick}. Available animals: [{AvailableAnimals}]", 
+                BotId, currentTick, string.Join(", ", gameState.Animals.Select(a => a.Id.ToString())));
             // Return a default action, perhaps 'None' or the safest option.
             return (BotAction.Up, new Dictionary<BotAction, decimal>()); // Defaulting to Up as BotAction.None is not available
         }
@@ -280,13 +295,13 @@ public class HeuroBotService : IBot<HeuroBotService>
         
         heuristicStopwatch.Stop();
         var heuristicTimeMs = heuristicStopwatch.ElapsedMilliseconds;
-        _logger.Debug("Heuristic evaluation completed in {ElapsedTime}ms for {ActionCount} actions", 
-            heuristicTimeMs, legalActions.Count);
+        _logger.Debug("Heuristic evaluation completed in {ElapsedTime}ms for {ActionCount} actions on tick {Tick}", 
+            heuristicTimeMs, legalActions.Count, currentTick);
             
-        if (heuristicTimeMs > 20)
+        if (heuristicTimeMs > 170)
         {
-            _logger.Warning("Heuristic evaluation took {ElapsedTime}ms (>{Threshold}ms) for {ActionCount} actions - performance issue detected", 
-                heuristicTimeMs, 20, legalActions.Count);
+            _logger.Warning("Heuristic evaluation took {ElapsedTime}ms (>{Threshold}ms) for {ActionCount} actions on tick {Tick}, chosen action: {Action} - performance issue detected", 
+                heuristicTimeMs, 170, legalActions.Count, currentTick, bestAction);
         }
 
         if (_logger != null && LogHeuristicScores)
@@ -319,20 +334,22 @@ public class HeuroBotService : IBot<HeuroBotService>
             _logger.Information("================== End Detailed Scores ==================\n");
 
             // Original final choice log
-            _logger.Information(
-                "===== Bot {BotId} Chose Action: {ChosenAction} with Final Score: {BestScore} =====\n",
+            _logger.Debug(
+                "===== Bot {BotId} Chose Action: {ChosenAction} with Final Score: {BestScore} on tick {Tick} =====\n",
                 BotId,
                 bestAction,
-                Math.Round(bestScore, 4)
+                Math.Round(bestScore, 4),
+                currentTick
             );
         }
         else if (_logger != null) // Log only the chosen action if detailed scores are off
         {
-            _logger.Information(
-                "===== Bot {BotId} Chose Action: {ChosenAction} with Final Score: {BestScore} =====\n",
+            _logger.Debug(
+                "===== Bot {BotId} Chose Action: {ChosenAction} with Final Score: {BestScore} on tick {Tick} =====\n",
                 BotId,
                 bestAction,
-                Math.Round(bestScore, 4)
+                Math.Round(bestScore, 4),
+                currentTick
             );
         }
 
@@ -369,13 +386,13 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         totalStopwatch.Stop();
         var totalTimeMs = totalStopwatch.ElapsedMilliseconds;
-        _logger.Debug("GetActionWithScores completed for Bot {BotId} in {TotalTime}ms, chosen action: {Action}", 
-            BotId, totalTimeMs, bestAction);
+        _logger.Debug("GetActionWithScores completed for Bot {BotId} in {TotalTime}ms on tick {Tick}, chosen action: {Action}", 
+            BotId, totalTimeMs, currentTick, bestAction);
             
-        if (totalTimeMs > 25)
+        if (totalTimeMs > 170)
         {
-            _logger.Warning("GetActionWithScores took {TotalTime}ms (>{Threshold}ms) - potential stuck behavior", 
-                totalTimeMs, 25);
+            _logger.Warning("GetActionWithScores took {TotalTime}ms (>{Threshold}ms) on tick {Tick}, chosen action: {Action} - potential stuck behavior", 
+                totalTimeMs, 170, currentTick, bestAction);
         }
 
         return (bestAction, actionScores);
@@ -384,19 +401,40 @@ public class HeuroBotService : IBot<HeuroBotService>
     public BotCommand ProcessState(GameState state)
     {
         var stopwatch = Stopwatch.StartNew();
-        _logger.Information("ProcessState started for Bot {BotId}", BotId);
+        
+        // Add null checks to prevent NullReferenceException
+        if (state == null)
+        {
+            _logger.Error("ProcessState received null GameState for Bot {BotId}. Returning default action.", BotId);
+            return new BotCommand { Action = BotAction.Up };
+        }
+        
+        if (state.Animals == null)
+        {
+            _logger.Error("ProcessState received GameState with null Animals collection for Bot {BotId} on tick {Tick}. Returning default action.", BotId, state.Tick);
+            return new BotCommand { Action = BotAction.Up };
+        }
+        
+        if (state.Cells == null)
+        {
+            _logger.Error("ProcessState received GameState with null Cells collection for Bot {BotId} on tick {Tick}. Returning default action.", BotId, state.Tick);
+            return new BotCommand { Action = BotAction.Up };
+        }
+        
+        int currentTick = state.Tick;
+        _logger.Debug("ProcessState started for Bot {BotId} on tick {Tick}", BotId, currentTick);
         
         var action = GetAction(state);
         
         stopwatch.Stop();
         var elapsedMs = stopwatch.ElapsedMilliseconds;
-        _logger.Information("ProcessState completed for Bot {BotId} in {ElapsedTime}ms, action: {Action}", 
-            BotId, elapsedMs, action);
+        _logger.Debug("ProcessState completed for Bot {BotId} in {ElapsedTime}ms on tick {Tick}, action: {Action}", 
+            BotId, elapsedMs, currentTick, action);
             
-        if (elapsedMs > 25)
+        if (elapsedMs > 170)
         {
-            _logger.Warning("ProcessState took {ElapsedTime}ms (>{Threshold}ms) - potential performance issue", 
-                elapsedMs, 25);
+            _logger.Warning("ProcessState took {ElapsedTime}ms (>{Threshold}ms) on tick {Tick}, action: {Action} - potential performance issue", 
+                elapsedMs, 170, currentTick, action);
         }
         
         return new BotCommand { Action = action };

@@ -78,8 +78,15 @@ MCTSNode* MCTSNode::expand() {
     if (parentAnimal && childAnimal) {
         int deltaScore = childAnimal->score - parentAnimal->score;
         if (deltaScore > 0) {
-            const double immediatePelletBonus = 3000.0; // tuneable
+            // Scale bonus based on score streak to incentivize maintaining streaks
+            const double immediatePelletBonus = 1000.0 * childAnimal->scoreStreak;
             child->update(immediatePelletBonus);
+        }
+        
+        // Small penalty for moves that don't collect pellets when streak is at risk
+        if (deltaScore == 0 && parentAnimal->ticksSinceLastPellet >= 2) {
+            const double streakRiskPenalty = -200.0 * parentAnimal->scoreStreak;
+            child->update(streakRiskPenalty);
         }
     }
 

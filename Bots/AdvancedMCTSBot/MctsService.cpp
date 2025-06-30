@@ -8,7 +8,7 @@ MctsService::MctsService(int maxIterations, int timeLimit, int numThreads, int m
     }
 
     mctsEngine = std::make_unique<MCTSEngine>(
-        1.414, // exploration constant
+        2.0, // Increased exploration constant for better exploration
         maxIterations,
         maxDepth,
         timeLimit,

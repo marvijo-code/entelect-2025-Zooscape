@@ -176,6 +176,8 @@ MCTSNode* MCTSEngine::expand(MCTSNode* node) {
 double MCTSEngine::simulate(const GameState& state, const std::string& playerId) {
     GameState simState = state;
     int depth = 0;
+    double cumulativeReward = 0.0;
+    double decayFactor = 0.95; // Decay factor for future rewards
     
     while (!simState.isTerminal() && depth < maxSimulationDepth) {
         auto legalActions = simState.getLegalActions(playerId);
@@ -183,8 +185,23 @@ double MCTSEngine::simulate(const GameState& state, const std::string& playerId)
             break;
         }
         
+        const Animal* currentAnimal = simState.getAnimal(playerId);
+        if (!currentAnimal) break;
+        
+        int scoreBeforeAction = currentAnimal->score;
+        
         BotAction action = selectSimulationAction(simState, playerId);
         simState.applyAction(playerId, action);
+
+        // Calculate immediate reward for this step
+        const Animal* newAnimal = simState.getAnimal(playerId);
+        if (newAnimal) {
+            int scoreDelta = newAnimal->score - scoreBeforeAction;
+            if (scoreDelta > 0) {
+                // Immediate reward for pellet collection, decayed by depth
+                cumulativeReward += scoreDelta * 50.0 * std::pow(decayFactor, depth);
+            }
+        }
 
         // --- Simulate zookeeper movement (greedy one-step towards target) ---
         for (auto& zk : simState.zookeepers) {
@@ -196,15 +213,19 @@ double MCTSEngine::simulate(const GameState& state, const std::string& playerId)
                 myAnimal->isCaught = true;
             }
         }
-        // Terminate rollout early if captured
+        
+        // Terminate rollout early if captured, but apply penalty
         if (simState.isPlayerCaught(playerId)) {
+            cumulativeReward -= 2000.0 * std::pow(decayFactor, depth);
             break;
         }
 
         depth++;
     }
     
-    return evaluateTerminalState(simState, playerId);
+    // Combine cumulative step rewards with final state evaluation
+    double terminalReward = evaluateTerminalState(simState, playerId);
+    return cumulativeReward + terminalReward * std::pow(decayFactor, depth);
 }
 
 void MCTSEngine::backpropagate(MCTSNode* node, double reward) {
@@ -224,31 +245,17 @@ double MCTSEngine::calculateUCB1(const MCTSNode* node, const MCTSNode* parent) c
         return std::numeric_limits<double>::infinity(); // Prioritize unvisited nodes
     }
 
-    // --- Progressive Bias ---
-    // Heuristic: inverse distance to nearest pellet from this child state.
-    const GameState& childState = node->getGameState();
-    const Animal* childAnimal = childState.getAnimal(childState.myAnimalId);
-    double heuristicBias = 0.0;
-    if (childAnimal) {
-        int dist = childState.distanceToNearestPellet(childAnimal->position);
-        if (dist >= 0) {
-            heuristicBias = 1.0 / (dist + 1); // Closer pellets -> higher bias
-        }
-    }
-    // Weight and decay with visits (progressive): bias / (1 + visits)
-    const double biasWeight = 5.0; // Tuneable
-    double progressiveBias = biasWeight * heuristicBias / (1.0 + node->getVisits());
-
-    // Depth-dependent exploration constant (decays with depth)
-    const int depth = node->getDepth();
-    const double depthDecayFactor = 0.5;               // Tuneable: larger → faster decay
-    double effectiveC = explorationConstant / (1.0 + depth * depthDecayFactor);
-
-    // Standard UCB1 components with depth decay
     double exploitation = node->getAverageReward();
-    double exploration = effectiveC * std::sqrt(std::log(static_cast<double>(parent->getVisits())) / node->getVisits());
+    double exploration = explorationConstant * 
+                        std::sqrt(std::log(static_cast<double>(parent->getVisits())) / node->getVisits());
+    
+    // Small first-play urgency bonus to help break ties for new nodes
+    double firstPlayUrgency = 0.0;
+    if (node->getVisits() < 3) {
+        firstPlayUrgency = 100.0 / (node->getVisits() + 1);
+    }
 
-    return exploitation + exploration + progressiveBias;
+    return exploitation + exploration + firstPlayUrgency;
 }
 
 double MCTSEngine::calculateRAVE(const MCTSNode* node) const {
@@ -272,41 +279,84 @@ BotAction MCTSEngine::selectSimulationAction(const GameState& state, const std::
         return BotAction::Up;
     }
     
-    // Use heuristics to bias action selection
-    auto actionScores = heuristicsEngine.evaluateAllActions(state, playerId);
+    const Animal* animal = state.getAnimal(playerId);
+    if (!animal) {
+        // Random fallback
+        std::uniform_int_distribution<size_t> dist(0, legalActions.size() - 1);
+        return legalActions[dist(rng)];
+    }
     
-    // Convert scores to probabilities using softmax
-    std::vector<double> probabilities;
-    double maxScore = -std::numeric_limits<double>::infinity();
+    // Fast greedy policy for simulation - focus on immediate goals
+    BotAction bestAction = legalActions[0];
+    double bestScore = -std::numeric_limits<double>::infinity();
+    
     for (const auto& action : legalActions) {
-        maxScore = std::max(maxScore, actionScores[action]);
-    }
-    
-    double sumExp = 0.0;
-    for (const auto& action : legalActions) {
-        double exp_val = std::exp((actionScores[action] - maxScore) * 2.0); // Temperature = 0.5
-        probabilities.push_back(exp_val);
-        sumExp += exp_val;
-    }
-    
-    // Normalize probabilities
-    for (auto& prob : probabilities) {
-        prob /= sumExp;
-    }
-    
-    // Sample action based on probabilities
-    std::uniform_real_distribution<double> dist(0.0, 1.0);
-    double random = dist(rng);
-    
-    double cumulative = 0.0;
-    for (size_t i = 0; i < legalActions.size(); ++i) {
-        cumulative += probabilities[i];
-        if (random <= cumulative) {
-            return legalActions[i];
+        double score = 0.0;
+        
+        Position newPos = animal->position;
+        switch (action) {
+            case BotAction::Up: newPos.y--; break;
+            case BotAction::Down: newPos.y++; break;
+            case BotAction::Left: newPos.x--; break;
+            case BotAction::Right: newPos.x++; break;
+            case BotAction::UseItem:
+                // Favor using power-ups when beneficial
+                if (animal->heldPowerUp == PowerUpType::Scavenger) {
+                    score += 500.0; // High value for scavenger
+                } else if (animal->heldPowerUp == PowerUpType::ChameleonCloak && 
+                          state.getZookeeperThreat(animal->position) > 5.0) {
+                    score += 400.0; // Use cloak when threatened
+                }
+                continue;
+        }
+        
+        if (!state.isTraversable(newPos.x, newPos.y)) {
+            score = -1000.0; // Invalid move
+        } else {
+            // Check what's at the destination
+            CellContent cellContent = state.getCell(newPos.x, newPos.y);
+            switch (cellContent) {
+                case CellContent::Pellet:
+                    score += 300.0 * animal->scoreStreak; // Value pellets highly
+                    break;
+                case CellContent::PowerPellet:
+                    score += 600.0 * animal->scoreStreak; // Power pellets even more
+                    break;
+                case CellContent::Scavenger:
+                    score += 250.0; // Valuable power-up
+                    break;
+                case CellContent::ChameleonCloak:
+                    score += 200.0 + state.getZookeeperThreat(newPos) * 10.0; // More valuable when threatened
+                    break;
+                case CellContent::BigMooseJuice:
+                    score += 150.0;
+                    break;
+                default:
+                    break;
+            }
+            
+            // Distance to nearest pellet
+            int distToPellet = state.distanceToNearestPellet(newPos);
+            if (distToPellet >= 0) {
+                score += 50.0 / (distToPellet + 1); // Closer is better
+            }
+            
+            // Avoid zookeepers
+            double threat = state.getZookeeperThreat(newPos);
+            score -= threat * 20.0;
+            
+            // Slight randomization to avoid deterministic patterns
+            std::uniform_real_distribution<double> noise(-5.0, 5.0);
+            score += noise(rng);
+        }
+        
+        if (score > bestScore) {
+            bestScore = score;
+            bestAction = action;
         }
     }
     
-    return legalActions.back(); // Fallback
+    return bestAction;
 }
 
 double MCTSEngine::evaluateTerminalState(const GameState& state, const std::string& playerId) {
@@ -315,65 +365,76 @@ double MCTSEngine::evaluateTerminalState(const GameState& state, const std::stri
         return 0.0; // Should not happen
     }
 
-    // 1. Pellet Score (Primary Reward)
-    double pelletScore = static_cast<double>(animal->score);
+    // Immediate failure conditions
+    if (state.isPlayerCaught(playerId)) {
+        return -10000.0; // Severe penalty for being caught
+    }
+
+    // 1. Pellet Score (Primary Reward) - Weight heavily as it's the main objective
+    double pelletScore = static_cast<double>(animal->score) * 100.0; // Increased weight
 
     // 2. Distance to nearest pellet (encourage moving towards pellets)
     int distToPellet = state.distanceToNearestPellet(animal->position);
     double distanceReward = 0.0;
     if (distToPellet >= 0) {
-        // Closer is better. Scale so that 0 distance yields max reward (e.g., 20) and far yields smaller.
-        // Assume max meaningful Manhattan distance is (width + height).
-        int maxDist = state.getWidth() + state.getHeight();
-        maxDist = std::max(1, maxDist); // Prevent division by zero.
-        distanceReward = static_cast<double>(maxDist - distToPellet);
+        // Exponential decay for distance - being close is much more valuable
+        distanceReward = 50.0 * std::exp(-0.3 * distToPellet);
     }
 
-    // 3. Exploration bonus (encourage covering new tiles)
-    double explorationBonus = static_cast<double>(state.visitedCells.size());
-
-    // 4. Threat penalty (avoid zookeepers)
-    double threatPenalty = state.getZookeeperThreat(animal->position);
-
-    // 5. Capture penalty
-    double capturePenalty = state.isPlayerCaught(playerId) ? 1000.0 : 0.0;
-
-    // --- Weights --- (tuned for balanced ranges)
-    const double pelletWeight      = 1.0;    // Treat accumulated score at face value
-    const double distanceWeight    = 30.0;  // Incentive to approach pellets
-    const double explorationWeight = 0.5;
-    const double threatWeight      = 5.0;
-    const double emptyPenaltyWeight = 200.0; // Penalty for long idle stretches without pellets
-    const double instantPelletRewardWeight = 0.0;  // Immediate pellet worth exactly its base value via pelletScore – no extra bonus
-    const double powerUpWeight     = 50.0;   // Reward active power-up usage
-
-    // --- Compute raw score ---
-    // 6. Empty-cell penalty (ticks since last pellet)
-    double emptyPenalty = animal->ticksSinceLastPellet * emptyPenaltyWeight;
-    // Reward if pellet collected this tick (ticksSinceLastPellet == 0)
-    double instantPelletReward = 0.0; // No special bonus – already accounted for in pelletScore
-
-    // 7. Power-up reward (active duration remaining)
-    double powerUpReward = 0.0;
-    if (animal->heldPowerUp != PowerUpType::None || animal->powerUpDuration > 0) {
-        powerUpReward = powerUpWeight * (animal->powerUpDuration + 1); // favour collecting/using
+    // 3. Score streak bonus - maintaining streaks is critical
+    double streakBonus = animal->scoreStreak * 25.0;
+    
+    // 4. Immediate pellet collection bonus
+    double immediateBonus = 0.0;
+    if (animal->ticksSinceLastPellet == 0) {
+        immediateBonus = 200.0 * animal->scoreStreak; // Bonus for fresh pellet collection
     }
 
-    double rawScore = (pelletWeight * pelletScore) +
-                      (distanceWeight * distanceReward) +
-                      (explorationWeight * explorationBonus) -
-                      (threatWeight * threatPenalty) -
-                      emptyPenalty +
-                      powerUpReward +
-                      instantPelletReward -
-                      capturePenalty;
+    // 5. Streak preservation penalty - avoid moves that reset streak
+    double streakPenalty = 0.0;
+    if (animal->ticksSinceLastPellet >= 2) {
+        streakPenalty = 100.0 * animal->scoreStreak; // Penalty proportional to streak risk
+    }
 
-    // --- Scale the raw score into a bounded range using tanh to keep UCB exploitation comparable with exploration term ---
-    // Chosen scale factor based on empirical max game scores; tune if necessary.
-    const double scaleFactor = 20000.0;
-    double scaled = std::tanh(rawScore / scaleFactor); // in (-1,1)
-    // Map to [0,100] positive range for convenience
-    return (scaled + 1.0) * 50.0;
+    // 6. Threat penalty (avoid zookeepers) - but don't make it overwhelming
+    double threatPenalty = state.getZookeeperThreat(animal->position) * 15.0;
+
+    // 7. Power-up value
+    double powerUpValue = 0.0;
+    if (animal->heldPowerUp != PowerUpType::None) {
+        switch (animal->heldPowerUp) {
+            case PowerUpType::Scavenger:
+                powerUpValue = 80.0; // Very valuable for pellet collection
+                break;
+            case PowerUpType::ChameleonCloak:
+                powerUpValue = 60.0 + threatPenalty; // More valuable when threatened
+                break;
+            case PowerUpType::BigMooseJuice:
+                powerUpValue = 50.0;
+                break;
+            default:
+                break;
+        }
+    }
+    if (animal->powerUpDuration > 0) {
+        powerUpValue += animal->powerUpDuration * 5.0; // Active power-up bonus
+    }
+
+    // 8. Position quality - favor center and avoid corners
+    double positionBonus = 0.0;
+    if (state.getWidth() > 0 && state.getHeight() > 0) {
+        double centerX = state.getWidth() / 2.0;
+        double centerY = state.getHeight() / 2.0;
+        double distFromCenter = std::sqrt(std::pow(animal->position.x - centerX, 2) + 
+                                         std::pow(animal->position.y - centerY, 2));
+        positionBonus = std::max(0.0, 20.0 - distFromCenter * 2.0);
+    }
+
+    // Final score calculation - no tanh compression to maintain discrimination
+    double finalScore = pelletScore + distanceReward + streakBonus + immediateBonus 
+                       - streakPenalty - threatPenalty + powerUpValue + positionBonus;
+
+    return finalScore;
 }
 
 void MCTSEngine::runParallelMCTS(MCTSNode* root, const std::string& playerId, int threadId) {

@@ -17,25 +17,113 @@ public class EvolutionCoordinator
     private readonly EvolutionaryBotManager _evolutionManager;
     private readonly Dictionary<string, Guid> _runningBots = new();
     private readonly object _lock = new();
+    private readonly Timer _evolutionTimer;
+    private bool _isEvolutionRunning = false;
+    private int _gamesPlayedSinceLastEvolution = 0;
+    private const int GAMES_BEFORE_EVOLUTION = 5; // Evolve after every 5 games
+    private const int EVOLUTION_INTERVAL_MINUTES = 10; // Also evolve every 10 minutes
 
     private EvolutionCoordinator()
     {
         var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<EvolutionaryBotManager>();
         _evolutionManager = new EvolutionaryBotManager(logger);
         
-        // Initialize evolution system
-        _ = Task.Run(async () =>
+        // Initialize evolution system synchronously to ensure it's ready
+        try
         {
-            try
+            Console.WriteLine("Initializing evolution system...");
+            var initTask = _evolutionManager.InitializeAsync();
+            initTask.Wait(TimeSpan.FromSeconds(10)); // Wait up to 10 seconds for initialization
+            Console.WriteLine("Evolution system initialized successfully!");
+            
+            // Start the evolution process in background
+            _ = Task.Run(async () =>
             {
-                await _evolutionManager.InitializeAsync();
-                Console.WriteLine("Evolution system initialized successfully!");
-            }
-            catch (Exception ex)
+                try
+                {
+                    Console.WriteLine("Starting evolution process...");
+                    await StartEvolutionProcessAsync();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error in evolution process: {ex.Message}");
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to initialize evolution system: {ex.Message}");
+            // Create a minimal population as fallback
+            _evolutionManager.CurrentPopulation.InitializeRandom();
+        }
+        
+        // Set up periodic evolution timer
+        _evolutionTimer = new Timer(async _ => await TriggerEvolutionIfNeeded(), 
+            null, 
+            TimeSpan.FromMinutes(EVOLUTION_INTERVAL_MINUTES), 
+            TimeSpan.FromMinutes(EVOLUTION_INTERVAL_MINUTES));
+    }
+
+    /// <summary>
+    /// Starts the evolution process in the background
+    /// </summary>
+    private async Task StartEvolutionProcessAsync()
+    {
+        try
+        {
+            if (_isEvolutionRunning)
+                return;
+                
+            _isEvolutionRunning = true;
+            Console.WriteLine("Evolution process started in background");
+            
+            // Start evolution with a cancellation token for graceful shutdown
+            var cts = new CancellationTokenSource();
+            _ = Task.Run(async () =>
             {
-                Console.WriteLine($"Failed to initialize evolution system: {ex.Message}");
+                try
+                {
+                    await _evolutionManager.StartEvolutionAsync(cts.Token);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Evolution process error: {ex.Message}");
+                }
+                finally
+                {
+                    _isEvolutionRunning = false;
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to start evolution process: {ex.Message}");
+            _isEvolutionRunning = false;
+        }
+    }
+
+    /// <summary>
+    /// Triggers evolution if enough games have been played
+    /// </summary>
+    private async Task TriggerEvolutionIfNeeded()
+    {
+        try
+        {
+            lock (_lock)
+            {
+                if (_gamesPlayedSinceLastEvolution < GAMES_BEFORE_EVOLUTION)
+                    return;
+                    
+                _gamesPlayedSinceLastEvolution = 0;
             }
-        });
+            
+            Console.WriteLine("Triggering evolution due to game count threshold...");
+            await EvolveAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in automatic evolution trigger: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -48,25 +136,47 @@ public class EvolutionCoordinator
             // If this nickname is already registered, return existing ID
             if (_runningBots.TryGetValue(botNickname, out var existingId))
             {
+                Console.WriteLine($"Bot '{botNickname}' already registered with individual {existingId}");
                 return existingId;
             }
 
-            // Get a random individual from current population for this bot
-            var individuals = _evolutionManager.CurrentPopulation.Individuals;
-            if (individuals.Any())
+            // Ensure population is initialized
+            if (_evolutionManager.CurrentPopulation.Individuals.Count == 0)
             {
-                var randomIndividual = individuals[Random.Shared.Next(individuals.Count)];
-                _runningBots[botNickname] = randomIndividual.Id;
-                
-                Console.WriteLine($"Bot '{botNickname}' assigned individual {randomIndividual.Id} (Gen: {randomIndividual.Generation})");
-                return randomIndividual.Id;
+                Console.WriteLine("Population is empty, initializing random population...");
+                _evolutionManager.CurrentPopulation.InitializeRandom();
             }
 
-            // Fallback: create a temporary individual
-            var tempIndividual = new Individual();
-            _runningBots[botNickname] = tempIndividual.Id;
-            Console.WriteLine($"Bot '{botNickname}' assigned temporary individual {tempIndividual.Id}");
-            return tempIndividual.Id;
+            // Get individuals that need evaluation (haven't played recently)
+            var staleIndividuals = _evolutionManager.GetIndividualsNeedingEvaluation(TimeSpan.FromMinutes(30));
+            Individual selectedIndividual;
+            
+            if (staleIndividuals.Any())
+            {
+                // Prioritize individuals that haven't been evaluated
+                selectedIndividual = staleIndividuals[Random.Shared.Next(staleIndividuals.Count)];
+                Console.WriteLine($"Bot '{botNickname}' assigned stale individual {selectedIndividual.Id} (Gen: {selectedIndividual.Generation}, Games: {selectedIndividual.GamesPlayed})");
+            }
+            else
+            {
+                // Get a random individual from current population
+                var individuals = _evolutionManager.CurrentPopulation.Individuals;
+                if (individuals.Any())
+                {
+                    selectedIndividual = individuals[Random.Shared.Next(individuals.Count)];
+                    Console.WriteLine($"Bot '{botNickname}' assigned individual {selectedIndividual.Id} (Gen: {selectedIndividual.Generation}, Games: {selectedIndividual.GamesPlayed})");
+                }
+                else
+                {
+                    // Fallback: create a temporary individual and add it to population
+                    selectedIndividual = new Individual();
+                    _evolutionManager.CurrentPopulation.AddIndividual(selectedIndividual);
+                    Console.WriteLine($"Bot '{botNickname}' assigned new individual {selectedIndividual.Id} (added to population)");
+                }
+            }
+            
+            _runningBots[botNickname] = selectedIndividual.Id;
+            return selectedIndividual.Id;
         }
     }
 
@@ -85,6 +195,9 @@ public class EvolutionCoordinator
                     Console.WriteLine($"No individual registered for bot '{botNickname}'");
                     return;
                 }
+                
+                // Increment games played counter
+                _gamesPlayedSinceLastEvolution++;
             }
 
             var performance = new GamePerformance
@@ -95,18 +208,22 @@ public class EvolutionCoordinator
                 SurvivalTime = gameTime,
                 FinalRank = rank,
                 TotalPlayers = totalPlayers,
-                TimesCaptured = 0, // Would need actual tracking
-                PelletsCollected = score, // Assuming 1 point per pellet
-                MovesExecuted = (int)gameTime.TotalSeconds, // Rough estimate
-                DistanceTraveled = score * 2.0, // Rough estimate
+                TimesCaptured = Math.Max(0, totalPlayers - rank), // Estimate based on rank
+                PelletsCollected = Math.Max(score, 0), // Assuming score correlates with pellets
+                MovesExecuted = (int)(gameTime.TotalSeconds * 5), // Estimate ~5 moves per second
+                DistanceTraveled = score * 1.5, // Rough estimate based on score
                 EfficiencyRatio = gameTime.TotalSeconds > 0 ? score / gameTime.TotalSeconds : 0
             };
 
-            performance.CalculateFitness();
-
             await _evolutionManager.RecordGamePerformanceAsync(botIndividualId, performance);
 
-            Console.WriteLine($"Recorded performance for '{botNickname}': Score={score}, Fitness={performance.Fitness:F2}");
+            Console.WriteLine($"Performance recorded for '{botNickname}': Score={score}, Rank={rank}/{totalPlayers}, Time={gameTime.TotalSeconds:F1}s, Games since evolution: {_gamesPlayedSinceLastEvolution}");
+            
+            // Check if we should trigger evolution
+            if (_gamesPlayedSinceLastEvolution >= GAMES_BEFORE_EVOLUTION)
+            {
+                _ = Task.Run(async () => await TriggerEvolutionIfNeeded());
+            }
         }
         catch (Exception ex)
         {
@@ -135,9 +252,12 @@ public class EvolutionCoordinator
 
             if (individual?.Genome != null)
             {
-                return JsonSerializer.Serialize(individual.Genome, new JsonSerializerOptions { WriteIndented = true });
+                var weightsJson = JsonSerializer.Serialize(individual.Genome, new JsonSerializerOptions { WriteIndented = true });
+                Console.WriteLine($"Providing evolved weights for '{botNickname}' from individual {individual.Id} (Gen: {individual.Generation}, Fitness: {individual.Fitness:F2})");
+                return weightsJson;
             }
 
+            Console.WriteLine($"No genome found for '{botNickname}', using default weights");
             return "{}";
         }
         catch (Exception ex)
@@ -154,6 +274,7 @@ public class EvolutionCoordinator
     {
         try
         {
+            Console.WriteLine("Starting manual evolution...");
             await _evolutionManager.EvolveOneGenerationAsync();
             Console.WriteLine($"Evolution completed! Now at generation {_evolutionManager.CurrentGeneration}");
             
@@ -161,7 +282,11 @@ public class EvolutionCoordinator
             lock (_lock)
             {
                 _runningBots.Clear();
+                _gamesPlayedSinceLastEvolution = 0;
             }
+            
+            // Print current statistics
+            PrintStatistics();
         }
         catch (Exception ex)
         {
@@ -170,14 +295,51 @@ public class EvolutionCoordinator
     }
 
     /// <summary>
+    /// Gets the current best individual from the population
+    /// </summary>
+    public Individual? GetBestIndividual()
+    {
+        try
+        {
+            return _evolutionManager.GetBestIndividual();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting best individual: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Gets current evolution statistics
+    /// </summary>
+    public EvolutionStatistics GetStatistics()
+    {
+        try
+        {
+            return _evolutionManager.GetStatistics();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting statistics: {ex.Message}");
+            return new EvolutionStatistics();
+        }
+    }
+
+    /// <summary>
+    /// Gets the current population
+    /// </summary>
+    public Population CurrentPopulation => _evolutionManager.CurrentPopulation;
+
+    /// <summary>
+    /// Prints current evolution statistics to console
     /// </summary>
     public void PrintStatistics()
     {
         try
         {
-            var stats = _evolutionManager.GetStatistics();
-            var best = _evolutionManager.GetBestIndividual();
+            var stats = GetStatistics();
+            var best = GetBestIndividual();
 
             Console.WriteLine("\n=== EVOLUTION STATISTICS ===");
             Console.WriteLine($"Generation: {stats.Generation}");
@@ -185,6 +347,9 @@ public class EvolutionCoordinator
             Console.WriteLine($"Average Fitness: {stats.PopulationStatistics.AverageFitness:F2}");
             Console.WriteLine($"Best Fitness: {stats.PopulationStatistics.BestFitness:F2}");
             Console.WriteLine($"Population Diversity: {stats.PopulationStatistics.PopulationDiversity:F2}");
+            Console.WriteLine($"Total Games Played: {stats.PopulationStatistics.TotalGamesPlayed}");
+            Console.WriteLine($"Evolution Running: {_isEvolutionRunning}");
+            Console.WriteLine($"Games Since Last Evolution: {_gamesPlayedSinceLastEvolution}");
             
             if (best != null)
             {
@@ -198,5 +363,14 @@ public class EvolutionCoordinator
         {
             Console.WriteLine($"Error getting statistics: {ex.Message}");
         }
+    }
+    
+    /// <summary>
+    /// Cleanup resources
+    /// </summary>
+    public void Dispose()
+    {
+        _evolutionTimer?.Dispose();
+        _evolutionManager?.StopEvolution();
     }
 } 

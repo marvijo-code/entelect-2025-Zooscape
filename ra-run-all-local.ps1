@@ -39,48 +39,38 @@ function Test-PortAvailable {
 function Stop-DotnetProcesses {
     Write-Host "Stopping processes managed by ra-run-all-local.ps1..." -ForegroundColor Yellow
 
-    # These global script variables $engineCsproj and $bots are expected to be defined and accessible here.
-    $managedProjectFiles = @((Split-Path $engineCsproj -Leaf))
+    # Get all bot executable names for more reliable process stopping
+    $managedExecutableNames = @("Zooscape", "AdvancedMCTSBot", "DeepMCTS", "python")
     foreach ($botDefinition in $bots) {
         if ($botDefinition.Language -eq "csharp") {
-            $managedProjectFiles += (Split-Path $botDefinition.Path -Leaf)
-        }
-        elseif ($botDefinition.Language -eq "python") {
-            $managedProjectFiles += "play_bot_runner.py"
+            $botName = $botDefinition.Name
+            $managedExecutableNames += $botName
         }
     }
-    $managedExecutableNames = @("Zooscape", "AdvancedMCTSBot", "DeepMCTS", "ClingyHeuroBot", "mctso4", "python") # Add other bot/engine executable names as needed
 
-    Write-Host "Identifying dotnet processes for managed projects: $($managedProjectFiles -join ', ')" -ForegroundColor DarkGray
-
+    # Stop all dotnet processes first (including dotnet watch processes)
+    Write-Host "Stopping all dotnet processes..." -ForegroundColor DarkGray
+    $stoppedProcesses = @()
+    
     Get-Process -Name "dotnet" -ErrorAction SilentlyContinue | ForEach-Object {
         $processToStop = $_
         try {
-            $procInfo = Get-CimInstance Win32_Process -Filter "ProcessId = $($processToStop.Id)" -ErrorAction SilentlyContinue
-            $commandLine = $procInfo.CommandLine
-
-            if ($commandLine) {
-                foreach ($projectFile in $managedProjectFiles) {
-                    if ($commandLine -match [regex]::Escape($projectFile)) {
-                        Write-Host "Stopping managed dotnet process: $($processToStop.ProcessName) (ID: $($processToStop.Id)) for project $projectFile" -ForegroundColor Gray
-                        # For debugging: Write-Host "Full command line: $commandLine" -ForegroundColor DarkGray
-                        $processToStop | Stop-Process -Force -ErrorAction Stop
-                        break # Process identified and stopped, move to the next process from Get-Process
-                    }
-                }
-            }
+            Write-Host "Stopping dotnet process: $($processToStop.ProcessName) (ID: $($processToStop.Id))" -ForegroundColor Gray
+            $processToStop | Stop-Process -Force -ErrorAction Stop
+            $stoppedProcesses += $processToStop.Id
         }
         catch {
-            Write-Warning "Error processing or stopping dotnet process $($processToStop.ProcessName) (ID: $($processToStop.Id)): $($_.Exception.Message)"
+            Write-Warning "Error stopping dotnet process $($processToStop.ProcessName) (ID: $($processToStop.Id)): $($_.Exception.Message)"
         }
     }
 
-    # Stop C++ bots by name (if they are running as standalone executables listed in $managedExecutableNames)
-    if ($managedExecutableNames.Count -gt 0) {
-        Get-Process -Name $managedExecutableNames -ErrorAction SilentlyContinue | ForEach-Object {
+    # Stop bot executables by name
+    foreach ($executableName in $managedExecutableNames) {
+        Get-Process -Name $executableName -ErrorAction SilentlyContinue | ForEach-Object {
             try {
                 Write-Host "Stopping managed executable: $($_.ProcessName) (ID: $($_.Id))" -ForegroundColor Gray
                 $_ | Stop-Process -Force -ErrorAction Stop
+                $stoppedProcesses += $_.Id
             }
             catch {
                 Write-Warning "Failed to stop process $($_.ProcessName) (ID: $($_.Id)): $($_.Exception.Message)"
@@ -88,8 +78,7 @@ function Stop-DotnetProcesses {
         }
     }
     
-    # The existing port 5000 check for the engine. The comment about port 5008 is misleading as it's not implemented here.
-    # This part specifically targets port 5000, which is used by the engine this script manages.
+    # Stop processes using port 5000
     Write-Host "Checking for processes using port 5000 (engine port)..." -ForegroundColor Yellow
     try {
         netstat -ano | Select-String ":5000\s" | ForEach-Object {
@@ -103,6 +92,7 @@ function Stop-DotnetProcesses {
                         if ($processOnPort) {
                             Write-Host "Found process $($processOnPort.ProcessName) (ID: $($processOnPort.Id)) using port 5000. Stopping it." -ForegroundColor Gray
                             $processOnPort | Stop-Process -Force -ErrorAction Stop
+                            $stoppedProcesses += [int]$processId
                         }
                     }
                     catch {
@@ -114,6 +104,44 @@ function Stop-DotnetProcesses {
     }
     catch {
         Write-Warning "Failed to check port 5000 usage: $($_.Exception.Message)"
+    }
+    
+    # Wait for processes to fully terminate and release file locks
+    if ($stoppedProcesses.Count -gt 0) {
+        Write-Host "Waiting for processes to fully terminate and release file locks..." -ForegroundColor Yellow
+        $maxWaitSeconds = 10
+        $waitStart = Get-Date
+        
+        do {
+            $stillRunning = @()
+            foreach ($processId in $stoppedProcesses) {
+                try {
+                    $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
+                    if ($proc) {
+                        $stillRunning += $processId
+                    }
+                }
+                catch {
+                    # Process no longer exists, which is what we want
+                }
+            }
+            
+            if ($stillRunning.Count -eq 0) {
+                break
+            }
+            
+            $elapsedSeconds = ((Get-Date) - $waitStart).TotalSeconds
+            if ($elapsedSeconds -ge $maxWaitSeconds) {
+                Write-Warning "Some processes are still running after $maxWaitSeconds seconds: $($stillRunning -join ', ')"
+                break
+            }
+            
+            Start-Sleep -Milliseconds 500
+        } while ($true)
+        
+        # Additional wait for file system to release locks
+        Write-Host "Waiting additional time for file system locks to be released..." -ForegroundColor DarkGray
+        Start-Sleep -Seconds 3
     }
     
     Write-Host "Process cleanup completed." -ForegroundColor Green
@@ -141,6 +169,7 @@ $engineTabColor = "#0078D4" # Blue
 $botTabColors = @("#107C10", "#C50F1F", "#5C2D91", "#CA5100", "#008272", "#7A7574") # Green, Red, Purple, Orange, Teal, Gray
 
 # Initial cleanup of any lingering processes from previous runs
+Write-Host "Performing initial cleanup of any lingering processes..." -ForegroundColor Cyan
 Stop-DotnetProcesses
 
 $keepRunningScript = $true
@@ -157,7 +186,37 @@ while ($keepRunningScript) {
     Write-Host "[ENGINE] Skipping build for Zooscape." -ForegroundColor Yellow
 
 
-    # 2. Build all bots before launching anything
+    # 2. Stop any existing processes before building/restarting
+    if (-not $isFirstRun) {
+        Write-Host "[RESTART] Stopping existing processes before restart..." -ForegroundColor Yellow
+        Stop-DotnetProcesses
+        Write-Host "Waiting additional time before building to ensure file locks are released..." -ForegroundColor DarkGray
+        Start-Sleep -Seconds 2  # Additional wait for file system
+    }
+
+    # 3. Build all bots before launching anything  
+    # Double-check that no processes are still running that could cause file locks
+    $stillRunningProcesses = @()
+    foreach ($botDefinition in $bots) {
+        if ($botDefinition.Language -eq "csharp") {
+            $botName = $botDefinition.Name
+            $runningBots = Get-Process -Name $botName -ErrorAction SilentlyContinue
+            if ($runningBots) {
+                $stillRunningProcesses += $runningBots
+            }
+        }
+    }
+    $runningDotnet = Get-Process -Name "dotnet" -ErrorAction SilentlyContinue
+    if ($runningDotnet) {
+        $stillRunningProcesses += $runningDotnet
+    }
+    
+    if ($stillRunningProcesses.Count -gt 0) {
+        Write-Warning "Found $($stillRunningProcesses.Count) processes still running that could cause file locks. Force stopping them..."
+        $stillRunningProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 3
+    }
+    
     $builtBots = @()
     $buildFailed = $false
     foreach ($bot in $bots) {
@@ -184,8 +243,33 @@ while ($keepRunningScript) {
             Write-Host "Python environment OK for $($bot.Name)." -ForegroundColor Green
         }
         else {
-            dotnet build $botProjectPath -c Release
-            if ($LASTEXITCODE -ne 0) { Write-Error "Build failed for $($bot.Name)."; $buildFailed = $true; break }
+            # Retry build if it fails due to file locks
+            $buildRetries = 3
+            $buildSuccess = $false
+            for ($retry = 1; $retry -le $buildRetries; $retry++) {
+                try {
+                    Write-Host "Building $($bot.Name) (attempt $retry/$buildRetries)..." -ForegroundColor DarkGray
+                    dotnet build $botProjectPath -c Release --verbosity quiet
+                    if ($LASTEXITCODE -eq 0) {
+                        $buildSuccess = $true
+                        break
+                    }
+                }
+                catch {
+                    Write-Warning "Build attempt $retry failed: $($_.Exception.Message)"
+                }
+                
+                if ($retry -lt $buildRetries) {
+                    Write-Host "Build failed, waiting before retry..." -ForegroundColor Yellow
+                    Start-Sleep -Seconds 2
+                }
+            }
+            
+            if (-not $buildSuccess) {
+                Write-Error "Build failed for $($bot.Name) after $buildRetries attempts."
+                $buildFailed = $true
+                break
+            }
         }
         $builtBots += $bot
     }
@@ -198,13 +282,6 @@ while ($keepRunningScript) {
             if ($inputKey.KeyChar -eq 'x') { $keepRunningScript = $false; break }
         }
         if (-not $keepRunningScript) { break } else { continue }
-    }
-
-    # 3. Stop any existing processes before launching/restarting
-    if (-not $isFirstRun) {
-        Write-Host "[RESTART] Stopping existing processes before restart..." -ForegroundColor Yellow
-        Stop-DotnetProcesses
-        Start-Sleep -Seconds 2  # Give processes time to fully terminate
     }
 
     # 4. Check port availability before launching engine 
@@ -229,33 +306,18 @@ while ($keepRunningScript) {
     }
     Write-Host "Port 5000 is available." -ForegroundColor Green
 
-    # 5. Launch engine (always in new tab)
-    if ($isFirstRun) {
-        Write-Host "[ENGINE] Launching Zooscape in new tab..." -ForegroundColor Yellow
-    }
-    else {
-        Write-Host "[ENGINE] Launching Zooscape in new tab..." -ForegroundColor Yellow
-    }
-    
+    # 5. Prepare engine command
     $engineCommand = "dotnet run --project `"$engineCsproj`" --configuration Release"
     $encodedEngineCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($engineCommand))
     
     # Use a specific window name to avoid focus stealing
     $windowName = "zooscape-runner"
-    $wtArgsEngine = @("-w", $windowName, "new-tab", "--title", "Engine", "--tabColor", $engineTabColor, "--suppressApplicationTitle", "-d", $engineDir, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedEngineCommand)
     
-    # Start the process in the background to avoid focus stealing
-    Start-Process wt -ArgumentList $wtArgsEngine -WindowStyle Hidden
+    # Build engine tab arguments
+    $engineTabArgs = @("new-tab", "--title", "Engine", "--tabColor", $engineTabColor, "--suppressApplicationTitle", "-d", $engineDir, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedEngineCommand)
 
-    # Give the terminal window a moment to be created before adding more tabs
-    Start-Sleep -Seconds 2
-
-    # Give the engine a moment to start listening and let the terminal settle
-    Write-Host "Waiting for engine to initialize (3 more seconds)..." -ForegroundColor DarkGray
-    Start-Sleep -Seconds 3
-
-    # 6. Launch all bots in a single command to avoid focus stealing
-    $botCommands = @()
+    # 6. Prepare all bot commands
+    $allTabCommands = @()
     $botColorIndex = 0
     foreach ($bot in $builtBots) {
         $tokenGuid = [guid]::NewGuid().ToString()
@@ -291,33 +353,36 @@ while ($keepRunningScript) {
         $tabTitle = $bot.Name
         $currentBotTabColor = $botTabColors[$botColorIndex % $botTabColors.Count]
 
-        # Note: The semicolon is crucial for chaining commands in wt.exe
-        $botCommands += @(";", "new-tab", "--title", $tabTitle, "--tabColor", $currentBotTabColor, "--suppressApplicationTitle", "-d", $botWorkingDirectory, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedBotCommand)
+        # Add bot tab arguments
+        $allTabCommands += @(";", "new-tab", "--title", $tabTitle, "--tabColor", $currentBotTabColor, "--suppressApplicationTitle", "-d", $botWorkingDirectory, "--", "pwsh", "-NoExit", "-NoLogo", "-EncodedCommand", $encodedBotCommand)
         $botColorIndex++
     }
 
-    if ($botCommands.Count -gt 0) {
-        Write-Host "[BOTS] Launching all bots in new tabs..." -ForegroundColor Green
-        # The first command doesn't need the leading semicolon, so we skip it.
-        # Use the same window name to add tabs to the existing terminal window
-        $allBotWtArgs = @("-w", $windowName) + $botCommands[1..($botCommands.Count - 1)]
-        
-        # Start the process in the background to avoid focus stealing
-        Start-Process wt -ArgumentList $allBotWtArgs -WindowStyle Hidden
-    }
+    # 7. Launch all tabs at once in a single command
+    Write-Host "[ALL] Launching engine and all bots in new tabs simultaneously..." -ForegroundColor Cyan
+    
+    # Combine engine and bot commands into a single wt invocation
+    $allWtArgs = @("-w", $windowName) + $engineTabArgs + $allTabCommands
+    
+    # Start all processes in the background to avoid focus stealing
+    Start-Process wt -ArgumentList $allWtArgs -WindowStyle Hidden
+    
+    # Give the applications a moment to start
+    Write-Host "Waiting for all applications to initialize..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 5
 
     # Mark that we've completed the first run
     $isFirstRun = $false
     $Host.UI.RawUI.WindowTitle = "Zooscape Bot Manager (Running)"
         
     Write-Host "All components launched. Monitor their respective tabs for logs." -ForegroundColor Cyan
-    Write-Host "Games will automatically restart every 3 minutes." -ForegroundColor Cyan
+    Write-Host "Games will automatically restart every 2 minutes." -ForegroundColor Cyan
     Write-Host "Press 'q' in THIS window to STOP all application processes (tabs will remain open)." -ForegroundColor White
     Write-Host "Press 'c' in THIS window to CLOSE this script and LEAVE applications running." -ForegroundColor White
 
     $userAction = ''
     $gameStartTime = Get-Date
-    $gameDurationMinutes = 3
+    $gameDurationMinutes = 4
     
     while ($true) {
         # Check for user input
@@ -327,7 +392,7 @@ while ($keepRunningScript) {
             if ($keyInfo.KeyChar -eq 'c') { $userAction = 'close_script'; $keepRunningScript = $false; break }
         }
         
-        # Check if 3 minutes have passed
+        # Check if game duration has passed
         $elapsedMinutes = ((Get-Date) - $gameStartTime).TotalMinutes
         if ($elapsedMinutes -ge $gameDurationMinutes) {
             Write-Host "`n$gameDurationMinutes minutes have elapsed. Restarting games..." -ForegroundColor Yellow

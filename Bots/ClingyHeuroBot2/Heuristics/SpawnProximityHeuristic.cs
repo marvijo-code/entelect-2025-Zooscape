@@ -31,7 +31,7 @@ public class SpawnProximityHeuristic : IHeuristic
         {
             // Prevent division by zero if the divisor is not set or misconfigured.
             // Returning 0 score in this case, as a zero divisor implies an issue with weighting.
-            heuristicContext.Logger?.Warning("{HeuristicName}: SpawnProximityDistanceBonusDivisor is zero. Returning 0 score.", Name);
+            heuristicContext.Logger?.Debug("{HeuristicName}: SpawnProximityDistanceBonusDivisor is zero. Returning 0 score.", Name);
             return 0m;
         }
         return (decimal)spawnDist / heuristicContext.Weights.SpawnProximityDistanceBonusDivisor;

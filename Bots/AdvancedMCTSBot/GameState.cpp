@@ -387,19 +387,34 @@ int GameState::distanceToNearestPellet(const Position& pos) const {
     }
 
     int minDist = std::numeric_limits<int>::max();
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            if (pelletBoard.get(x, y)) {
-                int dist = std::abs(pos.x - x) + std::abs(pos.y - y);
-                if (dist < minDist) {
-                    minDist = dist;
-                    if (minDist == 0) {
-                        return 0; // Already on a pellet
-                    }
+    
+    // Early termination optimization - search in expanding rings
+    int maxSearchRadius = std::max(width, height);
+    for (int radius = 0; radius <= maxSearchRadius; ++radius) {
+        bool foundPelletAtRadius = false;
+        
+        // Search the ring at this radius
+        for (int dx = -radius; dx <= radius; ++dx) {
+            for (int dy = -radius; dy <= radius; ++dy) {
+                // Only check positions that are exactly at the current radius
+                if (std::abs(dx) + std::abs(dy) != radius) continue;
+                
+                int x = pos.x + dx;
+                int y = pos.y + dy;
+                
+                if (x >= 0 && x < width && y >= 0 && y < height && pelletBoard.get(x, y)) {
+                    foundPelletAtRadius = true;
+                    minDist = std::min(minDist, radius);
                 }
             }
         }
+        
+        // If we found a pellet at this radius, we can return early
+        if (foundPelletAtRadius) {
+            return minDist;
+        }
     }
+    
     return (minDist == std::numeric_limits<int>::max()) ? -1 : minDist;
 }
 

@@ -1,20 +1,20 @@
 {
-  "Generation": 0,
+  "Generation": 1,
   "MaxSize": 20,
   "CreatedAt": "2025-06-29T19:53:45.6724184Z",
-  "LastEvolvedAt": "2025-06-29T19:53:45.7987272Z",
+  "LastEvolvedAt": "2025-06-30T16:24:53.1160944Z",
   "Statistics": {
-    "Generation": 0,
+    "Generation": 1,
     "PopulationSize": 20,
     "MaxSize": 20,
     "AverageFitness": 0,
     "BestFitness": 0,
     "WorstFitness": 0,
     "FitnessStandardDeviation": 0,
-    "PopulationDiversity": 18.324133957315716,
-    "AverageAge": 0,
-    "OldestAge": 0,
+    "PopulationDiversity": 18.246790761278426,
+    "AverageAge": 1,
+    "OldestAge": 1,
     "TotalGamesPlayed": 0,
-    "LastEvolvedAt": "2025-06-29T19:53:45.7987272Z"
+    "LastEvolvedAt": "2025-06-30T16:24:53.1160944Z"
   }
 }

@@ -22,8 +22,8 @@ private:
         std::string hubName = "bothub";
         std::string botToken;
         std::string botNickname = "AdvancedMCTSBot";
-        int timeLimit = 130;
-        int maxIterations = 100000;
+        int timeLimit = 120; // Reduced from 130 to give more safety margin
+        int maxIterations = 50000; // Reduced for faster iterations
     } config;
 
     void loadConfiguration();

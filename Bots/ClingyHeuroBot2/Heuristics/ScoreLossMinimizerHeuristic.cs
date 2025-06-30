@@ -37,7 +37,7 @@ public class ScoreLossMinimizerHeuristic : IHeuristic
             decimal riskDistanceDivisor = heuristicContext.Weights.ScoreLossMinimizerRiskDistanceDivisor;
             if (riskDistanceDivisor == 0m)
             {
-                heuristicContext.Logger?.Warning("{HeuristicName}: ScoreLossMinimizerRiskDistanceDivisor is zero. Using fallback divisor of 1 to avoid division by zero.", Name);
+                heuristicContext.Logger?.Debug("{HeuristicName}: ScoreLossMinimizerRiskDistanceDivisor is zero. Using fallback divisor of 1 to avoid division by zero.", Name);
                 riskDistanceDivisor = 1m; // Fallback to 1 to avoid divide-by-zero
             }
 
