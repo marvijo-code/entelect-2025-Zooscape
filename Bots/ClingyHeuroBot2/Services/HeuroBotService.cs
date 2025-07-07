@@ -80,6 +80,16 @@ public class HeuroBotService : IBot<HeuroBotService>
         Dictionary<BotAction, decimal> ActionScores
     ) GetActionWithScores(GameState gameState)
     {
+        var (chosenAction, actionScores, _) = GetActionWithDetailedScores(gameState);
+        return (chosenAction, actionScores);
+    }
+
+    public (
+        BotAction ChosenAction,
+        Dictionary<BotAction, decimal> ActionScores,
+        List<ScoreLog> DetailedScores
+    ) GetActionWithDetailedScores(GameState gameState)
+    {
         var totalStopwatch = Stopwatch.StartNew();
         int currentTick = gameState?.Tick ?? -1;
         _logger.Debug("GetActionWithScores started for Bot {BotId} on tick {Tick}", BotId, currentTick);
@@ -88,26 +98,26 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (gameState == null)
         {
             _logger.Error("GetActionWithScores received null GameState for Bot {BotId}. Returning default action.", BotId);
-            return (BotAction.Up, new Dictionary<BotAction, decimal>());
+            return (BotAction.Up, new Dictionary<BotAction, decimal>(), new List<ScoreLog>());
         }
 
         if (gameState.Animals == null)
         {
             _logger.Error("GameState.Animals is null for Bot {BotId} on tick {Tick}. Returning default action.", BotId, currentTick);
-            return (BotAction.Up, new Dictionary<BotAction, decimal>());
+            return (BotAction.Up, new Dictionary<BotAction, decimal>(), new List<ScoreLog>());
         }
 
         if (gameState.Cells == null)
         {
             _logger.Error("GameState.Cells is null for Bot {BotId} on tick {Tick}. Returning default action.", BotId, currentTick);
-            return (BotAction.Up, new Dictionary<BotAction, decimal>());
+            return (BotAction.Up, new Dictionary<BotAction, decimal>(), new List<ScoreLog>());
         }
 
         // Check if _heuristics is properly initialized
         if (_heuristics == null)
         {
             _logger.Error("HeuristicsManager is null for Bot {BotId} on tick {Tick}. This should never happen! Returning default action.", BotId, currentTick);
-            return (BotAction.Up, new Dictionary<BotAction, decimal>());
+            return (BotAction.Up, new Dictionary<BotAction, decimal>(), new List<ScoreLog>());
         }
         
         if (_logger != null && LogHeuristicScores)
@@ -123,7 +133,7 @@ public class HeuroBotService : IBot<HeuroBotService>
             _logger.Error("Bot's animal with ID {BotId} not found in current game state on tick {Tick}. Available animals: [{AvailableAnimals}]", 
                 BotId, currentTick, string.Join(", ", gameState.Animals.Select(a => a.Id.ToString())));
             // Return a default action, perhaps 'None' or the safest option.
-            return (BotAction.Up, new Dictionary<BotAction, decimal>()); // Defaulting to Up as BotAction.None is not available
+            return (BotAction.Up, new Dictionary<BotAction, decimal>(), new List<ScoreLog>()); // Defaulting to Up as BotAction.None is not available
         }
 
         // Log current position and wall detection
@@ -475,7 +485,7 @@ public class HeuroBotService : IBot<HeuroBotService>
                 totalTimeMs, 170, currentTick, bestAction);
         }
 
-        return (bestAction, actionScores);
+        return (bestAction, actionScores, moveScoreLogs);
     }
 
     public BotCommand ProcessState(GameState state)

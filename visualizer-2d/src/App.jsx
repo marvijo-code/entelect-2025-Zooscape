@@ -1088,7 +1088,7 @@ const App = memo(() => {
               onGameStateSelected={handleTestGameStateSelected}
               apiBaseUrl={import.meta.env.VITE_API_BASE_URL}
               currentGameState={currentGameState}
-              currentGameStateName={selectedFile ? `${selectedFile}/${currentReplayTick || 0}.json` : `${currentReplayTick || 0}.json`}
+              currentGameStateName={selectedFile ? `${selectedFile}/${(currentReplayTick || 0) + 1}.json` : `${(currentReplayTick || 0) + 1}.json`}
               shouldShowCreateModal={shouldShowCreateModal}
               onCreateModalChange={setShouldShowCreateModal}
             />
@@ -1234,8 +1234,8 @@ const App = memo(() => {
                   📋
                 </button>
               </div>
-              <div className="full-path" title={selectedFile}>
-                {selectedFile}
+              <div className="full-path" title={selectedFile ? `${selectedFile}/${(currentReplayTick || 0) + 1}.json` : 'No file selected'}>
+                {selectedFile ? `${selectedFile}/${(currentReplayTick || 0) + 1}.json` : 'No file selected'}
               </div>
               <div className="file-actions">
                 <button

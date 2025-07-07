@@ -27,5 +27,47 @@
     "Bots": [
       "ClingyHeuroBot2"
     ]
+  },
+  {
+    "TestName": "move-3",
+    "GameStateFile": "6_7.json",
+    "Description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250705_183627/6.json",
+    "BotNickname": null,
+    "ExpectedAction": null,
+    "AcceptableActions": [],
+    "TestType": "MultiBotArray",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
+  },
+  {
+    "TestName": "move-323",
+    "GameStateFile": "6_7_1.json",
+    "Description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250705_183627/6.json",
+    "BotNickname": null,
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Left",
+      "Right"
+    ],
+    "TestType": "MultiBotArray",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
+  },
+  {
+    "TestName": "move-somewhere",
+    "GameStateFile": "6_7_2.json",
+    "Description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250705_183627/6.json",
+    "BotNickname": null,
+    "ExpectedAction": null,
+    "AcceptableActions": [],
+    "TestType": "MultiBotArray",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
   }
 ]

@@ -62,3 +62,4 @@ backups/
 **/**/build/
 .venv/
 __pycache__/
+FunctionalTests/evolution-data/

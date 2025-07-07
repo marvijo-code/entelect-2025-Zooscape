@@ -114,6 +114,55 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = import.meta.env.VITE_API
     }
   }, [apiBaseUrl]);
 
+  const runTestDirect = useCallback(async (testData) => {
+    const testName = testData.testName;
+    setRunningTests(prev => new Set([...prev, testName]));
+    setError(null);
+    
+    try {
+      const response = await fetch(`${apiBaseUrl}/Test/direct`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(testData)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to run direct test: ${response.status} ${errorText}`);
+      }
+      
+      const result = await response.json();
+      setTestResults(prev => ({
+        ...prev,
+        [testName]: result
+      }));
+      
+      return result;
+    } catch (error) {
+      console.error('Error running direct test:', error);
+      const errorResult = {
+        testName,
+        success: false,
+        errorMessage: error.message,
+        executionTimeMs: 0,
+        botResults: []
+      };
+      setTestResults(prev => ({
+        ...prev,
+        [testName]: errorResult
+      }));
+      return errorResult;
+    } finally {
+      setRunningTests(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(testName);
+        return newSet;
+      });
+    }
+  }, [apiBaseUrl]);
+
   const runAllTests = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -499,10 +548,17 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = import.meta.env.VITE_API
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onCreateTest={createTest}
+          onRunTest={runTest}
+          onRunTestDirect={runTestDirect}
           currentGameState={currentGameState}
           currentGameStateName={currentGameStateName}
           isCreating={creating}
           availableBots={availableBots}
+          testResults={testResults}
+          runningTests={runningTests}
+          getTestStatus={getTestStatus}
+          getStatusIcon={getStatusIcon}
+          getStatusColor={getStatusColor}
         />
       )}
     </div>
@@ -510,8 +566,11 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = import.meta.env.VITE_API
 };
 
 // Create Test Modal Component
-const CreateTestModal = ({ isOpen, onClose, onCreateTest, currentGameState, currentGameStateName, isCreating, availableBots = [] }) => {
-  const [testName, setTestName] = useState('');
+const CreateTestModal = ({ isOpen, onClose, onCreateTest, onRunTest, onRunTestDirect, currentGameState, currentGameStateName, isCreating, availableBots = [], testResults = {}, runningTests = new Set(), getTestStatus, getStatusIcon, getStatusColor }) => {
+  const [testName, setTestName] = useState(() => {
+    // Generate a simple GUID-like string
+    return 'test-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now().toString(36);
+  });
   const [description, setDescription] = useState('');
   const [testType, setTestType] = useState('MultiBotArray');
   const [acceptableActions, setAcceptableActions] = useState({
@@ -523,77 +582,23 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, currentGameState, curr
   const [selectedBots, setSelectedBots] = useState({});
   const [botNickname, setBotNickname] = useState('');
   const [showOptionalFields, setShowOptionalFields] = useState(false);
+  const [createdTestName, setCreatedTestName] = useState('');
+  const [testResult, setTestResult] = useState(null);
+  const [runningTest, setRunningTest] = useState(false);
 
   // Initialize selectedBots when availableBots changes
   useEffect(() => {
     if (availableBots.length > 0) {
       const initialBotSelection = {};
       availableBots.forEach(bot => {
-        initialBotSelection[bot] = false;
+        // Auto-select ClingyHeuroBot2 if available
+        initialBotSelection[bot] = bot === 'ClingyHeuroBot2';
       });
       setSelectedBots(initialBotSelection);
     }
   }, [availableBots]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!testName.trim()) {
-      alert('Please enter a test name');
-      return;
-    }
 
-    // Get selected acceptable actions - convert to enum values (1-4)
-    const actionMapping = { Up: 1, Down: 2, Left: 3, Right: 4 };
-    const selectedActions = Object.entries(acceptableActions)
-      .filter(([action, selected]) => selected)
-      .map(([action]) => actionMapping[action]);
-
-    // Get selected bots
-    const selectedBotsList = Object.entries(selectedBots)
-      .filter(([bot, selected]) => selected)
-      .map(([bot]) => bot);
-
-    // Determine bots based on test type and selection
-    let botsToUse = [];
-    if (testType === 'MultiBotArray') {
-      botsToUse = selectedBotsList.length > 0 ? selectedBotsList : ['ClingyHeuroBot2'];
-    } else if (testType === 'SingleBot' && selectedBotsList.length > 0) {
-      botsToUse = [selectedBotsList[0]]; // Use first selected bot for SingleBot tests
-    }
-
-    const testData = {
-      testName: testName.trim(),
-      gameStateFile: currentGameStateName || 'current-state.json',
-      description: description.trim() || `Test created from ${currentGameStateName || 'current game state'}`,
-      testType,
-      acceptableActions: selectedActions,
-      botNickname: botNickname.trim() || null,
-      tickOverride: false,
-      bots: botsToUse,
-      currentGameState: currentGameState  // Send the actual game state JSON data
-    };
-
-    try {
-      await onCreateTest(testData);
-      // Reset form
-      setTestName('');
-      setDescription('');
-      setTestType('MultiBotArray');
-      setAcceptableActions({ Up: false, Down: false, Left: false, Right: false });
-      const resetBotSelection = {};
-      availableBots.forEach(bot => {
-        resetBotSelection[bot] = false;
-      });
-      setSelectedBots(resetBotSelection);
-      setBotNickname('');
-      setShowOptionalFields(false);
-      // Close modal after successful creation
-      onClose();
-    } catch (error) {
-      // Error handled in parent
-    }
-  };
 
   const handleActionChange = (action, checked) => {
     setAcceptableActions(prev => ({
@@ -609,103 +614,197 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, currentGameState, curr
     }));
   };
 
+  const handleRunTest = async () => {
+    const testNameToRun = testName.trim();
+    
+    if (!testNameToRun) {
+      alert('Please enter a test name');
+      return;
+    }
+
+    setRunningTest(true);
+    setTestResult(null);
+
+    try {
+      // Create the test data for direct execution
+      const actionMapping = { Up: 1, Down: 2, Left: 3, Right: 4 };
+      const selectedActions = Object.entries(acceptableActions)
+        .filter(([action, selected]) => selected)
+        .map(([action]) => actionMapping[action]);
+
+      const selectedBotsList = Object.entries(selectedBots)
+        .filter(([bot, selected]) => selected)
+        .map(([bot]) => bot);
+
+      let botsToUse = [];
+      if (testType === 'MultiBotArray') {
+        botsToUse = selectedBotsList.length > 0 ? selectedBotsList : ['ClingyHeuroBot2'];
+      } else if (testType === 'SingleBot' && selectedBotsList.length > 0) {
+        botsToUse = [selectedBotsList[0]];
+      }
+
+      const testData = {
+        testName: testNameToRun,
+        gameStateFile: currentGameStateName || 'current-state.json',
+        description: description.trim() || `Direct test execution from ${currentGameStateName || 'current game state'}`,
+        testType,
+        acceptableActions: selectedActions,
+        botNickname: botNickname.trim() || null,
+        tickOverride: false,
+        bots: botsToUse,
+        currentGameState: currentGameState
+      };
+
+      // Run the test directly without saving
+      if (onRunTestDirect) {
+        const result = await onRunTestDirect(testData);
+        setTestResult(result);
+        console.log('Direct test executed successfully:', result);
+      }
+    } catch (error) {
+      console.error('Error running direct test:', error);
+      setTestResult({
+        testName: testNameToRun,
+        success: false,
+        errorMessage: error.message,
+        executionTimeMs: 0,
+        botResults: []
+      });
+    } finally {
+      setRunningTest(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    // Reset form when closing
+    setTestName('test-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now().toString(36));
+    setDescription('');
+    setTestType('MultiBotArray');
+    setAcceptableActions({ Up: false, Down: false, Left: false, Right: false });
+    const resetBotSelection = {};
+    availableBots.forEach(bot => {
+      resetBotSelection[bot] = bot === 'ClingyHeuroBot2';
+    });
+    setSelectedBots(resetBotSelection);
+    setBotNickname('');
+    setShowOptionalFields(false);
+    setTestResult(null);
+    setRunningTest(false);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={handleCloseModal}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', width: '90vw' }}>
         <div className="modal-header">
-          <h3>Create New Test</h3>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <h3>🧪 Run Test from Current State</h3>
+          <button className="modal-close" onClick={handleCloseModal}>×</button>
         </div>
         
-        <form onSubmit={handleSubmit} className="modal-form">
-          <div className="form-group">
-            <label htmlFor="testName">Test Name *</label>
-            <input
-              id="testName"
-              type="text"
-              value={testName}
-              onChange={(e) => setTestName(e.target.value)}
-              placeholder="Enter test name..."
-              required
-            />
+        <div className="modal-form" style={{ display: 'grid', gap: '15px' }}>
+          {/* Row 1: Test Name and Type */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label htmlFor="testName" style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
+                📝 Test Name *
+              </label>
+              <input
+                id="testName"
+                type="text"
+                value={testName}
+                onChange={(e) => setTestName(e.target.value)}
+                placeholder="Enter test name..."
+                required
+              />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label htmlFor="testType" style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
+                ⚙️ Type
+              </label>
+              <select
+                id="testType"
+                value={testType}
+                onChange={(e) => setTestType(e.target.value)}
+              >
+                <option value="SingleBot">🤖 Single Bot</option>
+                <option value="MultiBotArray">🤖🤖 Multi-Bot</option>
+                <option value="GameStateLoad">📂 Load Test</option>
+                <option value="TickOverride">⏱️ Tick Override</option>
+              </select>
+            </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="testType">Test Type</label>
-            <select
-              id="testType"
-              value={testType}
-              onChange={(e) => setTestType(e.target.value)}
-            >
-              <option value="SingleBot">Single Bot</option>
-              <option value="MultiBotArray">Multi-Bot Array</option>
-              <option value="GameStateLoad">Game State Load</option>
-              <option value="TickOverride">Tick Override</option>
-            </select>
-          </div>
-
-          <div className="form-group">
+          {/* Row 2: Actions and Optional Fields Toggle */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', alignItems: 'start' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
+                🎮 Acceptable Actions
+              </label>
+              <div className="checkbox-group" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {Object.entries(acceptableActions).map(([action, checked]) => (
+                  <label key={action} className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => handleActionChange(action, e.target.checked)}
+                    />
+                    <span>{action === 'Up' ? '⬆️' : action === 'Down' ? '⬇️' : action === 'Left' ? '⬅️' : '➡️'} {action}</span>
+                  </label>
+                ))}
+              </div>
+              <small>Leave all unchecked to accept any action</small>
+            </div>
             <button
               type="button"
               onClick={() => setShowOptionalFields(!showOptionalFields)}
               className="btn btn-secondary"
-              style={{ marginBottom: '10px' }}
+              style={{ padding: '5px 10px', fontSize: '12px' }}
             >
-              {showOptionalFields ? '▼' : '▶'} Optional Fields
+              {showOptionalFields ? '▼' : '▶'} Options
             </button>
-            
-            {showOptionalFields && (
-              <>
-                <div className="form-group">
-                  <label htmlFor="description">Description</label>
-                  <textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Optional test description..."
-                    rows="3"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="botNickname">Bot Nickname (Optional)</label>
-                  <input
-                    id="botNickname"
-                    type="text"
-                    value={botNickname}
-                    onChange={(e) => setBotNickname(e.target.value)}
-                    placeholder="Leave empty to use first animal..."
-                  />
-                </div>
-              </>
-            )}
           </div>
 
-          <div className="form-group">
-            <label>Acceptable Actions</label>
-            <div className="checkbox-group">
-              {Object.entries(acceptableActions).map(([action, checked]) => (
-                <label key={action} className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => handleActionChange(action, e.target.checked)}
-                  />
-                  <span>{action}</span>
+          {/* Optional Fields - Collapsible */}
+          {showOptionalFields && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '10px', backgroundColor: '#2a2a2a', borderRadius: '5px', border: '1px solid #444' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label htmlFor="description" style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
+                  📄 Description
                 </label>
-              ))}
+                <textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Optional description..."
+                  rows="2"
+                />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label htmlFor="botNickname" style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
+                  🏷️ Bot Nickname
+                </label>
+                <input
+                  id="botNickname"
+                  type="text"
+                  value={botNickname}
+                  onChange={(e) => setBotNickname(e.target.value)}
+                  placeholder="Leave empty to use first animal..."
+                />
+              </div>
             </div>
-            <small>Leave all unchecked to accept any action</small>
-          </div>
+          )}
 
+          {/* Row 3: Bot Selection */}
           {availableBots.length > 0 && (
-            <div className="form-group">
-              <label>Select Bots {testType === 'MultiBotArray' ? '(Multiple bots will be tested)' : '(Only first selected bot will be used)'}</label>
-              <div className="checkbox-group">
+            <div className="form-group" style={{ margin: 0 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
+                🤖 Select Bots {testType === 'MultiBotArray' ? '(Multiple)' : '(Single)'}
+              </label>
+              <div className="checkbox-group" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '5px' }}>
                 {availableBots.map((bot) => (
-                  <label key={bot} className="checkbox-label">
+                  <label key={bot} className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <input
                       type="checkbox"
                       checked={selectedBots[bot] || false}
@@ -715,34 +814,244 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, currentGameState, curr
                   </label>
                 ))}
               </div>
-              <small>
-                {testType === 'MultiBotArray' 
-                  ? 'Select multiple bots to test (defaults to ClingyHeuroBot2 if none selected)' 
-                  : 'Select which bot to use for testing (defaults to ClingyHeuroBot2 if none selected)'}
-              </small>
             </div>
           )}
 
-          <div className="form-group">
-            <label>Game State File</label>
+          {/* Row 4: Game State File */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
+              📁 Game State File
+            </label>
             <input
               type="text"
               value={currentGameStateName || 'current-state.json'}
               disabled
               className="disabled-input"
+              style={{ fontSize: '12px' }}
             />
-            <small>Using current game state from visualizer</small>
           </div>
 
-          <div className="modal-actions">
-            <button type="button" onClick={onClose} className="btn btn-secondary" disabled={isCreating}>
-              Cancel
+          {/* Test Results Section */}
+          {testResult && (
+            <div className="test-results-section" style={{ 
+              marginTop: '20px', 
+              padding: '15px', 
+              border: '1px solid #444', 
+              borderRadius: '5px', 
+              backgroundColor: '#2a2a2a',
+              color: '#e0e0e0'
+            }}>
+              <h4 style={{ color: '#ffffff', marginBottom: '10px' }}>🧪 Test Results: {testResult.testName}</h4>
+              
+              {/* Test Results Display */}
+              <div className="test-result-details">
+                <div style={{ 
+                  fontFamily: 'monospace', 
+                  fontSize: '12px', 
+                  backgroundColor: '#1a1a1a', 
+                  color: '#e0e0e0',
+                  padding: '10px', 
+                  border: '1px solid #555', 
+                  borderRadius: '3px', 
+                  maxHeight: '200px', 
+                  overflow: 'auto' 
+                }}>
+                  <div><strong style={{ color: '#ffffff' }}>Success:</strong> {testResult.success ? '✅ Yes' : '❌ No'}</div>
+                  <div><strong style={{ color: '#ffffff' }}>Execution Time:</strong> {testResult.executionTimeMs}ms</div>
+                  {testResult.errorMessage && (
+                    <div><strong style={{ color: '#ff6b6b' }}>Error:</strong> <span style={{ color: '#ff8a8a' }}>{testResult.errorMessage}</span></div>
+                  )}
+                  {testResult.botResults && testResult.botResults.length > 0 && (
+                    <div>
+                      <strong style={{ color: '#ffffff' }}>Bot Results ({testResult.botResults.length}):</strong>
+                      <div style={{ marginTop: '8px' }}>
+                        {testResult.botResults.map((botResult, index) => (
+                          <div key={index} style={{ 
+                            marginBottom: '10px', 
+                            padding: '8px', 
+                            backgroundColor: '#0f0f0f', 
+                            border: '1px solid #333', 
+                            borderRadius: '4px',
+                            borderLeft: `4px solid ${botResult.success ? '#4ade80' : '#ef4444'}`
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                              <strong style={{ color: '#ffffff' }}>{botResult.botType}</strong>
+                              <span style={{ 
+                                color: botResult.success ? '#4ade80' : '#ef4444',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                              }}>
+                                {botResult.success ? '✅ Success' : '❌ Failed'}
+                              </span>
+                            </div>
+                            
+                            {botResult.action && (
+                              <div style={{ marginBottom: '4px' }}>
+                                <span style={{ color: '#a0a0a0' }}>Action: </span>
+                                <span style={{ color: '#ffffff', fontWeight: 'bold' }}>{botResult.action}</span>
+                              </div>
+                            )}
+                            
+                            {botResult.botId && (
+                              <div style={{ marginBottom: '4px' }}>
+                                <span style={{ color: '#a0a0a0' }}>Bot ID: </span>
+                                <span style={{ color: '#c0c0c0', fontFamily: 'monospace', fontSize: '11px' }}>{botResult.botId}</span>
+                              </div>
+                            )}
+                            
+                            {(botResult.initialScore !== undefined || botResult.finalScore !== undefined || botResult.scoreDelta !== undefined) && (
+                              <div style={{ marginBottom: '4px' }}>
+                                <span style={{ color: '#a0a0a0' }}>Score: </span>
+                                {botResult.initialScore !== undefined && (
+                                  <span style={{ color: '#c0c0c0' }}>Initial: {botResult.initialScore} </span>
+                                )}
+                                {botResult.finalScore !== undefined && (
+                                  <span style={{ color: '#c0c0c0' }}>Final: {botResult.finalScore} </span>
+                                )}
+                                {botResult.scoreDelta !== undefined && (
+                                  <span style={{ 
+                                    color: botResult.scoreDelta >= 0 ? '#4ade80' : '#ef4444',
+                                    fontWeight: 'bold'
+                                  }}>
+                                    Delta: {botResult.scoreDelta >= 0 ? '+' : ''}{botResult.scoreDelta}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            
+                            {botResult.errorMessage && (
+                              <div style={{ marginBottom: '4px' }}>
+                                <span style={{ color: '#ff6b6b' }}>Error: </span>
+                                <span style={{ color: '#ff8a8a' }}>{botResult.errorMessage}</span>
+                              </div>
+                            )}
+                            
+                            {botResult.performanceMetrics && Object.keys(botResult.performanceMetrics).length > 0 && (
+                              <div style={{ marginTop: '6px' }}>
+                                <div style={{ color: '#a0a0a0', fontSize: '11px', marginBottom: '4px' }}>Performance Metrics:</div>
+                                <div style={{ 
+                                  backgroundColor: '#1a1a1a', 
+                                  padding: '6px', 
+                                  borderRadius: '3px',
+                                  fontSize: '11px'
+                                }}>
+                                  {Object.entries(botResult.performanceMetrics).map(([key, value]) => {
+                                    if (key === 'detailedHeuristicScores' && Array.isArray(value) && value.length > 0) {
+                                      return (
+                                        <div key={key} style={{ marginBottom: '8px' }}>
+                                          <div style={{ color: '#4ade80', fontWeight: 'bold', marginBottom: '6px' }}>
+                                            🧠 Heuristic Scores ({value.length} actions evaluated):
+                                          </div>
+                                          {value.map((scoreLog, scoreIndex) => (
+                                            <div key={scoreIndex} style={{ 
+                                              marginBottom: '8px', 
+                                              padding: '6px', 
+                                              backgroundColor: '#0a0a0a', 
+                                              border: '1px solid #333',
+                                              borderRadius: '3px',
+                                              borderLeft: scoreLog.Action === botResult.action ? '3px solid #4ade80' : '3px solid #555'
+                                            }}>
+                                              <div style={{ 
+                                                display: 'flex', 
+                                                justifyContent: 'space-between', 
+                                                alignItems: 'center',
+                                                marginBottom: '4px'
+                                              }}>
+                                                <span style={{ 
+                                                  color: scoreLog.Action === botResult.action ? '#4ade80' : '#ffffff',
+                                                  fontWeight: 'bold'
+                                                }}>
+                                                  {scoreLog.Action === botResult.action ? '✅ ' : ''}{scoreLog.Action}
+                                                </span>
+                                                <span style={{ 
+                                                  color: scoreLog.TotalScore >= 0 ? '#4ade80' : '#ef4444',
+                                                  fontWeight: 'bold',
+                                                  fontSize: '12px'
+                                                }}>
+                                                  {scoreLog.TotalScore >= 0 ? '+' : ''}{Number(scoreLog.TotalScore).toFixed(2)}
+                                                </span>
+                                              </div>
+                                              {scoreLog.DetailedLogLines && scoreLog.DetailedLogLines.length > 0 && (
+                                                <div style={{ 
+                                                  fontSize: '9px', 
+                                                  color: '#888',
+                                                  fontFamily: 'monospace',
+                                                  whiteSpace: 'pre-wrap',
+                                                  maxHeight: '150px',
+                                                  overflowY: 'auto',
+                                                  backgroundColor: '#050505',
+                                                  padding: '4px',
+                                                  borderRadius: '2px'
+                                                }}>
+                                                  {scoreLog.DetailedLogLines.join('\n')}
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      );
+                                    } else if (key === 'allActionScores' && typeof value === 'object') {
+                                      return (
+                                        <div key={key} style={{ marginBottom: '4px' }}>
+                                          <div style={{ color: '#a0a0a0', marginBottom: '2px' }}>All Action Scores:</div>
+                                          <div style={{ 
+                                            backgroundColor: '#0a0a0a', 
+                                            padding: '4px', 
+                                            borderRadius: '2px',
+                                            fontSize: '10px'
+                                          }}>
+                                            {Object.entries(value).map(([action, score]) => (
+                                              <div key={action} style={{ 
+                                                display: 'flex', 
+                                                justifyContent: 'space-between',
+                                                color: action === botResult.action ? '#4ade80' : '#c0c0c0'
+                                              }}>
+                                                <span>{action === botResult.action ? '✅ ' : ''}{action}:</span>
+                                                <span>{Number(score).toFixed(2)}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    } else if (key !== 'detailedHeuristicScores' && key !== 'allActionScores') {
+                                      return (
+                                        <div key={key} style={{ marginBottom: '2px' }}>
+                                          <span style={{ color: '#a0a0a0' }}>{key}: </span>
+                                          <span style={{ color: '#c0c0c0' }}>
+                                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                          </span>
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="modal-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button type="button" onClick={handleCloseModal} className="btn btn-secondary" disabled={runningTest}>
+              ❌ Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={isCreating}>
-              {isCreating ? 'Creating...' : 'Create Test'}
+            <button 
+              type="button"
+              onClick={handleRunTest} 
+              disabled={!testName.trim() || runningTest}
+              className="btn btn-success"
+            >
+              {runningTest ? '⏳ Running...' : '▶️ Run Test'}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
