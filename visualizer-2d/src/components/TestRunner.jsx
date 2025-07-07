@@ -15,8 +15,13 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = import.meta.env.VITE_API
   // Load available tests and bots on component mount
   useEffect(() => {
     loadTests();
-    loadAvailableBots();
+    loadAvailableBotsFromGameState();
   }, []);
+
+  // Update available bots when currentGameState changes
+  useEffect(() => {
+    loadAvailableBotsFromGameState();
+  }, [currentGameState]);
 
   // Handle external request to show create modal
   useEffect(() => {
@@ -47,19 +52,28 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = import.meta.env.VITE_API
     }
   }, [apiBaseUrl]);
 
-  const loadAvailableBots = useCallback(async () => {
-    try {
-      const response = await fetch(`${apiBaseUrl}/Test/bots`);
-      if (!response.ok) {
-        throw new Error(`Failed to load bots: ${response.status} ${response.statusText}`);
-      }
-      const data = await response.json();
-      setAvailableBots(data);
-    } catch (error) {
-      console.error('Error loading available bots:', error);
-      // Don't set error state for bots loading failure, just log it
+  const loadAvailableBotsFromGameState = useCallback(() => {
+    if (!currentGameState) {
+      setAvailableBots([]);
+      return;
     }
-  }, [apiBaseUrl]);
+
+    try {
+      // Extract bot nicknames from the current game state
+      const animals = currentGameState.animals || currentGameState.Animals || [];
+      const botNicknames = animals
+        .map(animal => animal.nickname || animal.Nickname)
+        .filter(nickname => nickname && nickname.trim() !== '')
+        .filter((nickname, index, array) => array.indexOf(nickname) === index) // Remove duplicates
+        .sort();
+
+      console.log('Available bots from game state:', botNicknames);
+      setAvailableBots(botNicknames);
+    } catch (error) {
+      console.error('Error extracting bots from game state:', error);
+      setAvailableBots([]);
+    }
+  }, [currentGameState]);
 
   const runTest = useCallback(async (testName) => {
     setRunningTests(prev => new Set([...prev, testName]));
@@ -499,7 +513,7 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = import.meta.env.VITE_API
 const CreateTestModal = ({ isOpen, onClose, onCreateTest, currentGameState, currentGameStateName, isCreating, availableBots = [] }) => {
   const [testName, setTestName] = useState('');
   const [description, setDescription] = useState('');
-  const [testType, setTestType] = useState('SingleBot');
+  const [testType, setTestType] = useState('MultiBotArray');
   const [acceptableActions, setAcceptableActions] = useState({
     Up: false,
     Down: false,
@@ -508,6 +522,7 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, currentGameState, curr
   });
   const [selectedBots, setSelectedBots] = useState({});
   const [botNickname, setBotNickname] = useState('');
+  const [showOptionalFields, setShowOptionalFields] = useState(false);
 
   // Initialize selectedBots when availableBots changes
   useEffect(() => {
@@ -564,7 +579,7 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, currentGameState, curr
       // Reset form
       setTestName('');
       setDescription('');
-      setTestType('SingleBot');
+      setTestType('MultiBotArray');
       setAcceptableActions({ Up: false, Down: false, Left: false, Right: false });
       const resetBotSelection = {};
       availableBots.forEach(bot => {
@@ -572,6 +587,7 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, currentGameState, curr
       });
       setSelectedBots(resetBotSelection);
       setBotNickname('');
+      setShowOptionalFields(false);
       // Close modal after successful creation
       onClose();
     } catch (error) {
@@ -617,17 +633,6 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, currentGameState, curr
           </div>
 
           <div className="form-group">
-            <label htmlFor="description">Description</label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional test description..."
-              rows="3"
-            />
-          </div>
-
-          <div className="form-group">
             <label htmlFor="testType">Test Type</label>
             <select
               id="testType"
@@ -642,14 +647,40 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, currentGameState, curr
           </div>
 
           <div className="form-group">
-            <label htmlFor="botNickname">Bot Nickname (Optional)</label>
-            <input
-              id="botNickname"
-              type="text"
-              value={botNickname}
-              onChange={(e) => setBotNickname(e.target.value)}
-              placeholder="Leave empty to use first animal..."
-            />
+            <button
+              type="button"
+              onClick={() => setShowOptionalFields(!showOptionalFields)}
+              className="btn btn-secondary"
+              style={{ marginBottom: '10px' }}
+            >
+              {showOptionalFields ? '▼' : '▶'} Optional Fields
+            </button>
+            
+            {showOptionalFields && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="description">Description</label>
+                  <textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Optional test description..."
+                    rows="3"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="botNickname">Bot Nickname (Optional)</label>
+                  <input
+                    id="botNickname"
+                    type="text"
+                    value={botNickname}
+                    onChange={(e) => setBotNickname(e.target.value)}
+                    placeholder="Leave empty to use first animal..."
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="form-group">

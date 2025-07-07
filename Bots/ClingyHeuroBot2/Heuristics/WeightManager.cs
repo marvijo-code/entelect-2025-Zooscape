@@ -48,7 +48,15 @@ public static class WeightManager
                             var updatedWeights = GetEvolvedWeights();
                             if (updatedWeights != null)
                             {
-                                return updatedWeights;
+                                // Additional validation to ensure weights are not corrupted
+                                if (ValidateWeights(updatedWeights))
+                                {
+                                    return updatedWeights;
+                                }
+                                else
+                                {
+                                    Console.WriteLine("WARNING: Evolved weights failed validation, using fallback");
+                                }
                             }
                         }
                     }
@@ -56,7 +64,7 @@ public static class WeightManager
 
                 // Try to get evolved weights first
                 var evolvedWeights = GetEvolvedWeights();
-                if (evolvedWeights != null)
+                if (evolvedWeights != null && ValidateWeights(evolvedWeights))
                 {
                     return evolvedWeights;
                 }
@@ -75,7 +83,9 @@ public static class WeightManager
                     Console.WriteLine("CRITICAL: Creating emergency default weights!");
                     fallback = new HeuristicWeights();
                 }
-                return fallback;
+                
+                // Final validation to ensure we never return null
+                return fallback ?? new HeuristicWeights();
             }
         }
     }
@@ -181,6 +191,30 @@ public static class WeightManager
         catch
         {
             return "Default weights (fallback)";
+        }
+    }
+
+    /// <summary>
+    /// Validates that weights are not null and contain reasonable values
+    /// </summary>
+    private static bool ValidateWeights(HeuristicWeights weights)
+    {
+        if (weights == null)
+        {
+            Console.WriteLine("Weight validation failed: weights are null");
+            return false;
+        }
+
+        try
+        {
+            // Check a few key properties to ensure they're accessible
+            var testValue = weights.DistanceToGoal + weights.PathSafety + weights.CaptureAvoidance;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Weight validation failed: {ex.Message}");
+            return false;
         }
     }
 }

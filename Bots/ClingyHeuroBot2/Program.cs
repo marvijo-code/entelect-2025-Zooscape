@@ -8,6 +8,11 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using System.Net.Sockets;
 using System.Diagnostics;
+using System.Text.Json;
+using ClingyHeuroBot2.Heuristics;
+using System.Globalization;
+using System.Net;
+using System.Net.Http;
 
 namespace HeuroBot;
 
@@ -105,14 +110,42 @@ public class Program
         int finalScore = 0;
         int currentRank = 1;
         int totalPlayers = 1;
+        int lastRecordedScore = 0;
+        int ticksPlayed = 0;
+        DateTime lastPerformanceRecord = DateTime.UtcNow;
 
         connection.On<Guid>("Registered", id => botService.SetBotId(id));
-        connection.On<GameState>("GameState", state => 
+        connection.On<GameState>("GameState", async state =>
         {
-            // Add null check for GameState
+            // Add comprehensive null checks for GameState
             if (state == null)
             {
                 Log.Error("Received null GameState from SignalR connection");
+                command = new BotCommand { Action = BotAction.Up }; // Safe fallback
+                return;
+            }
+
+            // Validate critical GameState properties
+            if (state.Animals == null)
+            {
+                Log.Error("Received GameState with null Animals collection for tick {Tick}", state.Tick);
+                command = new BotCommand { Action = BotAction.Up }; // Safe fallback
+                return;
+            }
+
+            if (state.Cells == null)
+            {
+                Log.Error("Received GameState with null Cells collection for tick {Tick}. Animals count: {AnimalsCount}", 
+                    state.Tick, state.Animals?.Count ?? -1);
+                command = new BotCommand { Action = BotAction.Up }; // Safe fallback
+                return;
+            }
+
+            // Check if botService itself is null
+            if (botService == null)
+            {
+                Log.Error("BotService is null! This should never happen. Creating emergency fallback.");
+                command = new BotCommand { Action = BotAction.Up }; // Safe fallback
                 return;
             }
 
@@ -124,12 +157,42 @@ public class Program
             
             try
             {
+                // Additional validation before processing
+                var myAnimal = state.Animals.FirstOrDefault(a => a.Id == botService.BotId);
+                if (myAnimal == null && botService.BotId != Guid.Empty)
+                {
+                    Log.Warning("Bot animal with ID {BotId} not found in GameState for tick {Tick}. Available animals: [{AvailableAnimals}]. Processing anyway with default action.", 
+                        botService.BotId, currentTick, string.Join(", ", state.Animals.Select(a => a.Id.ToString())));
+                    command = new BotCommand { Action = BotAction.Up }; // Safe fallback
+                    return;
+                }
+
                 command = botService.ProcessState(state);
+                
+                // Ensure command is not null
+                if (command == null)
+                {
+                    Log.Warning("BotService.ProcessState returned null command for tick {Tick}. Using fallback.", currentTick);
+                    command = new BotCommand { Action = BotAction.Up };
+                }
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error processing GameState for tick {Tick}. BotId: {BotId}, Animals count: {AnimalsCount}, Cells count: {CellsCount}", 
-                    currentTick, botService.BotId, state.Animals?.Count ?? -1, state.Cells?.Count ?? -1);
+                Log.Error(ex, "Error processing GameState for tick {Tick}. BotId: {BotId}, Animals count: {AnimalsCount}, Cells count: {CellsCount}. Exception: {ExceptionType}: {ExceptionMessage}", 
+                    currentTick, botService?.BotId ?? Guid.Empty, state.Animals?.Count ?? -1, state.Cells?.Count ?? -1, ex.GetType().Name, ex.Message);
+                
+                // Log additional debugging info
+                if (ex is NullReferenceException)
+                {
+                    Log.Error("NullReferenceException details - Stack trace: {StackTrace}", ex.StackTrace);
+                    
+                    // Log current state of critical objects
+                    Log.Error("Debug info - BotService: {BotServiceNull}, BotService.BotId: {BotId}, WeightManager.Instance: {WeightsNull}", 
+                        botService == null ? "NULL" : "OK", 
+                        botService?.BotId ?? Guid.Empty,
+                        WeightManager.Instance == null ? "NULL" : "OK");
+                }
+                
                 command = new BotCommand { Action = BotAction.Up }; // Default fallback action
             }
             
@@ -151,6 +214,8 @@ public class Program
             // Track game performance for evolution
             try
             {
+                ticksPlayed++; // Count total ticks played
+                
                 // Only track performance if bot is registered and has valid ID
                 if (botService.BotId != Guid.Empty && state.Animals != null)
                 {
@@ -164,11 +229,57 @@ public class Program
                         var sortedByScore = state.Animals.OrderByDescending(a => a.Score).ToList();
                         currentRank = sortedByScore.FindIndex(a => a.Id == botService.BotId) + 1;
                         
-                        // Reset game start time if this is a new game (score reset)
-                        if (myAnimal.Score < initialScore)
+                        // Reset game start time if this is a new game (score reset to 0 or decreased significantly)
+                        if (myAnimal.Score == 0 && lastRecordedScore > 0)
+                        {
+                            Log.Information("New game detected (score reset to 0). Recording previous game performance and starting fresh.");
+                            
+                            // Record performance for the previous game
+                            try
+                            {
+                                var previousGameTime = DateTime.UtcNow - gameStartTime;
+                                if (previousGameTime.TotalSeconds > 30) // Only record if game lasted more than 30 seconds
+                                {
+                                    await evolutionCoordinator.RecordPerformanceAsync(botNickname, lastRecordedScore, previousGameTime, currentRank, totalPlayers);
+                                    Log.Information($"Previous game performance recorded: Score={lastRecordedScore}, Duration={previousGameTime.TotalSeconds:F1}s");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Warning($"Failed to record previous game performance: {ex.Message}");
+                            }
+                            
+                            // Reset for new game
+                            gameStartTime = DateTime.UtcNow;
+                            initialScore = myAnimal.Score;
+                            ticksPlayed = 0;
+                            lastPerformanceRecord = DateTime.UtcNow;
+                        }
+                        else if (myAnimal.Score < initialScore - 50) // Significant score drop (likely respawned after capture)
                         {
                             gameStartTime = DateTime.UtcNow;
                             initialScore = myAnimal.Score;
+                        }
+                        
+                        lastRecordedScore = myAnimal.Score;
+                        
+                        // Record performance periodically during long games (every 3 minutes)
+                        var timeSinceLastRecord = DateTime.UtcNow - lastPerformanceRecord;
+                        if (timeSinceLastRecord.TotalMinutes >= 3 && ticksPlayed > 100)
+                        {
+                            Log.Information("Recording interim performance after {Minutes:F1} minutes of gameplay", timeSinceLastRecord.TotalMinutes);
+                            
+                            try
+                            {
+                                var currentGameTime = DateTime.UtcNow - gameStartTime;
+                                await evolutionCoordinator.RecordPerformanceAsync(botNickname, finalScore, currentGameTime, currentRank, totalPlayers);
+                                Log.Information($"Interim performance recorded: Score={finalScore}, Rank={currentRank}/{totalPlayers}, Duration={currentGameTime.TotalSeconds:F1}s, Ticks={ticksPlayed}");
+                                lastPerformanceRecord = DateTime.UtcNow;
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Warning($"Failed to record interim performance: {ex.Message}");
+                            }
                         }
                     }
                 }

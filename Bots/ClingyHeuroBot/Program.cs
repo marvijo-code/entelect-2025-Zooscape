@@ -11,6 +11,7 @@ public class Program
 {
     public static IConfigurationRoot? Configuration;
     private static readonly ILogger _logger = new LoggerFactory().CreateLogger<Program>();
+    private const int MaxRetries = 3;
 
     public static async Task Main(string[] args)
     {
@@ -92,15 +93,42 @@ public class Program
             }
         };
 
-        try
+        // Connection retry logic with exponential backoff
+        bool connected = false;
+        for (int attempt = 1; attempt <= MaxRetries && !connected; attempt++)
         {
-            await connection.StartAsync();
-            await connection.InvokeAsync("Register", botToken, botNickname);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Startup error: {ex.Message}");
-            return;
+            try
+            {
+                _logger.LogInformation($"Connection attempt {attempt}/{MaxRetries}");
+                Console.WriteLine($"Connection attempt {attempt}/{MaxRetries}");
+                
+                await connection.StartAsync();
+                await connection.InvokeAsync("Register", botToken, botNickname);
+                
+                connected = true;
+                _logger.LogInformation($"Successfully connected on attempt {attempt}");
+                Console.WriteLine($"Successfully connected on attempt {attempt}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Connection attempt {attempt} failed: {ex.Message}");
+                Console.WriteLine($"Connection attempt {attempt} failed: {ex.Message}");
+                
+                if (attempt < MaxRetries)
+                {
+                    // Exponential backoff: 1s, 2s, 4s
+                    int delayMs = (int)Math.Pow(2, attempt - 1) * 1000;
+                    _logger.LogInformation($"Waiting {delayMs}ms before retry...");
+                    Console.WriteLine($"Waiting {delayMs}ms before retry...");
+                    await Task.Delay(delayMs);
+                }
+                else
+                {
+                    _logger.LogError($"Failed to connect after {MaxRetries} attempts. Exiting.");
+                    Console.WriteLine($"Failed to connect after {MaxRetries} attempts. Exiting.");
+                    return;
+                }
+            }
         }
 
         while (

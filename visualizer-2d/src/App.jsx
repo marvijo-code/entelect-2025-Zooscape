@@ -1088,11 +1088,7 @@ const App = memo(() => {
               onGameStateSelected={handleTestGameStateSelected}
               apiBaseUrl={import.meta.env.VITE_API_BASE_URL}
               currentGameState={currentGameState}
-              currentGameStateName={selectedFile ?
-                (typeof selectedFile === 'string' && (selectedFile.includes('/') || selectedFile.includes('\\'))
-                  ? `${selectedFile.split(/[\/\\]/).pop()}_tick_${currentReplayTick}.json`
-                  : `${selectedFile}_tick_${currentReplayTick}.json`) :
-                (replayingGameName ? `${replayingGameName}_tick_${currentReplayTick || 0}.json` : 'current-state.json')}
+              currentGameStateName={selectedFile ? `${selectedFile}/${currentReplayTick || 0}.json` : `${currentReplayTick || 0}.json`}
               shouldShowCreateModal={shouldShowCreateModal}
               onCreateModalChange={setShouldShowCreateModal}
             />
