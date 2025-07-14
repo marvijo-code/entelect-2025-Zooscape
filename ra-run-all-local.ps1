@@ -48,19 +48,39 @@ function Stop-DotnetProcesses {
         }
     }
 
-    # Stop all dotnet processes first (including dotnet watch processes)
-    Write-Host "Stopping all dotnet processes..." -ForegroundColor DarkGray
+    # Stop ONLY Zooscape-related dotnet processes (avoid killing unrelated dotnet apps)
+    Write-Host "Stopping Zooscape-related dotnet processes..." -ForegroundColor DarkGray
     $stoppedProcesses = @()
-    
-    Get-Process -Name "dotnet" -ErrorAction SilentlyContinue | ForEach-Object {
-        $processToStop = $_
-        try {
-            Write-Host "Stopping dotnet process: $($processToStop.ProcessName) (ID: $($processToStop.Id))" -ForegroundColor Gray
-            $processToStop | Stop-Process -Force -ErrorAction Stop
-            $stoppedProcesses += $processToStop.Id
+
+    # Build list of workspace paths/patterns that indicate a managed process
+    $workspaceRoot = $scriptRoot
+    $managedPaths = @($workspaceRoot)
+    foreach ($botDefinition in $bots) {
+        if ($botDefinition.Language -eq "csharp") {
+            $managedPaths += (Join-Path $workspaceRoot $botDefinition.Path)
         }
-        catch {
-            Write-Warning "Error stopping dotnet process $($processToStop.ProcessName) (ID: $($processToStop.Id)): $($_.Exception.Message)"
+    }
+
+    # Query running dotnet processes with command-line info (requires CIM/WMI)
+    $dotnetProcesses = Get-CimInstance Win32_Process -Filter "Name='dotnet.exe'" -ErrorAction SilentlyContinue
+    foreach ($proc in $dotnetProcesses) {
+        $cmdLine = $proc.CommandLine
+        if (-not $cmdLine) { continue }
+
+        $isManaged = $false
+        foreach ($path in $managedPaths) {
+            if ($cmdLine -like "*${path}*") { $isManaged = $true; break }
+        }
+
+        if ($isManaged) {
+            try {
+                Write-Host "Stopping dotnet process (Zooscape): $($proc.ProcessId)" -ForegroundColor Gray
+                Stop-Process -Id $proc.ProcessId -Force -ErrorAction Stop
+                $stoppedProcesses += $proc.ProcessId
+            }
+            catch {
+                Write-Warning "Error stopping dotnet process $($proc.ProcessId): $($_.Exception.Message)"
+            }
         }
     }
 

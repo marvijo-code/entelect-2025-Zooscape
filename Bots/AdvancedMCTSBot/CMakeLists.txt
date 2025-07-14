@@ -37,12 +37,12 @@ target_link_libraries(AdvancedMCTSBot PRIVATE
     microsoft-signalr::microsoft-signalr)
 
 # ----------------------------
-# Unit tests
+# Comprehensive Test Suite
 # ----------------------------
 enable_testing()
 
-add_executable(AdvancedMCTSBotTest162
-    tests/Test162.cpp
+add_executable(AdvancedMCTSBotTests
+    tests/AllTests.cpp
     tests/JsonGameStateLoader.cpp
     GameState.cpp
     MCTSEngine.cpp
@@ -51,65 +51,19 @@ add_executable(AdvancedMCTSBotTest162
     Heuristics.cpp
     Bot.cpp
 )
-
-# Link the same libraries the main bot uses (except signalr, which the test doesn't require)
-# fmt is transitively used by some engine files for logging
-find_package(fmt CONFIG REQUIRED)
 
 # Include directories to access headers
-target_include_directories(AdvancedMCTSBotTest162 PRIVATE 
+target_include_directories(AdvancedMCTSBotTests PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR} 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(AdvancedMCTSBotTest162 PRIVATE fmt::fmt microsoft-signalr::microsoft-signalr)
+# Link libraries
+target_link_libraries(AdvancedMCTSBotTests PRIVATE fmt::fmt microsoft-signalr::microsoft-signalr)
 
-add_test(NAME AdvancedMCTSBot_SmokeTest162 COMMAND AdvancedMCTSBotTest162)
-set_tests_properties(AdvancedMCTSBot_SmokeTest162 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)
-
-find_package(fmt CONFIG REQUIRED)
-
-add_executable(AdvancedMCTSBotTest34
-    tests/Test34.cpp
-    tests/JsonGameStateLoader.cpp
-    GameState.cpp
-    MCTSEngine.cpp
-    MctsService.cpp
-    MCTSNode.cpp
-    Heuristics.cpp
-    Bot.cpp
-)
-
-target_include_directories(AdvancedMCTSBotTest34 PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR} 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(AdvancedMCTSBotTest34 PRIVATE fmt::fmt microsoft-signalr::microsoft-signalr)
-
-add_test(NAME AdvancedMCTSBot_SmokeTest34 COMMAND AdvancedMCTSBotTest34)
-set_tests_properties(AdvancedMCTSBot_SmokeTest34 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)
-
-add_executable(AdvancedMCTSBotTest162_ClingyHeuroBot2
-    tests/Test162_ClingyHeuroBot2.cpp
-    tests/JsonGameStateLoader.cpp
-    GameState.cpp
-    MCTSEngine.cpp
-    MctsService.cpp
-    MCTSNode.cpp
-    Heuristics.cpp
-    Bot.cpp
-)
-
-target_include_directories(AdvancedMCTSBotTest162_ClingyHeuroBot2 PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR} 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(AdvancedMCTSBotTest162_ClingyHeuroBot2 PRIVATE fmt::fmt microsoft-signalr::microsoft-signalr)
-
-add_test(NAME AdvancedMCTSBot_SmokeTest162_ClingyHeuroBot2 COMMAND AdvancedMCTSBotTest162_ClingyHeuroBot2)
-set_tests_properties(AdvancedMCTSBot_SmokeTest162_ClingyHeuroBot2 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+# Add the comprehensive test
+add_test(NAME AdvancedMCTSBot_AllTests COMMAND AdvancedMCTSBotTests)
+set_tests_properties(AdvancedMCTSBot_AllTests PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
 # ----------------------------
 # GameStateInspector utility
@@ -126,29 +80,3 @@ target_include_directories(GameStateInspector PRIVATE
 )
 
 target_link_libraries(GameStateInspector PRIVATE fmt::fmt)
-
-# ----------------------------
-# Functional test for GameState 805 (AdvancedMCTSBot)
-# ----------------------------
-add_executable(AdvancedMCTSBotTest805
-    tests/Test805_AdvancedMCTSBot.cpp
-    tests/JsonGameStateLoader.cpp
-    GameState.cpp
-    MCTSEngine.cpp
-    MctsService.cpp
-    MCTSNode.cpp
-    Heuristics.cpp
-    Bot.cpp
-)
-
-# Include directories
-target_include_directories(AdvancedMCTSBotTest805 PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR} 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-# Link libraries
-target_link_libraries(AdvancedMCTSBotTest805 PRIVATE fmt::fmt microsoft-signalr::microsoft-signalr)
-
-add_test(NAME AdvancedMCTSBot_SmokeTest805 COMMAND AdvancedMCTSBotTest805)
-set_tests_properties(AdvancedMCTSBot_SmokeTest805 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../..)

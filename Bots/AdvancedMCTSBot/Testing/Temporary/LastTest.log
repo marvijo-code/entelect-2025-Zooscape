@@ -1,0 +1,49 @@
+Start testing: Jul 14 14:09 South Africa Standard Time
+----------------------------------------------------------
+1/1 Testing: AdvancedMCTSBot_AllTests
+1/1 Test: AdvancedMCTSBot_AllTests
+Command: "C:/dev/2025-Zooscape/Bots/AdvancedMCTSBot/Release/AdvancedMCTSBotTests.exe"
+Directory: C:/dev/2025-Zooscape/Bots/AdvancedMCTSBot/../..
+"AdvancedMCTSBot_AllTests" start time: Jul 14 14:09 South Africa Standard Time
+Output:
+----------------------------------------------------------
+=== AdvancedMCTSBot Comprehensive Test Suite ===
+
+=== Running Cycle Detection Test ===
+Step 1: Action = Right
+Step 2: Action = Left
+Step 3: Action = Down
+Step 4: Action = Right
+Step 5: Action = Right
+Step 6: Action = Down
+✅ Pellet found at step 6!
+
+=== Running Test162 ===
+--- MCTS Action-Score Breakdown ---
+  - Action: Left     Visits:      2 Avg Score: 98433.7857
+  - Action: Up       Visits:   1244 Avg Score: 190556.7459
+  - Action: Right    Visits:      2 Avg Score: 96656.3250
+---------------------------------
+
+=== Running Test34 ===
+Best action: Up
+
+=== Running Test805 ===
+Best action: Down
+
+=== Test Results Summary ===
+✅ PASS CycleDetection: Bot successfully navigated maze without cycles!
+❌ FAIL Test162: Expected Right, but got Up
+❌ FAIL Test34: Expected Down, but got Up
+❌ FAIL Test805: Expected Up, but got Down
+
+1/4 tests passed.
+<end of output>
+Test time =   3.02 sec
+----------------------------------------------------------
+Test Failed.
+"AdvancedMCTSBot_AllTests" end time: Jul 14 14:09 South Africa Standard Time
+"AdvancedMCTSBot_AllTests" time elapsed: 00:00:03
+----------------------------------------------------------
+
+End testing: Jul 14 14:09 South Africa Standard Time

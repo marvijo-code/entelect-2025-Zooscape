@@ -7,9 +7,13 @@ namespace ClingyHeuroBot2.Heuristics;
 public static class WeightManager
 {
     private static HeuristicWeights? _staticWeights;
-    private static readonly object _lock = new object();
+    private static readonly object _lock = new();
     private static DateTime _lastWeightsUpdate = DateTime.MinValue;
     private static readonly TimeSpan _updateInterval = TimeSpan.FromSeconds(30); // Update weights every 30 seconds
+
+    // Cache to avoid querying coordinator on every tick (and spamming logs)
+    private static HeuristicWeights? _cachedWeights;
+    private static Guid? _cachedIndividualId;
 
     static WeightManager()
     {
@@ -37,8 +41,13 @@ public static class WeightManager
                 // Always ensure we have valid fallback weights first
                 var fallbackWeights = _staticWeights ?? new HeuristicWeights();
 
-                // Check if we need to update weights
-                if (DateTime.UtcNow - _lastWeightsUpdate > _updateInterval)
+                // Fast-path: return cached weights if still fresh
+                if (_cachedWeights != null && (DateTime.UtcNow - _lastWeightsUpdate) < _updateInterval)
+                {
+                    return _cachedWeights;
+                }
+
+                // Check if we need to update weights (cache expired)
                 {
                     lock (_lock)
                     {
@@ -97,28 +106,46 @@ public static class WeightManager
     {
         try
         {
+            // Respect cache – only refresh if interval has passed
+            if (_cachedWeights != null && (DateTime.UtcNow - _lastWeightsUpdate) < _updateInterval)
+            {
+                return _cachedWeights;
+            }
+
             var coordinator = ClingyHeuroBot2.EvolutionCoordinator.Instance;
             var bestIndividual = coordinator.GetBestIndividual();
-            
+
             if (bestIndividual?.Genome != null)
             {
-                Console.WriteLine($"Using evolved weights from individual {bestIndividual.Id} (Gen: {bestIndividual.Generation}, Fitness: {bestIndividual.Fitness:F2}, Games: {bestIndividual.GamesPlayed})");
-                return bestIndividual.Genome;
+                // Only log when individual changes to reduce spam
+                if (_cachedIndividualId != bestIndividual.Id)
+                {
+                    Console.WriteLine($"Using evolved weights from individual {bestIndividual.Id} (Gen: {bestIndividual.Generation}, Fitness: {bestIndividual.Fitness:F2}, Games: {bestIndividual.GamesPlayed})");
+                }
+                _cachedIndividualId = bestIndividual.Id;
+                _cachedWeights = bestIndividual.Genome;
+                _lastWeightsUpdate = DateTime.UtcNow;
+                return _cachedWeights;
             }
-            
-            // If no best individual yet, try to get any individual's weights
-            var stats = coordinator.GetStatistics();
-            if (stats.PopulationStatistics.PopulationSize > 0)
+
+            // If no best individual yet, try to get any individual's weights (once per interval)
+            var population = coordinator.CurrentPopulation?.Individuals;
+            if (population != null && population.Any())
             {
-                var population = coordinator.CurrentPopulation;
-                var anyIndividual = population.Individuals.FirstOrDefault();
+                var anyIndividual = population.FirstOrDefault();
                 if (anyIndividual?.Genome != null)
                 {
-                    Console.WriteLine($"Using weights from random individual {anyIndividual.Id} (Gen: {anyIndividual.Generation}) - no fitness data yet");
-                    return anyIndividual.Genome;
+                    if (_cachedIndividualId != anyIndividual.Id)
+                    {
+                        Console.WriteLine($"Using weights from random individual {anyIndividual.Id} (Gen: {anyIndividual.Generation}) - no fitness data yet");
+                    }
+                    _cachedIndividualId = anyIndividual.Id;
+                    _cachedWeights = anyIndividual.Genome;
+                    _lastWeightsUpdate = DateTime.UtcNow;
+                    return _cachedWeights;
                 }
             }
-            
+
             return null;
         }
         catch (Exception ex)

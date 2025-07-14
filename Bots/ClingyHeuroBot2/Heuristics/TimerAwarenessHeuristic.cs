@@ -11,7 +11,10 @@ public class TimerAwarenessHeuristic : IHeuristic
 
     public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
-        heuristicContext.Logger?.Verbose("{Heuristic} not implemented", Name);
-        return 0m;
+        var tick = heuristicContext.CurrentGameState.Tick;
+        var weight = heuristicContext.Weights.TimerAwareness;
+
+        // Scale tick to thousands to keep numbers small
+        return weight * ((decimal)tick / 1000m);
     }
 }

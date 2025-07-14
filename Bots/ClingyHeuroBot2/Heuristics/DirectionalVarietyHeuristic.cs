@@ -12,7 +12,13 @@ public class DirectionalVarietyHeuristic : IHeuristic
 
     public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
-        heuristicContext.Logger?.Verbose("{Heuristic} not implemented", Name);
-        return 0m;
+        var prev = heuristicContext.AnimalLastDirection;
+        var current = heuristicContext.CurrentMove;
+        var weight = heuristicContext.Weights.DirectionalVariety;
+
+        if (prev == null)
+            return 0m; // no info
+
+        return prev == current ? -weight : weight;
     }
 }

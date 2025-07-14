@@ -11,11 +11,16 @@ public class MoveIfIdleHeuristic : IHeuristic
 
     public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
-        heuristicContext.Logger?.Verbose("{Heuristic} not implemented", Name);
-        // Access GameState, Animal, BotAction via context if needed for actual logic
-        // var state = heuristicContext.CurrentGameState;
-        // var me = heuristicContext.CurrentAnimal;
-        // var move = heuristicContext.CurrentMove;
-        return 0m;
+        var me = heuristicContext.CurrentAnimal;
+        var (nx, ny) = heuristicContext.MyNewPosition;
+        var weights = heuristicContext.Weights;
+
+        // If the new position is the same as the current one, the bot is effectively idle.
+        if (nx == me.X && ny == me.Y)
+        {
+            return -weights.MoveIfIdle; // Penalise idling
+        }
+
+        return 0m; // No score if we actually move somewhere
     }
 }

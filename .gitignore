@@ -60,6 +60,29 @@ backups/
 .env*
 **/**/out/build/
 **/**/build/
+
+# CMake build artifacts
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+CTestTestfile.cmake
+
+# CMake-generated Visual Studio files (in directories with CMakeLists.txt)
+Bots/**/ALL_BUILD.vcxproj*
+Bots/**/ZERO_CHECK.vcxproj*
+Bots/**/RUN_TESTS.vcxproj*
+Bots/**/*.vcxproj
+Bots/**/*.vcxproj.filters
+Bots/**/*.vcxproj.user
+Bots/**/*.sln
+
+# But keep manually created solution files in root directories
+!*.sln
+!solutions/**/*.sln
+
 .venv/
 __pycache__/
 FunctionalTests/evolution-data/
