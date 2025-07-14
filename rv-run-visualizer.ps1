@@ -129,8 +129,8 @@ if ($wtAvailable) {
     $apiCommand = @"
 Set-Location '$ScriptDirectory'
 `$env:ASPNETCORE_URLS = 'http://localhost:5008'
-Write-Host "Starting API server on http://localhost:5008..." -ForegroundColor Cyan
-dotnet run --project '$FunctionalTestsProject' --configuration Release
+Write-Host "Starting API server on http://localhost:5008 with hot reload..." -ForegroundColor Cyan
+dotnet watch run --project '$FunctionalTestsProject' --configuration Release
 Write-Host "API server stopped. Press Enter to close this tab..." -ForegroundColor Red
 Read-Host
 "@
@@ -178,8 +178,8 @@ Read-Host
     $apiCommandForFile = @"
     Set-Location '$ScriptDirectory'
     `$env:ASPNETCORE_URLS = 'http://localhost:5008'
-    Write-Host "Starting API server on http://localhost:5008..." -ForegroundColor Cyan
-    dotnet run --project '$FunctionalTestsProject' --configuration Release
+    Write-Host "Starting API server on http://localhost:5008 with hot reload..." -ForegroundColor Cyan
+    dotnet watch run --project '$FunctionalTestsProject' --configuration Release
     Write-Host "API server stopped. Press Enter to close this window..." -ForegroundColor Red
     Read-Host
 "@

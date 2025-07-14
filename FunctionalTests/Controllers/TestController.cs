@@ -3,6 +3,7 @@ using FunctionalTests.Models;
 using FunctionalTests.Services;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using Marvijo.Zooscape.Bots.Common.Models;
 
 namespace FunctionalTests.Controllers;
 
@@ -366,6 +367,103 @@ public class TestController : ControllerBase
             _logger.Error(ex, "Failed to run all tests");
             return StatusCode(500, $"Failed to run tests: {ex.Message}");
         }
+    }
+
+    [HttpPost("search-state-files")]
+    public IActionResult SearchStateFiles([FromBody] StateFileSearchRequest request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.BotNickname))
+        {
+            return BadRequest("BotNickname is required");
+        }
+
+        var logsDir = Path.Combine(Directory.GetCurrentDirectory(), "..", "logs");
+        if (!Directory.Exists(logsDir))
+        {
+            return NotFound(new { error = "Logs directory not found" });
+        }
+
+        var matchingFiles = new List<string>();
+
+        // Iterate through each game log directory
+        foreach (var gameDir in Directory.GetDirectories(logsDir))
+        {
+            // Get all JSON files in this game directory
+            var jsonFiles = Directory.GetFiles(gameDir, "*.json");
+            foreach (var jsonFile in jsonFiles)
+            {
+                // Extract tick number from filename (e.g., "tick_123.json")
+                var fileName = Path.GetFileNameWithoutExtension(jsonFile);
+                if (int.TryParse(fileName.Split('_').Last(), out int tick))
+                {
+                    // Skip if tick is less than or equal to the min tick
+                    if (tick <= request.MinTick)
+                    {
+                        continue;
+                    }
+                }
+
+                // Check if the file contains the bot nickname using streaming
+                bool containsNickname = false;
+                using (var stream = System.IO.File.OpenRead(jsonFile))
+                using (var reader = new System.IO.StreamReader(stream))
+                {
+                    const int bufferSize = 4096;
+                    char[] buffer = new char[bufferSize];
+                    int bytesRead;
+                    string contentSoFar = "";
+                    while ((bytesRead = reader.Read(buffer, 0, bufferSize)) > 0)
+                    {
+                        contentSoFar += new string(buffer, 0, bytesRead);
+                        if (contentSoFar.Contains(request.BotNickname))
+                        {
+                            containsNickname = true;
+                            break;
+                        }
+                        // Prevent memory bloat by keeping only the last part that might be split
+                        if (contentSoFar.Length > request.BotNickname.Length * 2)
+                        {
+                            contentSoFar = contentSoFar.Substring(contentSoFar.Length - request.BotNickname.Length * 2);
+                        }
+                    }
+                }
+
+                if (containsNickname)
+                {
+                    try
+                    {
+                        var content = System.IO.File.ReadAllText(jsonFile);
+                        var state = JsonSerializer.Deserialize<GameState>(content);
+                        if (state != null && state.Tick >= request.MinTick && state.Tick <= request.MaxTick)
+                        {
+                            matchingFiles.Add(jsonFile);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, $"Error processing state file: {jsonFile}");
+                    }
+                }
+            }
+        }
+
+        // Apply paging
+        var skip = (request.PageNumber - 1) * request.PageSize;
+        var take = request.PageSize;
+        var pagedFiles = matchingFiles.Skip(skip).Take(take).ToList();
+
+        // Return total count for pagination
+        var totalCount = matchingFiles.Count;
+        var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
+
+        return Ok(new
+        {
+            files = pagedFiles,
+            totalCount,
+            totalPages,
+            pageNumber = request.PageNumber,
+            pageSize = request.PageSize
+        });
     }
 
     private TestResultDto ExecuteTestDirect(TestDefinition definition, object currentGameState)
@@ -965,4 +1063,14 @@ public class TestController : ControllerBase
         // If no constraints, any action is valid
         return true;
     }
+}
+
+public class StateFileSearchRequest
+{
+    public string BotNickname { get; set; }
+    public int MinTick { get; set; } = 0;
+    public int MaxTick { get; set; } = int.MaxValue;
+    public int MaxResults { get; set; } = 10;
+    public int PageNumber { get; set; } = 1;
+    public int PageSize { get; set; } = 100;
 }

@@ -1,0 +1,1 @@
+select random state .json files from @logs from after tick 100, from the ClingyHeuroBot2 bots. run tests using @Bots/ClingyHeuroBot2 through the existing testing infrastructure and only add tests which you don't agree with the action. use the State Analysis tool to get the analysis of .json state files
