@@ -5,15 +5,15 @@
   "LastEvolvedAt": "2025-06-30T16:40:57.9787347Z",
   "Statistics": {
     "Generation": 61,
-    "PopulationSize": 3495,
+    "PopulationSize": 20,
     "MaxSize": 20,
     "AverageFitness": 0,
     "BestFitness": 0,
     "WorstFitness": 0,
     "FitnessStandardDeviation": 0,
-    "PopulationDiversity": 18.47739672957752,
-    "AverageAge": 2.7685264663805436,
-    "OldestAge": 33,
+    "PopulationDiversity": 0,
+    "AverageAge": 15.65,
+    "OldestAge": 28,
     "TotalGamesPlayed": 0,
     "LastEvolvedAt": "2025-06-30T16:40:57.9787347Z"
   }

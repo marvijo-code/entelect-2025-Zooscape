@@ -675,6 +675,55 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, onRunTest, onRunTestDi
     }
   };
 
+  const handleSaveTest = async () => {
+    const testNameToSave = testName.trim();
+    
+    if (!testNameToSave) {
+      alert('Please enter a test name');
+      return;
+    }
+
+    try {
+      // Create the test data for saving
+      const actionMapping = { Up: 1, Down: 2, Left: 3, Right: 4 };
+      const selectedActions = Object.entries(acceptableActions)
+        .filter(([action, selected]) => selected)
+        .map(([action]) => actionMapping[action]);
+
+      const selectedBotsList = Object.entries(selectedBots)
+        .filter(([bot, selected]) => selected)
+        .map(([bot]) => bot);
+
+      let botsToUse = [];
+      if (testType === 'MultiBotArray') {
+        botsToUse = selectedBotsList.length > 0 ? selectedBotsList : ['ClingyHeuroBot2'];
+      } else if (testType === 'SingleBot' && selectedBotsList.length > 0) {
+        botsToUse = [selectedBotsList[0]];
+      }
+
+      const testData = {
+        testName: testNameToSave,
+        gameStateFile: currentGameStateName || 'current-state.json',
+        description: description.trim() || `Test created from ${currentGameStateName || 'current game state'}`,
+        testType,
+        acceptableActions: selectedActions,
+        botNickname: botNickname.trim() || null,
+        tickOverride: false,
+        bots: botsToUse,
+        currentGameState: currentGameState
+      };
+
+      // Save the test
+      if (onCreateTest) {
+        await onCreateTest(testData);
+        console.log('Test saved successfully:', testNameToSave);
+      }
+    } catch (error) {
+      console.error('Error saving test:', error);
+      // Error handling is done in the onCreateTest function
+    }
+  };
+
   const handleCloseModal = () => {
     // Reset form when closing
     setTestName('test-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now().toString(36));
@@ -1039,8 +1088,16 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, onRunTest, onRunTestDi
           )}
 
           <div className="modal-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={handleCloseModal} className="btn btn-secondary" disabled={runningTest}>
+            <button type="button" onClick={handleCloseModal} className="btn btn-secondary" disabled={runningTest || isCreating}>
               ❌ Cancel
+            </button>
+            <button 
+              type="button"
+              onClick={handleSaveTest} 
+              disabled={!testName.trim() || isCreating}
+              className="btn btn-info"
+            >
+              {isCreating ? '⏳ Saving...' : '💾 Save Test'}
             </button>
             <button 
               type="button"

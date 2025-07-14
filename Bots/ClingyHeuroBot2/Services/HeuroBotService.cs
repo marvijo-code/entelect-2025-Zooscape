@@ -92,7 +92,6 @@ public class HeuroBotService : IBot<HeuroBotService>
     {
         var totalStopwatch = Stopwatch.StartNew();
         int currentTick = gameState?.Tick ?? -1;
-        _logger.Debug("GetActionWithScores started for Bot {BotId} on tick {Tick}", BotId, currentTick);
         
         // Enhanced null safety checks
         if (gameState == null)
@@ -137,12 +136,12 @@ public class HeuroBotService : IBot<HeuroBotService>
         }
 
         // Log current position and wall detection
-        _logger.Debug("Bot {BotId} at position ({X}, {Y}) on tick {Tick}", BotId, me.X, me.Y, currentTick);
+        _logger.Debug("Bot {BotId} at position ({X}, {Y}) on tick {Tick}", BotId, me!.X, me.Y, currentTick);
         
         // Check for walls around current position for debugging wall-hitting behavior
         var surroundingCells = new[]
         {
-            (me.X, me.Y - 1, "Up"),
+            (me!.X, me.Y - 1, "Up"),
             (me.X, me.Y + 1, "Down"), 
             (me.X - 1, me.Y, "Left"),
             (me.X + 1, me.Y, "Right")
@@ -154,12 +153,12 @@ public class HeuroBotService : IBot<HeuroBotService>
             if (cell?.Content == CellContent.Wall)
             {
                 _logger.Debug("WALL DETECTED: {Direction} of bot at ({BotX}, {BotY}) is wall at ({WallX}, {WallY}) on tick {Tick}", 
-                    direction, me.X, me.Y, x, y, currentTick);
+                    direction, me!.X, me.Y, x, y, currentTick);
             }
         }
 
         // Update visit count for current cell
-        var currentPos = (me.X, me.Y);
+        var currentPos = (me!.X, me.Y);
         if (_visitCounts.ContainsKey(currentPos))
             _visitCounts[currentPos]++;
         else
@@ -186,7 +185,7 @@ public class HeuroBotService : IBot<HeuroBotService>
         );
 
         // Update position history (logic from old UpdatePathMemory)
-        currentAnimalPositions.Enqueue((me.X, me.Y));
+        currentAnimalPositions.Enqueue((me!.X, me.Y));
         while (currentAnimalPositions.Count > 10) // Keep last 10 positions
         {
             currentAnimalPositions.Dequeue();
@@ -210,7 +209,7 @@ public class HeuroBotService : IBot<HeuroBotService>
             }
             else // For movement actions
             {
-                int nx = me.X,
+                int nx = me!.X,
                     ny = me.Y;
                 switch (actionType)
                 {
@@ -244,7 +243,7 @@ public class HeuroBotService : IBot<HeuroBotService>
                 {
                     legalActions.Add(actionType);
                     _logger.Debug("Action {Action} is legal: Can move to ({X}, {Y}) with content {Content} for bot {BotId} on tick {Tick}", 
-                        actionType, nx, ny, targetCell.Content, BotId, currentTick);
+                        actionType, nx, ny, targetCell!.Content, BotId, currentTick);
                 }
             }
         }
@@ -253,7 +252,7 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (!legalActions.Any())
         {
             _logger.Warning("No legal actions found for bot {BotId} at ({X}, {Y}) on tick {Tick}! Adding fallback actions.", 
-                BotId, me.X, me.Y, currentTick);
+                BotId, me!.X, me.Y, currentTick);
             
             // Add all movement actions as fallback (the game engine should handle illegal moves)
             legalActions.AddRange(new[] { BotAction.Up, BotAction.Down, BotAction.Left, BotAction.Right });
@@ -311,8 +310,8 @@ public class HeuroBotService : IBot<HeuroBotService>
             }
 
             // Visit penalty and exploration bonuses
-            int nx = me.X,
-                ny = me.Y;
+                            int nx = me!.X,
+                    ny = me.Y;
             switch (action)
             {
                 case BotAction.Up:
@@ -445,7 +444,7 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         // Store chosen action and mark new position to discourage oscillation and encourage exploration
         _previousAction = bestAction;
-        int bx = me.X,
+        int bx = me!.X,
             by = me.Y;
         switch (bestAction)
         {
@@ -476,13 +475,14 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         totalStopwatch.Stop();
         var totalTimeMs = totalStopwatch.ElapsedMilliseconds;
-        _logger.Debug("GetActionWithScores completed for Bot {BotId} in {TotalTime}ms on tick {Tick}, chosen action: {Action}", 
-            BotId, totalTimeMs, currentTick, bestAction);
+        
+        // Concise heuristic processing log
+        _logger.Debug("Heuristics T{Tick} {Action} {Duration}ms", currentTick, bestAction, totalTimeMs);
             
         if (totalTimeMs > 170)
         {
-            _logger.Warning("GetActionWithScores took {TotalTime}ms (>{Threshold}ms) on tick {Tick}, chosen action: {Action} - potential stuck behavior", 
-                totalTimeMs, 170, currentTick, bestAction);
+            _logger.Warning("SLOW Heuristics T{Tick} {Action} {Duration}ms - stuck behavior detected", 
+                currentTick, bestAction, totalTimeMs);
         }
 
         return (bestAction, actionScores, moveScoreLogs);
@@ -512,19 +512,22 @@ public class HeuroBotService : IBot<HeuroBotService>
         }
         
         int currentTick = state.Tick;
-        _logger.Debug("ProcessState started for Bot {BotId} on tick {Tick}", BotId, currentTick);
         
         var action = GetAction(state);
         
         stopwatch.Stop();
         var elapsedMs = stopwatch.ElapsedMilliseconds;
-        _logger.Debug("ProcessState completed for Bot {BotId} in {ElapsedTime}ms on tick {Tick}, action: {Action}", 
-            BotId, elapsedMs, currentTick, action);
+        
+        // Only log if processing took notable time (>10ms) or if there's a performance issue
+        if (elapsedMs > 10)
+        {
+            _logger.Debug("ProcessState T{Tick} {Action} {Duration}ms", currentTick, action, elapsedMs);
+        }
             
         if (elapsedMs > 170)
         {
-            _logger.Warning("ProcessState took {ElapsedTime}ms (>{Threshold}ms) on tick {Tick}, action: {Action} - potential performance issue", 
-                elapsedMs, 170, currentTick, action);
+            _logger.Warning("SLOW ProcessState T{Tick} {Action} {Duration}ms - performance issue", 
+                currentTick, action, elapsedMs);
         }
         
         return new BotCommand { Action = action };

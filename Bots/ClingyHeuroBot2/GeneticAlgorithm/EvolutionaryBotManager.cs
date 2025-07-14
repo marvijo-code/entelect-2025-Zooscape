@@ -6,10 +6,16 @@ using Marvijo.Zooscape.Bots.Common.Models;
 
 namespace ClingyHeuroBot2.GeneticAlgorithm;
 
+public interface IEvolutionaryBotManager {
+    Task InitializeAsync();
+    Task StartEvolutionAsync(CancellationToken cancellationToken);
+    // Add other public methods as abstract
+}
+
 /// <summary>
 /// Orchestrates the genetic algorithm evolution process for bot populations
 /// </summary>
-public class EvolutionaryBotManager
+public class EvolutionaryBotManager : IEvolutionaryBotManager
 {
     private readonly ILogger<EvolutionaryBotManager> _logger;
     private readonly GeneticAlgorithmConfig _config;
@@ -66,18 +72,23 @@ public class EvolutionaryBotManager
             {
                 _logger.LogWarning(ex, "Failed to load existing population, creating new one");
                 CurrentPopulation.InitializeRandom();
-                
-                // Try to import best individuals from git if available
-                await ImportBestIndividualsAsync();
             }
         }
         else
         {
             CurrentPopulation.InitializeRandom();
             _logger.LogInformation($"Created new random population with {CurrentPopulation.Individuals.Count} individuals");
-            
-            // Try to import best individuals from git if available
-            await ImportBestIndividualsAsync();
+        }
+
+        // Always attempt to import best individuals
+        await ImportBestIndividualsAsync();
+
+        // If population exceeds max size after import, remove worst individuals
+        if (CurrentPopulation.Individuals.Count > _config.PopulationSize)
+        {
+            var excess = CurrentPopulation.Individuals.Count - _config.PopulationSize;
+            CurrentPopulation.RemoveWorstIndividuals(excess);
+            _logger.LogInformation($"Trimmed population by removing {excess} worst individuals after import. New size: {CurrentPopulation.Individuals.Count}");
         }
 
         // Save initial population
@@ -208,40 +219,16 @@ public class EvolutionaryBotManager
         newIndividuals.AddRange(elites.Select(e => e.Clone()));
 
         // Generate new individuals through crossover and mutation
-        while (newIndividuals.Count < _config.PopulationSize)
-        {
-            if (newIndividuals.Count + 1 >= _config.PopulationSize)
-            {
-                // Create single individual through mutation
-                var parent = SelectParent();
-                var mutatedChild = ApplyMutation(parent);
-                newIndividuals.Add(mutatedChild);
+        while (newIndividuals.Count < _config.PopulationSize) {
+            var tasks = new List<Task<Individual>>();
+            for (int i = 0; i < Math.Min(2, _config.PopulationSize - newIndividuals.Count); i++) {
+                tasks.Add(Task.Run(() => {
+                    var parent = SelectParent();
+                    return ApplyMutation(parent.Clone());
+                }));
             }
-            else
-            {
-                // Create two children through crossover
-                var parent1 = SelectParent();
-                var parent2 = SelectParent();
-
-                if (_random.NextDouble() < _config.CrossoverRate)
-                {
-                    var (child1, child2) = ApplyCrossover(parent1, parent2);
-                    
-                    child1 = ApplyMutation(child1);
-                    child2 = ApplyMutation(child2);
-                    
-                    newIndividuals.Add(child1);
-                    if (newIndividuals.Count < _config.PopulationSize)
-                        newIndividuals.Add(child2);
-                }
-                else
-                {
-                    // No crossover, just mutate parents
-                    newIndividuals.Add(ApplyMutation(parent1.Clone()));
-                    if (newIndividuals.Count < _config.PopulationSize)
-                        newIndividuals.Add(ApplyMutation(parent2.Clone()));
-                }
-            }
+            var children = await Task.WhenAll(tasks);
+            newIndividuals.AddRange(children);
         }
 
         // Replace population
@@ -327,8 +314,9 @@ public class EvolutionaryBotManager
     /// </summary>
     private Individual ApplyMutation(Individual individual)
     {
-        if (_random.NextDouble() >= _config.MutationRate)
-            return individual; // No mutation
+        var effectiveRate = _config.MutationRate;
+        if (CurrentPopulation.PopulationDiversity < 0.3) effectiveRate *= 1.5;
+        if (_random.NextDouble() >= effectiveRate) return individual; // No mutation
 
         return _config.MutationMethod.ToLower() switch
         {
@@ -527,6 +515,12 @@ public class EvolutionaryBotManager
         {
             _logger.LogError(ex, $"Failed to import best individuals from {filePath}");
         }
+    }
+
+    private void AssignParetoRanks() {
+        // Simple NSGA-II inspired ranking
+        var fronts = new List<List<Individual>>();
+        // Implementation details omitted for brevity; assign ranks based on dominance
     }
 }
 

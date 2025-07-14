@@ -153,12 +153,13 @@ public class Program
             gameStateReceivedTime = DateTime.UtcNow;
             gameStateStopwatch = Stopwatch.StartNew();
             currentTick = state.Tick; // Capture current tick
-            Log.Debug("GameState received at {Timestamp} for tick {Tick}, starting processing...", gameStateReceivedTime.Value.ToString("HH:mm:ss.fff"), currentTick);
+            
+            // Declare myAnimal outside try block so it can be used later
+            Animal? myAnimal = null;
             
             try
             {
-                // Additional validation before processing
-                var myAnimal = state.Animals.FirstOrDefault(a => a.Id == botService.BotId);
+                myAnimal = state.Animals.FirstOrDefault(a => a.Id == botService.BotId);
                 if (myAnimal == null && botService.BotId != Guid.Empty)
                 {
                     Log.Warning("Bot animal with ID {BotId} not found in GameState for tick {Tick}. Available animals: [{AvailableAnimals}]. Processing anyway with default action.", 
@@ -199,16 +200,20 @@ public class Program
             // Log processing time immediately after getting the command
             gameStateStopwatch.Stop();
             var processingTimeMs = gameStateStopwatch.ElapsedMilliseconds;
-            Log.Information("Tick {Tick}: Action {Action} decided in {ProcessingTime}ms", 
-                currentTick, command?.Action ?? BotAction.Up, processingTimeMs);
-            Log.Debug("GameState processed in {ProcessingTime}ms for tick {Tick}, command ready: {Action}", 
-                processingTimeMs, currentTick, command?.Action ?? BotAction.Up);
+            
+            // Get current position for logging (using existing myAnimal)
+            var position = myAnimal != null ? $"({myAnimal.X},{myAnimal.Y})" : "(?,?)";
+            var score = myAnimal?.Score ?? 0;
+            
+            // Concise tick logging: Tick, Position, Action, Duration
+            Log.Information("T{Tick} {Position} {Action} {Duration}ms {Score}pts", 
+                currentTick, position, command?.Action ?? BotAction.Up, processingTimeMs, score);
                 
             // Warn if processing took longer than expected (170ms threshold)
             if (processingTimeMs > 170)
             {
-                Log.Warning("SLOW PROCESSING: GameState processing took {ProcessingTime}ms (>{Threshold}ms) for tick {Tick}, action: {Action}", 
-                    processingTimeMs, 170, currentTick, command?.Action ?? BotAction.Up);
+                Log.Warning("SLOW T{Tick} {Position} {Action} {Duration}ms - Performance issue!", 
+                    currentTick, position, command?.Action ?? BotAction.Up, processingTimeMs);
             }
             
             // Track game performance for evolution
@@ -219,7 +224,12 @@ public class Program
                 // Only track performance if bot is registered and has valid ID
                 if (botService.BotId != Guid.Empty && state.Animals != null)
                 {
-                    var myAnimal = state.Animals.FirstOrDefault(a => a.Id == botService.BotId);
+                    // Reuse existing myAnimal instead of re-querying
+                    if (myAnimal == null)
+                    {
+                        myAnimal = state.Animals.FirstOrDefault(a => a.Id == botService.BotId);
+                    }
+                    
                     if (myAnimal != null)
                     {
                         finalScore = myAnimal.Score;
@@ -331,6 +341,32 @@ public class Program
         connection.Closed += async error =>
         {
             Log.Error($"Connection closed: {error?.Message}");
+
+            // Record performance on unexpected close if a game was in progress
+            if (ticksPlayed > 0)
+            {
+                try
+                {
+                    var gameTime = DateTime.UtcNow - gameStartTime;
+                    await evolutionCoordinator.RecordPerformanceAsync(botNickname, finalScore, gameTime, currentRank, totalPlayers);
+                    Log.Information($"Game performance recorded on unexpected close: Score={finalScore}, Rank={currentRank}/{totalPlayers}, Time={gameTime.TotalSeconds:F1}s");
+
+                    // Reset game tracking variables
+                    gameStartTime = DateTime.UtcNow;
+                    initialScore = 0;
+                    finalScore = 0;
+                    currentRank = 1;
+                    totalPlayers = 1;
+                    lastRecordedScore = 0;
+                    ticksPlayed = 0;
+                    lastPerformanceRecord = DateTime.UtcNow;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning($"Failed to record performance on close: {ex.Message}");
+                }
+            }
+
             await Task.Delay(new Random().Next(0, 5) * 1000);
             try
             {
