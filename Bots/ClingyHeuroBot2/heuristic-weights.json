@@ -36,7 +36,7 @@
   "DirectionalVariety": 1.2,
   "EmptyCellAvoidance": 1.6,
   "WallCollisionRisk": 1.8,
-  "LineOfSightPellets": 85.0,
+  "LineOfSightPellets": 110.0,
   "PelletRace": 1.1,
   "RecalcWindowSafety": 0.8,
   "CenterControl": 0.6,

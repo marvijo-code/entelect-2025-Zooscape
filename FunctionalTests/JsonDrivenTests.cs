@@ -1,5 +1,7 @@
 using FunctionalTests.Models;
 using FunctionalTests.Services;
+using Marvijo.Zooscape.Bots.Common;
+using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 using Xunit;
 using Xunit.Abstractions;
