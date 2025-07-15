@@ -130,7 +130,7 @@ if ($wtAvailable) {
 Set-Location '$ScriptDirectory'
 `$env:ASPNETCORE_URLS = 'http://localhost:5008'
 Write-Host "Starting API server on http://localhost:5008 with hot reload..." -ForegroundColor Cyan
-dotnet watch run --project '$FunctionalTestsProject' --configuration Release --no-build
+dotnet watch run --project '$FunctionalTestsProject' --configuration Release --no-build --no-restore
 Write-Host "API server stopped. Press Enter to close this tab..." -ForegroundColor Red
 Read-Host
 "@
@@ -180,7 +180,7 @@ Read-Host
     Set-Location '$ScriptDirectory'
     `$env:ASPNETCORE_URLS = 'http://localhost:5008'
     Write-Host "Starting API server on http://localhost:5008 with hot reload..." -ForegroundColor Cyan
-    dotnet watch run --project '$FunctionalTestsProject' --configuration Release --no-build
+    dotnet watch run --project '$FunctionalTestsProject' --configuration Release --no-build --no-restore
     Write-Host "API server stopped. Press Enter to close this window..." -ForegroundColor Red
     Read-Host
 "@

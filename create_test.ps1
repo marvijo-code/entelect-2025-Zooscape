@@ -31,12 +31,12 @@ param(
     [string]$GameStatesDir = "FunctionalTests/GameStates"
 )
 
-# Parse the AcceptableActions string into an integer array
+# Parse the AcceptableActions string into an integer array, which the API expects
 $AcceptableActionsArray = $AcceptableActions.Split(',') | ForEach-Object { [int]$_.Trim() }
 
 # Read the game state JSON
 try {
-    $gameStateFilePath = Join-Path $GameStatesDir "$($GameStateFile).json"
+    $gameStateFilePath = Join-Path $GameStatesDir $GameStateFile
     $gameStateJson = Get-Content $gameStateFilePath -Raw
     Write-Host "Loaded game state file: $gameStateFilePath" -ForegroundColor Green
 } catch {
@@ -44,25 +44,23 @@ try {
     exit 1
 }
 
-# Create a PowerShell object representing the request body
-$requestObject = [PSCustomObject]@{ 
-    TestName = $TestName
-    GameStateFile = $GameStateFile
-    CurrentGameState = ($gameStateJson | ConvertFrom-Json)
-    TestType = $TestType
-    BotsToTest = $BotsToTest
-    Description = $Description
-    TickOverride = $TickOverride
-    AcceptableActions = $AcceptableActionsArray # Pass the parsed integer array
-}
+# Manually construct the JSON to ensure correct format
+$botsToTestJson = ($BotsToTest | ForEach-Object { '"' + $_ + '"' }) -join ', '
+$acceptableActionsJson = $AcceptableActionsArray -join ', '
 
-# Add BotNicknameInState only if it's provided
-if ($BotNicknameInState) {
-    $requestObject | Add-Member -MemberType NoteProperty -Name "BotNicknameInState" -Value $BotNicknameInState
+$body = @"
+{
+    "TestName": "$TestName",
+    "GameStateFile": "$GameStateFile",
+    "Description": "$Description",
+    "BotNicknameInState": "$BotNicknameInState",
+    "AcceptableActions": [$acceptableActionsJson],
+    "TestType": "$TestType",
+    "TickOverride": $($TickOverride.ToString().ToLower()),
+    "BotsToTest": [$botsToTestJson],
+    "CurrentGameState": $gameStateJson
 }
-
-# Convert the entire object to a JSON string
-$body = $requestObject | ConvertTo-Json -Depth 10
+"@
 
 try {
     Write-Host "Creating test: $TestName" -ForegroundColor Yellow
@@ -94,6 +92,15 @@ try {
         exit 1
     }
 } catch {
-    Write-Error "Failed to create test: $_"
+    if ($_.Exception.Response) {
+        $responseStream = $_.Exception.Response.GetResponseStream()
+        $streamReader = New-Object System.IO.StreamReader($responseStream)
+        $responseBody = $streamReader.ReadToEnd()
+        $streamReader.Close()
+        $responseStream.Close()
+        Write-Error "API request failed. Status: $($_.Exception.Response.StatusCode). Response: $responseBody"
+    } else {
+        Write-Error "Failed to create test: $($_.Exception.Message)"
+    }
     exit 1
 }

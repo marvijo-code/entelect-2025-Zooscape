@@ -16,14 +16,15 @@ public class OpponentProximityHeuristic : IHeuristic
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
 
-        if (
-            heuristicContext.CurrentGameState.Zookeepers == null
-            || !heuristicContext.CurrentGameState.Zookeepers.Any()
-        )
+        var opponents = heuristicContext.CurrentGameState.Animals
+            .Where(a => a.Id != heuristicContext.CurrentAnimal.Id && a.IsViable)
+            .ToList();
+
+        if (!opponents.Any())
             return 0m;
 
-        var dists = heuristicContext.CurrentGameState.Zookeepers.Select(z =>
-            BotUtils.ManhattanDistance(z.X, z.Y, nx, ny)
+        var dists = opponents.Select(o => 
+            BotUtils.ManhattanDistance(o.X, o.Y, nx, ny)
         );
 
         if (!dists.Any())
@@ -31,8 +32,13 @@ public class OpponentProximityHeuristic : IHeuristic
 
         var minDist = dists.Min();
 
-        if (minDist < 0)
-            return 0m;
+        if (minDist < 0) return 0m;
+
+        // Hard override for critical proximity
+        if (minDist <= 3) 
+        {
+            return -10000.0m; // Large penalty to veto unsafe moves
+        }
 
         return -heuristicContext.Weights.OpponentProximity / (minDist + 1.0m);
     }

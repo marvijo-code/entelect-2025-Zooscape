@@ -468,7 +468,7 @@
     "TestName": "AutoGen_20250115_1100_ClingyHeuroBot2",
     "GameStateFile": "tick_1100_1100.json",
     "Description": "Automated test for tick 1100 - ClingyHeuroBot2 at (41,3) should choose Left due to superior pellet line of sight (35 pellets vs 13 Up).",
-    "BotNickname": null,
+    "BotNickname": "ClingyHeuroBot2",
     "ExpectedAction": null,
     "AcceptableActions": [
       "Up",
@@ -478,7 +478,36 @@
     "TestType": "SingleBot",
     "TickOverride": false,
     "Bots": [
+      "StaticHeuro"
+    ]
+  },
+  {
+    "TestName": "OpponentAvoidance_ShouldNotMoveUp",
+    "GameStateFile": "OpponentAvoidanceTest_34.json",
+    "Description": "Automated test",
+    "BotNickname": "ClingyHeuroBot2",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Left",
+      "Down"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
       "ClingyHeuroBot2"
     ]
+  },
+  {
+    "TestName": "AvoidOpponent_Proximity_Scenario1",
+    "GameStateFile": "1135_1135.json",
+    "Description": "Automated test",
+    "BotNickname": "ClingyHeuroBot",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Down"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": []
   }
 ]

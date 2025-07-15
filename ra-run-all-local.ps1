@@ -39,74 +39,45 @@ function Test-PortAvailable {
 function Stop-DotnetProcesses {
     Write-Host "Stopping processes managed by ra-run-all-local.ps1..." -ForegroundColor Yellow
 
-    # Executable names managed by this script (engine and bots)
-    $managedExecutableNames = @("Zooscape", "AdvancedMCTSBot", "DeepMCTS", "python")
-    foreach ($botDefinition in $bots) {
-        if ($botDefinition.Language -eq "csharp") {
-            $botName = $botDefinition.Name
-            $managedExecutableNames += $botName
-        }
-    }
-
-    # Processes to explicitly IGNORE, even if they use a managed port.
-    $ignoredProcessNames = @("Tests.Api")
+    # Define the ports for services that this script manages.
+    # Port 5008 is explicitly excluded as requested.
+    $managedPorts = @(5000, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5009, 5010, 5011, 5012, 5013, 5014, 5015)
     $stoppedProcesses = @()
 
-    # --- DIAGNOSTIC LOGGING --- 
-    Write-Host "[DIAGNOSTIC] Starting process cleanup..." -ForegroundColor Magenta
-    Write-Host "[DIAGNOSTIC] Managed executables: $($managedExecutableNames -join ', ')" -ForegroundColor Magenta
-    Write-Host "[DIAGNOSTIC] Ignored processes: $($ignoredProcessNames -join ', ')" -ForegroundColor Magenta
+    Write-Host "Stopping processes by port: $($managedPorts -join ', ')" -ForegroundColor DarkGray
 
-    # Stop managed executables by name first
-    Write-Host "Stopping managed executables (engine and bots) by name..." -ForegroundColor DarkGray
-    foreach ($executableName in $managedExecutableNames) {
-        Get-Process -Name $executableName -ErrorAction SilentlyContinue | ForEach-Object {
-            Write-Host "[DIAGNOSTIC] Found process matching '$($executableName)': $($_.ProcessName) (ID: $($_.Id))" -ForegroundColor Magenta
-            if ($ignoredProcessNames -contains $_.ProcessName) {
-                Write-Host "[DIAGNOSTIC] IGNORING process $($_.ProcessName) because it is in the ignore list." -ForegroundColor Cyan
-                return
-            }
-            try {
-                Write-Host "Stopping managed executable: $($_.ProcessName) (ID: $($_.Id))" -ForegroundColor Gray
-                $_ | Stop-Process -Force -ErrorAction Stop
-                $stoppedProcesses += $_.Id
-            }
-            catch {
-                Write-Warning "Failed to stop process $($_.ProcessName) (ID: $($_.Id)): $($_.Exception.Message)"
-            }
-        }
-    }
-
-    # Stop any remaining process using the engine port (5000), unless it's on the ignore list
-    Write-Host "Checking for processes using port 5000 (engine port)..." -ForegroundColor Yellow
-    try {
-        netstat -ano | Select-String ":5000\s" | ForEach-Object {
-            $line = $_.Line.Trim()
-            $parts = $line -split '\s+'
-            if ($parts.Length -ge 5) {
-                $processId = $parts[-1]
-                if ($processId -match '^\d+$' -and [int]$processId -ne 0) {
-                    try {
-                        $processOnPort = Get-Process -Id $processId -ErrorAction SilentlyContinue
-                        Write-Host "[DIAGNOSTIC] Found process on port 5000: $($processOnPort.ProcessName) (ID: $($processOnPort.Id))" -ForegroundColor Magenta
-                        if ($processOnPort -and $processOnPort.ProcessName -ne "Idle" -and ($ignoredProcessNames -notcontains $processOnPort.ProcessName)) {
-                            Write-Host "Found process $($processOnPort.ProcessName) (ID: $($processOnPort.Id)) using port 5000. Stopping it." -ForegroundColor Gray
-                            $processOnPort | Stop-Process -Force -ErrorAction Stop
-                            $stoppedProcesses += [int]$processId
-                        } elseif ($processOnPort -and ($ignoredProcessNames -contains $processOnPort.ProcessName)) {
-                            Write-Host "[DIAGNOSTIC] IGNORING process on port 5000 ($($processOnPort.ProcessName)) because it is in the ignore list." -ForegroundColor Cyan
+    foreach ($port in $managedPorts) {
+        try {
+            # Find processes listening on the specified port.
+            $netstatResult = netstat -ano | Select-String -Pattern ":$($port)\s" | Where-Object { $_ -match 'LISTENING' }
+            
+            foreach ($line in $netstatResult) {
+                $parts = $line.Line.Trim() -split '\s+'
+                if ($parts.Length -ge 4) {
+                    $processId = $parts[-1]
+                    if ($processId -match '^\d+$' -and [int]$processId -ne 0) {
+                        try {
+                            $processToStop = Get-Process -Id $processId -ErrorAction SilentlyContinue
+                            if ($processToStop) {
+                                Write-Host "Stopping process $($processToStop.ProcessName) (ID: $processId) on port $port" -ForegroundColor Gray
+                                $processToStop | Stop-Process -Force -ErrorAction Stop
+                                if (-not ($stoppedProcesses -contains [int]$processId)) {
+                                    $stoppedProcesses += [int]$processId
+                                }
+                            }
                         }
-                    }
-                    catch {
-                        Write-Warning "Failed to stop process with PID ${processId} using port 5000: $($_.Exception.Message)"
+                        catch {
+                            Write-Warning "Failed to stop process with PID $processId on port ${port}: $($_.Exception.Message)"
+                        }
                     }
                 }
             }
         }
+        catch {
+            Write-Warning "Failed to check or stop processes on port ${port}: $($_.Exception.Message)"
+        }
     }
-    catch {
-        Write-Warning "Failed to check port 5000 usage: $($_.Exception.Message)"
-    }
+
     Write-Host "[DIAGNOSTIC] Process cleanup finished." -ForegroundColor Magenta
     
     # Wait for processes to fully terminate and release file locks
@@ -198,28 +169,11 @@ while ($keepRunningScript) {
         Start-Sleep -Seconds 2  # Additional wait for file system
     }
 
-    # 3. Build all bots before launching anything  
-    # Double-check that no processes are still running that could cause file locks
-    $stillRunningProcesses = @()
-    foreach ($botDefinition in $bots) {
-        if ($botDefinition.Language -eq "csharp") {
-            $botName = $botDefinition.Name
-            $runningBots = Get-Process -Name $botName -ErrorAction SilentlyContinue
-            if ($runningBots) {
-                $stillRunningProcesses += $runningBots
-            }
-        }
-    }
-    $runningDotnet = Get-Process -Name "dotnet" -ErrorAction SilentlyContinue
-    if ($runningDotnet) {
-        $stillRunningProcesses += $runningDotnet
-    }
-    
-    if ($stillRunningProcesses.Count -gt 0) {
-        Write-Warning "Found $($stillRunningProcesses.Count) processes still running that could cause file locks. Force stopping them..."
-        $stillRunningProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 3
-    }
+    # 3. Build all bots before launching anything
+    # Double-check that no processes are still running that could cause file locks by re-running the cleanup.
+    Write-Host "Verifying no conflicting processes are running before build..." -ForegroundColor DarkGray
+    Stop-DotnetProcesses
+    Start-Sleep -Seconds 1 # Brief pause to ensure processes have terminated.
     
     $builtBots = @()
     $buildFailed = $false

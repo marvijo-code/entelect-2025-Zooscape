@@ -1,6 +1,6 @@
 {
   "DistanceToGoal": 1.0,
-  "OpponentProximity": -0.8,
+  "OpponentProximity": 500.0,
   "ResourceClustering": 540.0,
   "AreaControl": 0.7,
   "Mobility": 50.0,
