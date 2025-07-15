@@ -534,6 +534,40 @@
     "AcceptableActions": [],
     "TestType": "SingleBot",
     "TickOverride": false,
-    "Bots": ["StaticHeuro"]
+    "Bots": [
+      "StaticHeuro"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_AvoidsZookeeper_1",
+    "GameStateFile": "40_40.json",
+    "Description": "Automated test",
+    "BotNickname": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Up",
+      "Down"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
+  },
+  {
+    "TestName": "StaticHeuroZookeeperProximity",
+    "GameStateFile": "48_48.json",
+    "Description": "Tests that StaticHeuro moves away from a nearby zookeeper.",
+    "BotNickname": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Left",
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
   }
 ]

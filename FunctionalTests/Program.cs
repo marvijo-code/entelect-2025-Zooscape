@@ -9,14 +9,17 @@ try
 
     // Configure Serilog
     Log.Logger = new LoggerConfiguration()
+        .MinimumLevel.Debug()
         .WriteTo.Console()
         .CreateBootstrapLogger(); // Use CreateBootstrapLogger for initial logging before host is built
     
     builder.Host.UseSerilog((context, services, configuration) => configuration
+        .MinimumLevel.Debug()
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext()
-        .WriteTo.Console());
+        .WriteTo.Console()
+        .WriteTo.File("c:\\dev\\2025-Zooscape\\api.log", rollingInterval: RollingInterval.Day));
 
     // Add services
     builder.Services.AddSerilog(); // Ensures Serilog.ILogger is available for direct injection

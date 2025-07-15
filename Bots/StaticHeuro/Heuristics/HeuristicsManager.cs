@@ -1,4 +1,5 @@
 using Marvijo.Zooscape.Bots.Common;
+using Serilog;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
@@ -137,15 +138,24 @@ public class HeuristicsManager
 
         foreach (var heuristic in _heuristics)
         {
-            decimal score = heuristic.CalculateScore(heuristicContext);
-
-            if (score == 0m) continue;
-
-            totalScore += score;
-
-            if (logHeuristicScores)
+            try
             {
-                detailedScoreEntries.Add(new HeuristicScoreDetail(heuristic.Name, score, totalScore));
+                decimal score = heuristic.CalculateScore(heuristicContext);
+
+                if (score == 0m) continue;
+
+                totalScore += score;
+
+                if (logHeuristicScores)
+                {
+                    detailedScoreEntries.Add(new HeuristicScoreDetail(heuristic.Name, score, totalScore));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Heuristic '{HeuristicName}' threw an exception during calculation", heuristic.Name);
+                Log.CloseAndFlush(); // Force logs to be written before the process terminates
+                throw; // Re-throw the exception to maintain original behavior
             }
         }
 

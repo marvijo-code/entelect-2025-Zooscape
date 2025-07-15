@@ -1,45 +1,61 @@
+# Script to find a game state where a bot is captured or close to a zookeeper.
+
 param(
     [string]$LogDirectory,
-    [string]$BotNickname = "StaticHeuro",
+    [string]$BotNickname,
     [int]$DistanceThreshold = 4
 )
 
-# Get all json files, sorted by tick number
-$files = Get-ChildItem -Path $LogDirectory -Filter *.json |
-    Where-Object { $_.BaseName -match '^\d+$' } |
-    Sort-Object { [int]$_.BaseName }
+function Get-ManhattanDistance {
+    param($obj1, $obj2)
+    return [Math]::Abs($obj1.X - $obj2.X) + [Math]::Abs($obj1.Y - $obj2.Y)
+}
 
-if ($files.Count -eq 0) {
-    Write-Host "No valid log files found in the specified directory."
+# Get all JSON files in the specified directory, sorted by name (which should correspond to tick order)
+$gameFiles = Get-ChildItem -Path $LogDirectory -Filter "*.json" | Sort-Object { [int]($_.Name -replace '\.json$') }
+
+if ($gameFiles.Count -eq 0) {
+    Write-Warning "No JSON files found in directory '$LogDirectory'."
     exit
 }
 
-# Function to calculate Manhattan distance
-function Get-ManhattanDistance($pos1, $pos2) {
-    return [Math]::Abs($pos1.X - $pos2.X) + [Math]::Abs($pos1.Y - $pos2.Y)
-}
+Write-Host "Searching for bot '$BotNickname' in '$LogDirectory'..."
 
-# Iterate through each file to check for zookeeper proximity
-foreach ($file in $files) {
-    $gameState = Get-Content -Raw -Path $file.FullName | ConvertFrom-Json -ErrorAction SilentlyContinue
-    if (-not $gameState) {
+foreach ($file in $gameFiles) {
+    try {
+        $content = Get-Content -Path $file.FullName -Raw | ConvertFrom-Json
+    } 
+    catch {
+        Write-Warning "Could not parse JSON file: $($file.FullName)"
         continue
     }
 
-    $bot = $gameState.Bots | Where-Object { $_.Nickname -eq $BotNickname }
-    $zookeepers = $gameState.Zookeepers
+    # Find the specified bot in the current game state
+    $bot = $content.Animals | Where-Object { $_.Nickname -eq $BotNickname }
 
-    if ($bot -and $zookeepers) {
-        foreach ($zookeeper in $zookeepers) {
-            $distance = Get-ManhattanDistance -pos1 $bot.Position -pos2 $zookeeper.Position
-            if ($distance -lt $DistanceThreshold) {
-                Write-Host "Found state where bot '$BotNickname' is close to a zookeeper (distance: $distance)."
-                Write-Host "File: $($file.FullName)"
-                Write-Output $file.FullName
-                exit
+    if ($null -ne $bot) {
+        # --- NEW: Check for capture ---
+        if ($bot.CapturedCounter -gt 0) {
+            Write-Host "Found state where bot '$BotNickname' was captured."
+            Write-Host "File: $($file.FullName)"
+            Write-Output $file.FullName
+            exit # Exit after finding the first capture event
+        }
+
+        # --- ORIGINAL: Check for proximity ---
+        $zookeepers = $content.Zookeepers
+        if ($null -ne $zookeepers) {
+            foreach ($zookeeper in $zookeepers) {
+                $distance = Get-ManhattanDistance -obj1 $bot -obj2 $zookeeper
+                if ($distance -lt $DistanceThreshold) {
+                    Write-Host "Found state where bot '$BotNickname' is close to a zookeeper (distance: $distance)."
+                    Write-Host "File: $($file.FullName)"
+                    Write-Output $file.FullName
+                    exit # Exit after finding the first close proximity event
+                }
             }
         }
     }
 }
 
-Write-Host "No state found where bot '$BotNickname' is within $DistanceThreshold steps of a zookeeper in '$LogDirectory'."
+Write-Host "No state found where bot '$BotNickname' is within $DistanceThreshold steps of a zookeeper or has been captured in '$LogDirectory'."

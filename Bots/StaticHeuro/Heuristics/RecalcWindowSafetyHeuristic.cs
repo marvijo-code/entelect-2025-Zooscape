@@ -15,6 +15,11 @@ public class RecalcWindowSafetyHeuristic : IHeuristic
     public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var weights = heuristicContext.Weights;
+
+        if (weights.RecalcWindowSize <= 0)
+        {
+            return 0m; // Cannot calculate if window size is zero or negative, so this heuristic has no effect.
+        }
         int ticksToRecalc = (weights.RecalcWindowSize - (heuristicContext.CurrentGameState.Tick % weights.RecalcWindowSize)) % weights.RecalcWindowSize;
         if (ticksToRecalc > weights.RecalcWindowSafetyTickThreshold)
             return 0m; // evaluate only in last few ticks of window

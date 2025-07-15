@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FunctionalTests.Models;
+using Microsoft.Extensions.Logging;
 using FunctionalTests.Services;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -762,12 +763,13 @@ public class TestController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.Error(ex.InnerException ?? ex, "Bot execution failed for {BotType}", botType);
             return new BotResultDto
             {
                 BotType = botType,
                 Action = null,
                 Success = false,
-                ErrorMessage = ex.Message,
+                ErrorMessage = (ex.InnerException ?? ex).ToString(), // Capture the full inner exception details
                 BotId = Guid.NewGuid().ToString(),
                 InitialScore = 0,
                 FinalScore = 0,
