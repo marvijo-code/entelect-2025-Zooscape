@@ -3,6 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Marvijo.Zooscape.Bots.Common.Utils;
+using Marvijo.Zooscape.Bots.Common.Models;
+using Marvijo.Zooscape.Bots.Common.Enums;
 
 namespace GameStateInspector
 {
@@ -115,6 +118,12 @@ namespace GameStateInspector
         public bool IsAnalyzingMove { get; set; }
         public MoveDirection? AnalyzedMove { get; set; }
         public (int x, int y) OriginalPos { get; set; }
+        
+        // Legal move analysis fields
+        public bool CanMoveUp { get; set; }
+        public bool CanMoveLeft { get; set; }
+        public bool CanMoveRight { get; set; }
+        public bool CanMoveDown { get; set; }
     }
 
     class Program
@@ -307,6 +316,12 @@ namespace GameStateInspector
 
             // Find nearest zookeeper
             FindNearestZookeeper(gameState, analysis);
+            
+            // Check legal moves using shared BotUtils logic
+            analysis.CanMoveUp = IsLegalMove(cellLookup, analysis.MyPos, 0, -1);
+            analysis.CanMoveLeft = IsLegalMove(cellLookup, analysis.MyPos, -1, 0);
+            analysis.CanMoveRight = IsLegalMove(cellLookup, analysis.MyPos, 1, 0);
+            analysis.CanMoveDown = IsLegalMove(cellLookup, analysis.MyPos, 0, 1);
 
             return analysis;
         }
@@ -331,6 +346,14 @@ namespace GameStateInspector
             for (int step = 1; step <= 3; step++)
             {
                 var checkPos = (pos.x + dx * step, pos.y + dy * step);
+                
+                // Check if the position is traversable (same logic as StaticHeuro)
+                if (!IsTraversable(cellLookup, checkPos))
+                {
+                    // Hit a wall or boundary - can't continue in this direction
+                    break;
+                }
+                
                 if (cellLookup.TryGetValue(checkPos, out var content) && content == CellContent.Pellet)
                 {
                     if (step == 1)
@@ -340,12 +363,39 @@ namespace GameStateInspector
             }
         }
 
+        // Helper method to check if a position is traversable using the shared BotUtils logic
+        static bool IsTraversable(Dictionary<(int, int), CellContent> cellLookup, (int x, int y) pos)
+        {
+            // Create a temporary GameState with just the cells needed for traversability check
+            var gameState = new Marvijo.Zooscape.Bots.Common.Models.GameState
+            {
+                Cells = cellLookup.Select(kvp => new Marvijo.Zooscape.Bots.Common.Models.Cell
+                {
+                    X = kvp.Key.Item1,
+                    Y = kvp.Key.Item2,
+                    Content = (Marvijo.Zooscape.Bots.Common.Enums.CellContent)(int)kvp.Value
+                }).ToList()
+            };
+            
+            // Use the shared BotUtils.IsTraversable method
+            return BotUtils.IsTraversable(gameState, pos.x, pos.y);
+        }
+
+        // Helper method to check if a move in a given direction is legal (same logic as StaticHeuro)
+        static bool IsLegalMove(Dictionary<(int, int), CellContent> cellLookup, (int x, int y) pos, int dx, int dy)
+        {
+            var targetPos = (pos.x + dx, pos.y + dy);
+            return IsTraversable(cellLookup, targetPos);
+        }
+
         static int CountConsecutivePellets(Dictionary<(int, int), CellContent> cellLookup, (int x, int y) pos, int dx, int dy)
         {
             int count = 0;
             var current = (pos.x + dx, pos.y + dy);
 
-            while (cellLookup.TryGetValue(current, out var content) && content == CellContent.Pellet)
+            while (IsTraversable(cellLookup, current) && 
+                   cellLookup.TryGetValue(current, out var content) && 
+                   content == CellContent.Pellet)
             {
                 count++;
                 current = (current.Item1 + dx, current.Item2 + dy);
@@ -585,6 +635,13 @@ namespace GameStateInspector
             Console.WriteLine("=== PELLET CLUSTER ANALYSIS ===");
             Console.WriteLine($"Number of Pellet Clusters: {analysis.PelletClustersCount}");
             Console.WriteLine($"Largest Pellet Cluster Size: {analysis.LargestPelletClusterSize}");
+            Console.WriteLine();
+
+            Console.WriteLine("=== LEGAL MOVE ANALYSIS ===");
+            Console.WriteLine($"Can Move Up? {yesNo(analysis.CanMoveUp)}");
+            Console.WriteLine($"Can Move Left? {yesNo(analysis.CanMoveLeft)}");
+            Console.WriteLine($"Can Move Right? {yesNo(analysis.CanMoveRight)}");
+            Console.WriteLine($"Can Move Down? {yesNo(analysis.CanMoveDown)}");
             Console.WriteLine();
 
             Console.WriteLine("=== QUADRANT ANALYSIS ===");

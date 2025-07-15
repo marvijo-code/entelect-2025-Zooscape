@@ -1,7 +1,7 @@
 {
   "DistanceToGoal": 1.0,
   "OpponentProximity": -0.8,
-  "ResourceClustering": 500.0,
+  "ResourceClustering": 520.0,
   "AreaControl": 0.7,
   "Mobility": 50.0,
   "PathSafety": -0.9,
@@ -36,7 +36,7 @@
   "DirectionalVariety": 1.2,
   "EmptyCellAvoidance": 1.6,
   "WallCollisionRisk": 1.8,
-  "LineOfSightPellets": 85.0,
+  "LineOfSightPellets": 100.0,
   "PelletRace": 1.1,
   "RecalcWindowSafety": 0.8,
   "CenterControl": 0.6,
