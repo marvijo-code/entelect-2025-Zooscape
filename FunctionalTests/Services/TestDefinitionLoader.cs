@@ -128,14 +128,14 @@ public class TestDefinitionLoader
     }
 
     /// <summary>
-    /// Save a new test definition to the DynamicTests.json file
+    /// Save a new test definition to the ConsolidatedTests.json file
     /// </summary>
     public void SaveTestDefinition(TestDefinition testDefinition)
     {
         // Save to source directory instead of bin directory so it can be checked into version control
         var currentDirectory = Directory.GetCurrentDirectory();
         var testDefinitionsPath = Path.Combine(currentDirectory, "TestDefinitions");
-        var dynamicTestsFile = Path.Combine(testDefinitionsPath, "DynamicTests.json");
+        var consolidatedTestsFile = Path.Combine(testDefinitionsPath, "ConsolidatedTests.json");
 
         // Ensure TestDefinitions directory exists
         if (!Directory.Exists(testDefinitionsPath))
@@ -147,13 +147,13 @@ public class TestDefinitionLoader
             );
         }
 
-        // Load existing dynamic tests or create new list
+        // Load existing consolidated tests or create new list
         var existingTests = new List<TestDefinition>();
-        if (File.Exists(dynamicTestsFile))
+        if (File.Exists(consolidatedTestsFile))
         {
             try
             {
-                var existingContent = File.ReadAllText(dynamicTestsFile);
+                var existingContent = File.ReadAllText(consolidatedTestsFile);
                 if (!string.IsNullOrWhiteSpace(existingContent))
                 {
                     var existing = JsonSerializer.Deserialize<List<TestDefinition>>(
@@ -165,7 +165,7 @@ public class TestDefinitionLoader
             }
             catch (Exception ex)
             {
-                _logger.Warning(ex, "Failed to load existing dynamic tests, starting fresh");
+                _logger.Warning(ex, "Failed to load existing consolidated tests, starting fresh");
                 existingTests = new List<TestDefinition>();
             }
         }
@@ -200,8 +200,8 @@ public class TestDefinitionLoader
             }
         );
 
-        File.WriteAllText(dynamicTestsFile, jsonContent);
-        _logger.Information("Saved test definitions to: {FilePath}", dynamicTestsFile);
+        File.WriteAllText(consolidatedTestsFile, jsonContent);
+        _logger.Information("Saved test definitions to: {FilePath}", consolidatedTestsFile);
     }
 }
 

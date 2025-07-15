@@ -54,7 +54,7 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = import.meta.env.VITE_API
 
   const loadAvailableBotsFromGameState = useCallback(() => {
     if (!currentGameState) {
-      setAvailableBots([]);
+      setAvailableBots(['StaticHeuro']);
       return;
     }
 
@@ -67,11 +67,14 @@ const TestRunner = ({ onGameStateSelected, apiBaseUrl = import.meta.env.VITE_API
         .filter((nickname, index, array) => array.indexOf(nickname) === index) // Remove duplicates
         .sort();
 
-      console.log('Available bots from game state:', botNicknames);
-      setAvailableBots(botNicknames);
+      // Always include StaticHeuro in the available bots
+      const allAvailableBots = [...new Set([...botNicknames, 'StaticHeuro'])].sort();
+
+      console.log('Available bots from game state:', allAvailableBots);
+      setAvailableBots(allAvailableBots);
     } catch (error) {
       console.error('Error extracting bots from game state:', error);
-      setAvailableBots([]);
+      setAvailableBots(['StaticHeuro']);
     }
   }, [currentGameState]);
 
@@ -649,7 +652,7 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, onRunTest, onRunTestDi
         description: description.trim() || `Direct test execution from ${currentGameStateName || 'current game state'}`,
         testType,
         acceptableActions: selectedActions,
-        botNickname: botNickname.trim() || null,
+        botNickname: botNickname.trim() || (availableBots.length > 0 ? availableBots[0] : null),
         tickOverride: false,
         bots: botsToUse,
         currentGameState: currentGameState
@@ -707,7 +710,7 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, onRunTest, onRunTestDi
         description: description.trim() || `Test created from ${currentGameStateName || 'current game state'}`,
         testType,
         acceptableActions: selectedActions,
-        botNickname: botNickname.trim() || null,
+        botNickname: botNickname.trim() || (availableBots.length > 0 ? availableBots[0] : null),
         tickOverride: false,
         bots: botsToUse,
         currentGameState: currentGameState
@@ -832,15 +835,18 @@ const CreateTestModal = ({ isOpen, onClose, onCreateTest, onRunTest, onRunTestDi
               </div>
               <div className="form-group" style={{ margin: 0 }}>
                 <label htmlFor="botNickname" style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
-                  🏷️ Bot Nickname
+                  🏷️ Bot Position (which bot's position to test from)
                 </label>
-                <input
+                <select
                   id="botNickname"
-                  type="text"
                   value={botNickname}
                   onChange={(e) => setBotNickname(e.target.value)}
-                  placeholder="Leave empty to use first animal..."
-                />
+                >
+                  <option value="">Auto-select first bot ({availableBots.length > 0 ? availableBots[0] : 'none available'})</option>
+                  {availableBots.map(bot => (
+                    <option key={bot} value={bot}>{bot}</option>
+                  ))}
+                </select>
               </div>
             </div>
           )}

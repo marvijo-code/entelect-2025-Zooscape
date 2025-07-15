@@ -211,8 +211,8 @@ Write-Host "Visualizer Frontend is starting on http://localhost:5252" -Foregroun
 Write-Host ""
 if ($wtAvailable) {
     Write-Host "Services are running in separate Windows Terminal tabs with colors:" -ForegroundColor White
-    Write-Host "  🔵 API Server (Blue tab) - http://localhost:5008" -ForegroundColor Cyan
-    Write-Host "  🟢 Frontend (Green tab) - http://localhost:5252" -ForegroundColor Green
+    Write-Host "  [BLUE] API Server (Blue tab) - http://localhost:5008" -ForegroundColor Cyan
+    Write-Host "  [GREEN] Frontend (Green tab) - http://localhost:5252" -ForegroundColor Green
     Write-Host "Close those tabs or press Ctrl+C in them to stop the services."
 } else {
     Write-Host "Services are running in separate PowerShell windows."
