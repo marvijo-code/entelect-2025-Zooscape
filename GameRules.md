@@ -73,7 +73,7 @@
   - The queue size can be viewed in appsettings.json
 - Actions **cannot** be cancelled once sent
 - When an animal hits a wall or an untraversable space they will remain stationary until a command to change direction is received
-- Animals will not collide with each other and can occupy the same space
+- Animals will not collide with each other and can occupy the same space. There is no penalty for being close to or clashing with opponents. The only penalty comes from clashing with a zookeeper.
 
 ### Zookeeper
 

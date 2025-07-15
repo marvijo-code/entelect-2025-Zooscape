@@ -8,6 +8,10 @@ name: AutomatedLogAnalysisTestCreation
 ## 1. Purpose
 This workflow provides a clear, step-by-step guide to analyze game state logs, create new functional tests via the API, and validate bot behavior. Following this guide will prevent common issues and streamline the process of improving bot heuristics.
 
+## Key Gameplay Assumptions for Heuristic Development
+
+- **Opponent Clashes**: There is no penalty for being close to or clashing with opponent animals. Bots can occupy the same tile. The only collision penalty comes from clashing with a zookeeper. This is a critical factor when designing movement and pathfinding heuristics.
+
 ## 2. Quick Reference: Key Files & Directories
 
 | Item | Path | Purpose |
@@ -22,7 +26,25 @@ This workflow provides a clear, step-by-step guide to analyze game state logs, c
 
 ## 3. The Workflow: Step-by-Step
 
-### Step 1: Analyze a Game State
+### Step 1: Find & Analyze a Game State
+
+Before creating a test, you need a compelling game state to analyze. You can either manually select one from the `logs/` directory or use a script to find a specific scenario automatically.
+
+#### A) Finding a Specific Scenario: Zookeeper Proximity
+
+If you want to test how a bot behaves near a zookeeper, use the `find_close_zookeeper_state.ps1` script. It searches through a log directory and returns the first game state file where the specified bot is less than 4 steps away from a zookeeper.
+
+- **Action**: Run the script, providing the log directory and bot nickname.
+- **Command**:
+  ```powershell
+  # This will output the path to a suitable game state file
+  ./tools/find_close_zookeeper_state.ps1 -LogDirectory "logs/20250715-064223" -BotNickname "ClingyHeuroBot"
+  ```
+
+Once you have the file path, proceed to the analysis step below.
+
+#### B) Manual Selection & Analysis
+
 Select a log file and use the `GameStateInspector` to understand the strategic context and, most importantly, determine the **legal moves**.
 
 - **Action**: Run the inspector tool, pointing it to a specific game state JSON file and the bot you want to analyze.
