@@ -46,8 +46,7 @@ public class JsonDrivenTests : BotTestsBase
                 _logger.Information("✅ Test passed: {TestName}", definition.TestName);
             }
             catch (Exception ex)
-            {
-                failedTests.Add($"{definition.TestName}: {ex.Message}");
+            {                failedTests.Add($"{definition.TestName}: {ex.Message}");
                 _logger.Error(ex, "❌ Test failed: {TestName}", definition.TestName);
             }
         }
@@ -72,22 +71,12 @@ public class JsonDrivenTests : BotTestsBase
     }
 
     [Theory]
-    [MemberData(nameof(GetTestDefinitionsData))]
+    [ClassData(typeof(TestDefinitionDataSource))]
     public void ExecuteIndividualJsonTest(TestDefinition definition)
     {
         _logger.Information("Executing individual test: {TestName}", definition.TestName);
         ExecuteTestDefinition(definition);
         _logger.Information("✅ Individual test passed: {TestName}", definition.TestName);
-    }
-
-    public static IEnumerable<object[]> GetTestDefinitionsData()
-    {
-        var logger = Log.Logger ?? new LoggerConfiguration().WriteTo.Console().CreateLogger();
-
-        var loader = new TestDefinitionLoader(logger);
-        var definitions = loader.LoadAllTestDefinitions();
-
-        return definitions.Select(def => new object[] { def });
     }
 
     private string GetSourcePath(string subfolder = "")

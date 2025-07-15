@@ -66,26 +66,21 @@ public class TestDefinitionLoader
             return testDefinitions;
         }
 
-        var consolidatedTestFile = Path.Combine(testDefinitionsPath, "ConsolidatedTests.json");
-        
-        if (!File.Exists(consolidatedTestFile))
-        {
-            _logger.Warning("ConsolidatedTests.json not found at: {Path}", consolidatedTestFile);
-            return testDefinitions;
-        }
+        var jsonFiles = Directory.GetFiles(testDefinitionsPath, "*.json", SearchOption.AllDirectories)
+            .Where(file => !Path.GetFileName(file).Equals("TestSchema.json", StringComparison.OrdinalIgnoreCase));
 
-        try
+        foreach (var file in jsonFiles)
         {
-            var definitions = LoadTestDefinitionsFromFile(consolidatedTestFile);
-            testDefinitions.AddRange(definitions);
-            _logger.Information(
-                "Loaded {Count} test definitions from ConsolidatedTests.json",
-                definitions.Count
-            );
-        }
-        catch (Exception ex)
-        {
-            _logger.Error(ex, "Failed to load test definitions from ConsolidatedTests.json");
+            try
+            {
+                var definitions = LoadTestDefinitionsFromFile(file);
+                testDefinitions.AddRange(definitions);
+                _logger.Information("Loaded {Count} test definitions from {File}", definitions.Count, Path.GetFileName(file));
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Failed to load test definitions from {File}", Path.GetFileName(file));
+            }
         }
 
         _logger.Information("Total test definitions loaded: {Count}", testDefinitions.Count);

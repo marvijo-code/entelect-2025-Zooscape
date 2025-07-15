@@ -19,6 +19,7 @@
   "TiebreakersAwareness": 0.7,
   "ZookeeperCooldown": 0.9,
   "PelletEfficiency": 1.1,
+  "ImmediatePelletBonus": 500,
   "EscapeRoutes": 0.8,
   "AnimalCongestion": -0.6,
   "CaptureRecoveryStrategy": 1.3,
@@ -35,8 +36,8 @@
   "CycleDetection": 2.0,
   "DirectionalVariety": 1.2,
   "EmptyCellAvoidance": 1.6,
-  "WallCollisionRisk": 1.8,
-  "LineOfSightPellets": 250.0,
+  "WallCollisionRisk": 1.0,
+  "LineOfSightPellets": 50.0,
   "PelletRace": 1.1,
   "RecalcWindowSafety": 0.8,
   "CenterControl": 0.6,
@@ -72,5 +73,5 @@
   "OpponentTrailChasingMaxDistance": 8,
   "OpponentTrailChasingBonus": 1.5,
   "ZookeeperPredictionPenalty": -2.0,
-  "LongTermPelletSeeking": 300.0
+  "LongTermPelletSeeking": 450.0
 }

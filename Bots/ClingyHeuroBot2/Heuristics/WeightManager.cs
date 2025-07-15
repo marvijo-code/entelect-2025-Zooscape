@@ -162,9 +162,12 @@ public static class WeightManager
     {
         try
         {
-            if (File.Exists("heuristic-weights.json"))
+            string solutionDir = AppContext.BaseDirectory.Substring(0, AppContext.BaseDirectory.IndexOf("Bots"));
+            string weightsPath = Path.Combine(solutionDir, "Bots", "ClingyHeuroBot2", "heuristic-weights.json");
+
+            if (File.Exists(weightsPath))
             {
-                var weightsJson = File.ReadAllText("heuristic-weights.json");
+                var weightsJson = File.ReadAllText(weightsPath);
                 _staticWeights = JsonSerializer.Deserialize<HeuristicWeights>(weightsJson, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true

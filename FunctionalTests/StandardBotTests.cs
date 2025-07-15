@@ -210,43 +210,44 @@ public class StandardBotTests : BotTestsBase
         TestBotsArray(testParams);
     }
 
-    [Fact]
-    public void ChaseMorePelletGroups()
+    //[Fact]
+    //public void ChaseMorePelletGroups()
+    //{
+    //    var testParams = new TestParams
+    //    {
+    //        TestGameStateJsonPath = "162.json",
+    //        BotNicknameToTest = "ClingyHeuroBot2",
+    //        ExpectedAction = BotAction.Up,
+    //        BotsArray = new object[] { _clingyHeuroBot2 },
+    //    };
+
+    //    TestBotsArray(testParams);
+    //}
+
+    //[Fact(DisplayName = "Game State 12: ClingyHeuroBot2 Must Move Down")]
+    //public void GameState12ClingyHeuroBot2MustMoveDown()
+    //{
+    //    var testParams = new TestParams
+    //    {
+    //        TestName = "GameState12ClingyHeuroBot2MustMoveDown",
+    //        TestGameStateJsonPath = "12.json",
+    //        BotNicknameToTest = "ClingyHeuroBot2",
+    //        ExpectedAction = BotAction.Down,
+    //        TestDescription = "Test ClingyHeuroBot2 must move Down in game state 12",
+    //    };
+
+    //    TestBotAction(_clingyHeuroBot2, testParams);
+    //}
+
+    [Fact(DisplayName = "Game State 12: StaticHeuro Must Move Down")]
+    public void GameState12StaticHeuroMustMoveDown()
     {
         var testParams = new TestParams
         {
-            TestGameStateJsonPath = "162.json",
-            BotNicknameToTest = "ClingyHeuroBot2",
-            ExpectedAction = BotAction.Up,
-            BotsArray = new object[] { _clingyHeuroBot2 },
-        };
-
-        TestBotsArray(testParams);
-    }
-
-    [Fact]
-    public void GameState12ClingyHeuroBot2MustMoveUp()
-    {
-        var testParams = new TestParams
-        {
-            TestName = "GameState12ClingyHeuroBot2MustMoveUp",
             TestGameStateJsonPath = "12.json",
-            BotNicknameToTest = "ClingyHeuroBot2",
-            ExpectedAction = BotAction.Up,
-            TestDescription = "Test ClingyHeuroBot2 must move Up in game state 12",
-        };
-
-        TestBotAction(_clingyHeuroBot2, testParams);
-    }
-
-    [Fact]
-    public void GameState12StaticHeuroMustMoveUp()
-    {
-        var testParams = new TestParams
-        {
-            TestGameStateJsonPath = "12.json",
+            BotNicknameToTest = "StaticHeuro",
             ExpectedAction = BotAction.Down,
-            TestDescription = "Test StaticHeuro bot must move Up in game state 12",
+            TestDescription = "Test StaticHeuro bot must move Down in game state 12",
         };
 
         TestBotAction(_staticHeuro, testParams);

@@ -259,7 +259,7 @@
     "TestName": "SingleBot_ExpectedUp_GameState162",
     "GameStateFile": "162.json",
     "Description": "Test that single bot returns expected Up action on game state 162",
-    "BotNickname": null,
+    "BotNickname": "ClingyHeuroBot2",
     "ExpectedAction": "Up",
     "AcceptableActions": [],
     "TestType": "SingleBot",
@@ -281,7 +281,7 @@
     "TestName": "GameState34ActionTest",
     "GameStateFile": "34.json",
     "Description": "Test ClingyHeuroBot2 action on game state 34",
-    "BotNickname": null,
+    "BotNickname": "ClingyHeuroBot2",
     "ExpectedAction": null,
     "AcceptableActions": [
       "Up",
@@ -339,7 +339,7 @@
     "TestName": "Bot should not stop 2",
     "GameStateFile": "20250601_125601_15.json",
     "Description": "Test created from 20250601_125601",
-    "BotNickname": null,
+    "BotNickname": "ClingyHeuroBot2",
     "ExpectedAction": null,
     "AcceptableActions": [
       "Down"
@@ -352,7 +352,7 @@
     "TestName": "aaaa",
     "GameStateFile": "20250601_125601_15_1.json",
     "Description": "Test created from 20250601_125601",
-    "BotNickname": null,
+    "BotNickname": "ClingyHeuroBot2",
     "ExpectedAction": null,
     "AcceptableActions": [
       "Up",
@@ -360,15 +360,13 @@
     ],
     "TestType": "SingleBot",
     "TickOverride": false,
-    "Bots": [
-      "ClingyHeuroBot2"
-    ]
+    "Bots": []
   },
   {
     "TestName": "move-3",
     "GameStateFile": "6_7.json",
     "Description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250705_183627/6.json",
-    "BotNickname": null,
+    "BotNickname": "ClingyHeuroBot2",
     "ExpectedAction": null,
     "AcceptableActions": [],
     "TestType": "MultiBotArray",
@@ -381,7 +379,7 @@
     "TestName": "move-323",
     "GameStateFile": "6_7_1.json",
     "Description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250705_183627/6.json",
-    "BotNickname": null,
+    "BotNickname": "ClingyHeuroBot2",
     "ExpectedAction": null,
     "AcceptableActions": [
       "Left",

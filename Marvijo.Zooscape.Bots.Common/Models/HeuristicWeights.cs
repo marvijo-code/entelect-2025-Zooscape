@@ -22,6 +22,7 @@ public class HeuristicWeights
     public decimal TiebreakersAwareness { get; set; }
     public decimal ZookeeperCooldown { get; set; }
     public decimal PelletEfficiency { get; set; }
+    public decimal ImmediatePelletBonus { get; set; }
     public decimal EscapeRoutes { get; set; }
     public decimal AnimalCongestion { get; set; }
     public decimal CaptureRecoveryStrategy { get; set; }

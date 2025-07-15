@@ -57,6 +57,7 @@ logs.bak/
 backups/
 *-logs/
 api*.log
+*.log
 .aider*
 .env*
 **/**/out/build/

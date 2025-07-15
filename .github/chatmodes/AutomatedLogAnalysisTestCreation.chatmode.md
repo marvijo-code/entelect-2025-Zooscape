@@ -35,6 +35,9 @@ This section provides guides for creating tests based on specific, interesting i
 
 #### Step 1.2: Analyze the Game State
 
+- **CRITICAL: Never read `.json` game state files directly using file-reading tools.** This is inefficient, error-prone, and goes against the established workflow.
+- **ALWAYS use the `GameStateInspector` tool** to analyze game state files. It provides a structured and accurate view of the game world, including bot nicknames, positions, and map layouts.
+
 - **Action**: Use the `GameStateInspector` on the file you found to determine the bot's legal moves.
 - **Command**:
   ```powershell

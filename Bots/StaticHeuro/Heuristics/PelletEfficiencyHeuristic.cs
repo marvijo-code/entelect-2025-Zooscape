@@ -33,6 +33,12 @@ public class PelletEfficiencyHeuristic : IHeuristic
         // Distance to closest pellet AFTER the move
         int newMinDist = pellets.Min(p => BotUtils.ManhattanDistance(p.X, p.Y, nx, ny));
 
+        // Check if the new position is on a pellet
+        if (state.Cells.Any(c => c.X == nx && c.Y == ny && c.Content == CellContent.Pellet))
+        {
+            return weights.ImmediatePelletBonus;
+        }
+
         int diff = curMinDist - newMinDist; // positive if we are closer after the move
 
         if (diff == 0)
