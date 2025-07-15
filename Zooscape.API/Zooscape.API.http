@@ -1,6 +1,0 @@
-@Zooscape.API_HostAddress = http://localhost:5250
-
-GET {{Zooscape.API_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

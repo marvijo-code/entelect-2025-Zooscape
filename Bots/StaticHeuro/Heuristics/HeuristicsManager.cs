@@ -101,7 +101,6 @@ public class HeuristicsManager
             new ZookeeperCooldownHeuristic(),
             new LongTermPelletSeekingHeuristic(),
             new ZookeeperPredictionHeuristic(),
-            // new UnexploredBonusHeuristic(), // Temporarily disabled
             new PowerUpCollectionHeuristic(),
             new ScoreStreakHeuristic(),
             new UseItemHeuristic(),

@@ -432,21 +432,7 @@
     "TickOverride": false,
     "Bots": []
   },
-  {
-    "TestName": "chase-pellets-test-ov7h02e9t-md45wv8x",
-    "GameStateFile": "103_103.json",
-    "Description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250715_064223/103.json",
-    "BotNickname": "ClingyHeuroBot2",
-    "ExpectedAction": null,
-    "AcceptableActions": [
-      "Up"
-    ],
-    "TestType": "MultiBotArray",
-    "TickOverride": false,
-    "Bots": [
-      "StaticHeuro"
-    ]
-  },
+
   {
     "TestName": "AutoGen_20250115_1100_StaticHeuro",
     "GameStateFile": "tick_1100.json",
@@ -577,6 +563,21 @@
     "AcceptableActions": [
       "Down",
       "Left"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
+  },
+  {
+    "TestName": "Bug_BackAndForth_Heuro",
+    "GameStateFile": "25_25.json",
+    "Description": "Verifies that StaticHeuro does not move back and forth due to a faulty ReverseMovePenaltyHeuristic.",
+    "BotNickname": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Down"
     ],
     "TestType": "SingleBot",
     "TickOverride": false,

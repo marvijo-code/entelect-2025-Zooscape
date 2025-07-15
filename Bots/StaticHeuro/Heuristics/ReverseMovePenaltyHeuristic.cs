@@ -17,7 +17,7 @@ public class ReverseMovePenaltyHeuristic : IHeuristic
 
         if (IsOpposite(context.PreviousAction.Value, context.CurrentMove))
         {
-            return context.Weights.ReverseMovePenalty;
+            return -context.Weights.ReverseMovePenalty;
         }
 
         return 0;
