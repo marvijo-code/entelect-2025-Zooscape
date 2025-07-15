@@ -21,6 +21,7 @@ public class PelletEfficiencyHeuristic : IHeuristic
         var (nx, ny) = heuristicContext.MyNewPosition;
 
         // Find all pellets on the board
+        // Find all pellets on the board
         var pellets = state.Cells.Where(c => c.Content == CellContent.Pellet).ToList();
         if (!pellets.Any())
         {

@@ -37,7 +37,7 @@ $AcceptableActionsArray = $AcceptableActions.Split(',') | ForEach-Object { [int]
 # Read the game state JSON
 try {
     $gameStateFilePath = Join-Path $GameStatesDir $GameStateFile
-    $gameStateJson = Get-Content $gameStateFilePath -Raw
+    $gameStateJson = Get-Content $gameStateFilePath | Out-String
     Write-Host "Loaded game state file: $gameStateFilePath" -ForegroundColor Green
 } catch {
     Write-Error "Failed to read game state file: $_"

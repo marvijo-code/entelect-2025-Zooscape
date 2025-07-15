@@ -2,6 +2,7 @@ using System.Reflection;
 using FunctionalTests.Models;
 using FunctionalTests.Services;
 using Marvijo.Zooscape.Bots.Common;
+using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 using Xunit;
@@ -97,6 +98,40 @@ public class JsonDrivenTests : BotTestsBase
 
         var projectPath = Path.Combine(currentDir.FullName, "FunctionalTests");
         return !string.IsNullOrEmpty(subfolder) ? Path.Combine(projectPath, subfolder) : projectPath;
+    }
+
+    protected override void TestBotFromArray(object bot, GameState gameState, TestParams testParams)
+    {
+        var animal = gameState.Animals.FirstOrDefault(a =>
+            a.Nickname?.Equals(testParams.BotNicknameToTest, StringComparison.OrdinalIgnoreCase) == true
+        );
+
+        if (animal == null)
+        {
+            throw new InvalidOperationException($"No animal found with nickname '{testParams.BotNicknameToTest}' in the provided game state.");
+        }
+
+        // Use reflection to set BotId and call GetAction to avoid casting to a specific IBot<T>
+        var botType = bot.GetType();
+        var botIdProperty = botType.GetProperty("BotId");
+        if (botIdProperty != null && botIdProperty.CanWrite)
+        {
+            botIdProperty.SetValue(bot, animal.Id);
+        }
+
+        var getActionMethod = botType.GetMethod("GetAction");
+        if (getActionMethod == null)
+        {
+            throw new InvalidOperationException($"The bot of type {botType.Name} does not have a GetAction method.");
+        }
+
+        var action = (BotAction)getActionMethod.Invoke(bot, new object[] { gameState });
+
+        _testValidator.ValidateBotAction(
+            action,
+            testParams.AcceptableActions,
+            testParams.ExpectedAction
+        );
     }
 
     private void ExecuteTestDefinition(TestDefinition definition)

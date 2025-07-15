@@ -662,8 +662,8 @@ public class TestController : ControllerBase
             return new TestResultDto
             {
                 TestName = definition.TestName,
-                Success = true,
-                ErrorMessage = null,
+                Success = botResults.All(r => r.Success),
+                ErrorMessage = botResults.Any(r => !r.Success) ? string.Join("; ", botResults.Where(r => !r.Success).Select(r => r.ErrorMessage)) : null,
                 ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
                 BotResults = botResults,
                 GameStateFile = definition.GameStateFile,
@@ -842,53 +842,10 @@ public class TestController : ControllerBase
                 // Extract the tuple components using reflection
                 var resultType = result.GetType();
 
-                // Try to get ChosenAction (either field or property)
-                object? chosenAction = null;
-                var chosenActionField = resultType.GetField("ChosenAction");
-                if (chosenActionField != null)
-                {
-                    chosenAction = chosenActionField.GetValue(result);
-                }
-                else
-                {
-                    var chosenActionProperty = resultType.GetProperty("ChosenAction");
-                    if (chosenActionProperty != null)
-                    {
-                        chosenAction = chosenActionProperty.GetValue(result);
-                    }
-                }
-
-                // Try to get ActionScores (either field or property)
-                object? actionScores = null;
-                var actionScoresField = resultType.GetField("ActionScores");
-                if (actionScoresField != null)
-                {
-                    actionScores = actionScoresField.GetValue(result);
-                }
-                else
-                {
-                    var actionScoresProperty = resultType.GetProperty("ActionScores");
-                    if (actionScoresProperty != null)
-                    {
-                        actionScores = actionScoresProperty.GetValue(result);
-                    }
-                }
-
-                // Try to get DetailedScores (either field or property)
-                object? detailedScores = null;
-                var detailedScoresField = resultType.GetField("DetailedScores");
-                if (detailedScoresField != null)
-                {
-                    detailedScores = detailedScoresField.GetValue(result);
-                }
-                else
-                {
-                    var detailedScoresProperty = resultType.GetProperty("DetailedScores");
-                    if (detailedScoresProperty != null)
-                    {
-                        detailedScores = detailedScoresProperty.GetValue(result);
-                    }
-                }
+                // Standard ValueTuple fields are Item1, Item2, etc.
+                var chosenAction = resultType.GetField("Item1")?.GetValue(result);
+                var actionScores = resultType.GetField("Item2")?.GetValue(result);
+                var detailedScores = resultType.GetField("Item3")?.GetValue(result);
 
                 if (
                     chosenAction is Marvijo.Zooscape.Bots.Common.Enums.BotAction action

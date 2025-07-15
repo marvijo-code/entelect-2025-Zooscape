@@ -14,6 +14,8 @@ public class HeuristicWeights
     public decimal UnexploredQuadrantBonus { get; set; }
     public decimal ZookeeperPrediction { get; set; }
     public decimal CaptureAvoidance { get; set; }
+    public decimal CaptureAvoidancePenaltyFactor { get; set; }
+    public decimal CaptureAvoidanceRewardFactor { get; set; }
     public decimal SpawnProximity { get; set; }
     public decimal TimeToCapture { get; set; }
     public decimal EdgeSafety { get; set; }
@@ -22,6 +24,7 @@ public class HeuristicWeights
     public decimal TiebreakersAwareness { get; set; }
     public decimal ZookeeperCooldown { get; set; }
     public decimal PelletEfficiency { get; set; }
+    public decimal LongTermPelletSeekingFactor { get; set; }
     public decimal ImmediatePelletBonus { get; set; }
     public decimal EscapeRoutes { get; set; }
     public decimal AnimalCongestion { get; set; }

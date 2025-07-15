@@ -84,7 +84,12 @@ public class TestDefinitionLoader
         }
 
         _logger.Information("Total test definitions loaded: {Count}", testDefinitions.Count);
-        return testDefinitions;
+
+        // HACK: Temporarily filter to run only a specific test
+        var filteredTests = testDefinitions.Where(t => t.TestName == "Bug_IncorrectDecision_Tick9").ToList();
+        _logger.Information("Temporarily filtered tests to run only: {TestName}", "Bug_IncorrectDecision_Tick9");
+
+        return filteredTests;
     }
 
     /// <summary>

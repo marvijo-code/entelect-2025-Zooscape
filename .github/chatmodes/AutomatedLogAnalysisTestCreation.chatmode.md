@@ -41,8 +41,15 @@ This section provides guides for creating tests based on specific, interesting i
 - **Action**: Use the `GameStateInspector` on the file you found to determine the bot's legal moves.
 - **Command**:
   ```powershell
-  # Use the file path from the previous command.
-  dotnet run --project tools\GameStateInspector -- "<path_to_gamestate.json>" "StaticHeuro"
+  # IMPORTANT: You must be in the 'tools/GameStateInspector' directory to run this command.
+  # From the project root, run this:
+  cd tools\GameStateInspector
+  dotnet run -- "<path_to_gamestate.json>" "StaticHeuro"
+  cd ..\..
+  ```
+- **Alternative (Recommended)**: Use the wrapper script from the project root:
+  ```powershell
+  .\inspect-game-state.ps1 -GameStateFile "<path_to_gamestate.json>" -BotNickname "StaticHeuro"
   ```
 - **CRITICAL**: Note the **"LEGAL MOVE ANALYSIS"** output. This is the source of truth for the `AcceptableActions` parameter in the next step.
 
@@ -89,8 +96,11 @@ If a test fails, follow this exact sequence to debug and fix the issue:
 
 1.  **Analyze Failure**: Read the `errorMessage` in the test result to understand the exception or failure condition.
 2.  **Fix the Code**: Modify the relevant C# file (e.g., a heuristic in `Bots/StaticHeuro/Heuristics/`).
+> [!TIP]
+> When fixing heuristics, always use configurable weights from `heuristicContext.Weights` instead of hardcoded numbers. Add new weight properties to `HeuristicWeights.cs` if needed.
 3.  **Restart the API**: This is the most important step. **Your fix will not be applied until you restart.**
     ```powershell
+    # IMPORTANT: Run this from the project root directory.
     .\start-api.ps1 -Force
     ```
 4.  **Re-run the Test**: Execute the `Invoke-RestMethod` command from Step 4 again.
@@ -103,4 +113,6 @@ If a test fails, follow this exact sequence to debug and fix the issue:
 | **Code changes don't work** | You forgot to restart the API. Run `.\start-api.ps1 -Force`. |
 | **Parameter error on `create_test.ps1`** | You used the wrong parameter name or format. Refer to the template in Step 3. Common mistakes are `-AcceptableMoves` (wrong) vs. `-AcceptableActions` (correct) or `-TestDescription` (wrong) vs. `-Description` (correct). |
 | **Test fails on "Illegal Move"** | The `AcceptableActions` in your test are wrong. Re-run the `GameStateInspector` (Step 1.2) to get the correct legal moves. |
-| **Connection Refused** | The API is not running. Run `.\start-api.ps1` to start it. |
+| **Connection Refused** | The API is not running. Run `.\start-api.ps1` from the project root to start it. |
+| **`command not found` error** | You are in the wrong directory. All `.ps1` scripts must be run from the project root. Use `cd ..` to navigate up. |
+| **`-File` parameter does not exist** | The path to the `.ps1` file was not quoted, causing backslashes to be misinterpreted. Wrap the full path in quotes. Example: `powershell -File '.\start-api.ps1'` |

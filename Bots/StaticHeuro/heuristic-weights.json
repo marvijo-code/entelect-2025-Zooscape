@@ -11,6 +11,8 @@
   "UnexploredQuadrantBonus": 2.0,
   "ZookeeperPrediction": -1.2,
   "CaptureAvoidance": 1.6,
+  "CaptureAvoidancePenaltyFactor": 1000.0,
+  "CaptureAvoidanceRewardFactor": 100.0,
   "SpawnProximity": -0.6,
   "TimeToCapture": -1.2,
   "EdgeSafety": -0.3,
@@ -19,6 +21,7 @@
   "TiebreakersAwareness": 0.7,
   "ZookeeperCooldown": 0.9,
   "PelletEfficiency": 1.1,
+  "LongTermPelletSeekingFactor": 450.0,
   "ImmediatePelletBonus": 500,
   "EscapeRoutes": 0.8,
   "AnimalCongestion": -0.6,
@@ -72,6 +75,5 @@
   "OpponentTrailChasingMinDistance": 2,
   "OpponentTrailChasingMaxDistance": 8,
   "OpponentTrailChasingBonus": 1.5,
-  "ZookeeperPredictionPenalty": -2.0,
-  "LongTermPelletSeeking": 450.0
+  "ZookeeperPredictionPenalty": -2.0
 }

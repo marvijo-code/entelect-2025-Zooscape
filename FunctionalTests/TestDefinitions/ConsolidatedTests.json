@@ -432,7 +432,6 @@
     "TickOverride": false,
     "Bots": []
   },
-
   {
     "TestName": "AutoGen_20250115_1100_StaticHeuro",
     "GameStateFile": "tick_1100.json",
@@ -584,5 +583,33 @@
     "Bots": [
       "StaticHeuro"
     ]
+  },
+  {
+    "TestName": "Bug_ZookeeperAvoidanceAndPelletSeeking_500",
+    "GameStateFile": "500_500.json",
+    "Description": "Verifies that the bot chooses to move Right to collect a large pellet cluster and avoid a nearby zookeeper.",
+    "BotNickname": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
+  },
+  {
+    "TestName": "Bug_IncorrectDecision_Tick9",
+    "GameStateFile": "9_9.json",
+    "Description": "Automated test",
+    "BotNickname": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Up"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": []
   }
 ]
