@@ -1,6 +1,6 @@
 #pragma warning disable SKEXP0110
 
-using ClingyHeuroBot2.Heuristics;
+using StaticHeuro.Heuristics;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;

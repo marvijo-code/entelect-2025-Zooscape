@@ -13,8 +13,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using StaticHeuro.Services;
+using StaticHeuro.Heuristics;
 
-namespace HeuroBot;
+namespace StaticHeuro;
 
 public class Program
 {
@@ -32,12 +33,6 @@ public class Program
 
         Log.Information("TEST: Serilog configured and attempting to log to console.");
 
-        // Check if we should just export best individuals
-        if (args.Length > 0 && args[0] == "--export-best")
-        {
-            await ExportBestIndividuals();
-            return;
-        }
 
         try
         {
@@ -589,38 +584,4 @@ public class Program
         }
     }
 
-    /// <summary>
-    /// Exports the best individuals from current evolution data
-    /// </summary>
-    private static async Task ExportBestIndividuals()
-    {
-        try
-        {
-            Console.WriteLine("Exporting best individuals from current evolution data...");
-
-            // Evolution system disabled for StaticHeuro
-            Console.WriteLine("Evolution system disabled - cannot export best individuals");
-            return;
-
-            // var coordinator = EvolutionCoordinator.Instance;
-            // Give the system a moment to initialize
-            // await Task.Delay(2000);
-            // var stats = coordinator.GetStatistics();
-            // Console.WriteLine($"Current generation: {stats.Generation}");
-            // Console.WriteLine($"Population size: {stats.PopulationStatistics.PopulationSize}");
-            // Console.WriteLine($"Best fitness: {stats.PopulationStatistics.BestFitness:F2}");
-
-            // Export top 5 individuals
-            // await coordinator.ExportBestIndividualsAsync(5);
-
-            // Console.WriteLine("Export complete!");
-            // Console.WriteLine("Files created:");
-            // Console.WriteLine("- best-individuals.json (for git)");
-            // Console.WriteLine("- best-individuals-genXXXX-timestamp.json (backup)");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error: {ex.Message}");
-        }
-    }
 }

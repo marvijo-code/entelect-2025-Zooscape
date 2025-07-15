@@ -1,6 +1,6 @@
 #pragma warning disable SKEXP0110
 
-using ClingyHeuroBot2.GeneticAlgorithm;
+using StaticHeuro.GeneticAlgorithm;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 

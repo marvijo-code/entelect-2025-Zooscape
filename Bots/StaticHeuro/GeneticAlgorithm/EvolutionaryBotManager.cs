@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using Marvijo.Zooscape.Bots.Common.Models;
 
-namespace ClingyHeuroBot2.GeneticAlgorithm;
+namespace StaticHeuro.GeneticAlgorithm;
 
 public interface IEvolutionaryBotManager {
     Task InitializeAsync();

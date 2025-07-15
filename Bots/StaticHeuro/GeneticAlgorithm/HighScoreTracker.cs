@@ -3,7 +3,7 @@
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
-namespace ClingyHeuroBot2.GeneticAlgorithm;
+namespace StaticHeuro.GeneticAlgorithm;
 
 /// <summary>
 /// Tracks and manages high scores and performance statistics for evolved bots

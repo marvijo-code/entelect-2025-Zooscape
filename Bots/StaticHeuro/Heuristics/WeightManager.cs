@@ -1,6 +1,7 @@
 using Marvijo.Zooscape.Bots.Common.Models;
 using System.IO;
 using System.Text.Json;
+using StaticHeuro;
 
 namespace StaticHeuro.Heuristics;
 
@@ -119,7 +120,7 @@ public static class WeightManager
             var evolvedWeights = GetEvolvedWeights();
             if (evolvedWeights != null)
             {
-                var coordinator = ClingyHeuroBot2.EvolutionCoordinator.Instance;
+                var coordinator = EvolutionCoordinator.Instance;
                 var bestIndividual = coordinator.GetBestIndividual();
                 if (bestIndividual != null)
                 {

@@ -1,6 +1,6 @@
 #pragma warning disable SKEXP0110
 
-namespace ClingyHeuroBot2.GeneticAlgorithm;
+namespace StaticHeuro.GeneticAlgorithm;
 
 /// <summary>
 /// Evaluates and calculates fitness for bot individuals based on game performance
