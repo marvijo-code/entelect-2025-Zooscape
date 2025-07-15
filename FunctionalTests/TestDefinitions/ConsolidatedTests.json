@@ -567,5 +567,21 @@
     "Bots": [
       "StaticHeuro"
     ]
+  },
+  {
+    "TestName": "Bug_AimlessNearPowerUp_66",
+    "GameStateFile": "66_66.json",
+    "Description": "Verifies the bot moves towards a nearby power-up instead of moving aimlessly.",
+    "BotNickname": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Down",
+      "Left"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
   }
 ]

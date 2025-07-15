@@ -9,80 +9,6 @@ using Marvijo.Zooscape.Bots.Common.Enums;
 
 namespace GameStateInspector
 {
-    public enum CellContent
-    {
-        Empty = 0,
-        Wall = 1,
-        Pellet = 2,
-        PowerUp = 3,
-        EscapeZone = 4
-    }
-
-    public enum MoveDirection
-    {
-        Up,
-        Down,
-        Left,
-        Right
-    }
-
-    public class Cell
-    {
-        [JsonPropertyName("X")]
-        public int X { get; set; }
-        
-        [JsonPropertyName("Y")]
-        public int Y { get; set; }
-        
-        [JsonPropertyName("Content")]
-        public CellContent Content { get; set; }
-    }
-
-    public class Animal
-    {
-        [JsonPropertyName("Id")]
-        public string Id { get; set; } = "";
-        
-        [JsonPropertyName("Nickname")]
-        public string Nickname { get; set; } = "";
-        
-        [JsonPropertyName("X")]
-        public int X { get; set; }
-        
-        [JsonPropertyName("Y")]
-        public int Y { get; set; }
-        
-        [JsonPropertyName("Score")]
-        public int Score { get; set; }
-    }
-
-    public class Zookeeper
-    {
-        [JsonPropertyName("Id")]
-        public string Id { get; set; } = "";
-        
-        [JsonPropertyName("Nickname")]
-        public string Nickname { get; set; } = "";
-        
-        [JsonPropertyName("X")]
-        public int X { get; set; }
-        
-        [JsonPropertyName("Y")]
-        public int Y { get; set; }
-    }
-
-    public class GameState
-    {
-        [JsonPropertyName("Cells")]
-        public Cell[] Cells { get; set; } = Array.Empty<Cell>();
-        
-        [JsonPropertyName("Animals")]
-        public Animal[] Animals { get; set; } = Array.Empty<Animal>();
-        
-        [JsonPropertyName("Zookeepers")]
-        public Zookeeper[] Zookeepers { get; set; } = Array.Empty<Zookeeper>();
-    }
-
     public class StateAnalysis
     {
         public (int x, int y) MyPos { get; set; }
@@ -123,7 +49,7 @@ namespace GameStateInspector
         
         // Move analysis fields
         public bool IsAnalyzingMove { get; set; }
-        public MoveDirection? AnalyzedMove { get; set; }
+        public BotAction? AnalyzedMove { get; set; }
         public (int x, int y) OriginalPos { get; set; }
         
         // Legal move analysis fields
@@ -133,7 +59,7 @@ namespace GameStateInspector
         public bool CanMoveDown { get; set; }
 
         // Nearest pellet move analysis
-        public MoveDirection? MoveToNearestPellet { get; set; }
+        public BotAction? MoveToNearestPellet { get; set; }
     }
 
     class Program
@@ -152,14 +78,14 @@ namespace GameStateInspector
 
             string filePath = args[0];
             string? botNickname = args.Length > 1 ? args[1] : null;
-            MoveDirection? moveToAnalyze = null;
+            BotAction? moveToAnalyze = null;
 
             // Parse --analyze-move argument
             for (int i = 2; i < args.Length; i++)
             {
                 if (args[i] == "--analyze-move" && i + 1 < args.Length)
                 {
-                    if (Enum.TryParse<MoveDirection>(args[i + 1], true, out var direction))
+                    if (Enum.TryParse<BotAction>(args[i + 1], true, out var direction))
                     {
                         moveToAnalyze = direction;
                     }
@@ -204,7 +130,7 @@ namespace GameStateInspector
 
             Console.WriteLine("Animals in game state:");
             Console.WriteLine("=====================");
-            for (int i = 0; i < gameState.Animals.Length; i++)
+            for (int i = 0; i < gameState.Animals.Count; i++)
             {
                 var animal = gameState.Animals[i];
                 Console.WriteLine($"{i + 1}. Nickname: '{animal.Nickname}' | ID: {animal.Id} | Position: ({animal.X}, {animal.Y}) | Score: {animal.Score}");
@@ -218,7 +144,7 @@ namespace GameStateInspector
             Console.WriteLine("Example: GameStateInspector \"gamestate.json\" \"MyBot\" --analyze-move Up");
         }
 
-        static StateAnalysis? AnalyzeStateFromFile(string filePath, string botNickname, MoveDirection? moveToAnalyze = null)
+        static StateAnalysis? AnalyzeStateFromFile(string filePath, string botNickname, BotAction? moveToAnalyze = null)
         {
             if (!File.Exists(filePath))
             {
@@ -238,7 +164,7 @@ namespace GameStateInspector
             return AnalyzeState(gameState, botNickname, moveToAnalyze);
         }
 
-        static StateAnalysis? AnalyzeState(GameState gameState, string botNickname, MoveDirection? moveToAnalyze = null)
+        static StateAnalysis? AnalyzeState(GameState gameState, string botNickname, BotAction? moveToAnalyze = null)
         {
             var me = gameState.Animals.FirstOrDefault(a => a.Nickname == botNickname);
             if (me == null)
@@ -345,14 +271,14 @@ namespace GameStateInspector
             return analysis;
         }
 
-        static (int x, int y) ApplyMove((int x, int y) pos, MoveDirection move)
+        static (int x, int y) ApplyMove((int x, int y) pos, BotAction move)
         {
             return move switch
             {
-                MoveDirection.Up => (pos.x, pos.y - 1),
-                MoveDirection.Down => (pos.x, pos.y + 1),
-                MoveDirection.Left => (pos.x - 1, pos.y),
-                MoveDirection.Right => (pos.x + 1, pos.y),
+                BotAction.Up => (pos.x, pos.y - 1),
+                BotAction.Down => (pos.x, pos.y + 1),
+                BotAction.Left => (pos.x - 1, pos.y),
+                BotAction.Right => (pos.x + 1, pos.y),
                 _ => pos
             };
         }
@@ -626,10 +552,10 @@ namespace GameStateInspector
             if (nearestPelletPos == (-1, -1)) return;
 
             // Determine which move gets us closer
-            var bestMove = (MoveDirection?)null;
+            var bestMove = (BotAction?)null;
             int bestDist = minPelletDist;
 
-            var moves = new[] { MoveDirection.Up, MoveDirection.Down, MoveDirection.Left, MoveDirection.Right };
+            var moves = new[] { BotAction.Up, BotAction.Down, BotAction.Left, BotAction.Right };
 
             foreach (var move in moves)
             {
@@ -649,7 +575,12 @@ namespace GameStateInspector
 
         static void AnalyzePowerUps(GameState gameState, StateAnalysis analysis)
         {
-            var powerUps = gameState.Cells.Where(c => c.Content == CellContent.PowerUp).ToList();
+            var powerUps = gameState.Cells.Where(c => 
+                c.Content == CellContent.PowerPellet || 
+                c.Content == CellContent.ChameleonCloak || 
+                c.Content == CellContent.Scavenger || 
+                c.Content == CellContent.BigMooseJuice
+            ).ToList();
             if (!powerUps.Any())
             {
                 return;
