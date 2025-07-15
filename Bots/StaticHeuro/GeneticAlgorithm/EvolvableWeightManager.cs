@@ -5,7 +5,7 @@ using Marvijo.Zooscape.Bots.Common.Models;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
-namespace ClingyHeuroBot2.GeneticAlgorithm;
+namespace StaticHeuro.GeneticAlgorithm;
 
 /// <summary>
 /// Manages heuristic weights for evolutionary bots with runtime updates and validation

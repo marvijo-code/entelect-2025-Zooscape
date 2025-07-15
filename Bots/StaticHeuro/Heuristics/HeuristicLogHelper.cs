@@ -1,7 +1,7 @@
 using System;
 using Serilog;
 
-namespace ClingyHeuroBot2.Heuristics;
+namespace StaticHeuro.Heuristics;
 
 public class HeuristicLogHelper
 {

@@ -2,7 +2,7 @@
 
 using Marvijo.Zooscape.Bots.Common.Models;
 
-namespace ClingyHeuroBot2.GeneticAlgorithm;
+namespace StaticHeuro.GeneticAlgorithm;
 
 /// <summary>
 /// Implements genetic algorithm operators: selection, crossover, and mutation

@@ -3,7 +3,7 @@
 using Marvijo.Zooscape.Bots.Common.Models;
 using System.Text.Json;
 
-namespace ClingyHeuroBot2.GeneticAlgorithm;
+namespace StaticHeuro.GeneticAlgorithm;
 
 /// <summary>
 /// Manages a population of bot individuals for genetic algorithm evolution

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -113,6 +113,13 @@ namespace GameStateInspector
         public int CurrentQuadrant { get; set; } = -1;
         public int NearestZookeeperDist { get; set; } = int.MaxValue;
         public (int x, int y) NearestZookeeperPos { get; set; } = (-1, -1);
+
+        // Power-Up Analysis
+        public List<(int x, int y)> PowerUpLocations { get; set; } = new List<(int, int)>();
+        public int NearestPowerUpDist { get; set; } = int.MaxValue;
+        public (int x, int y) NearestPowerUpPos { get; set; } = (-1, -1);
+        public int[] PowerUpsPerQuadrant { get; set; } = new int[4];
+
         
         // Move analysis fields
         public bool IsAnalyzingMove { get; set; }
@@ -124,6 +131,9 @@ namespace GameStateInspector
         public bool CanMoveLeft { get; set; }
         public bool CanMoveRight { get; set; }
         public bool CanMoveDown { get; set; }
+
+        // Nearest pellet move analysis
+        public MoveDirection? MoveToNearestPellet { get; set; }
     }
 
     class Program
@@ -316,12 +326,21 @@ namespace GameStateInspector
 
             // Find nearest zookeeper
             FindNearestZookeeper(gameState, analysis);
-            
+
+            // Analyze power-ups
+            AnalyzePowerUps(gameState, analysis);
+
             // Check legal moves using shared BotUtils logic
             analysis.CanMoveUp = IsLegalMove(cellLookup, analysis.MyPos, 0, -1);
             analysis.CanMoveLeft = IsLegalMove(cellLookup, analysis.MyPos, -1, 0);
             analysis.CanMoveRight = IsLegalMove(cellLookup, analysis.MyPos, 1, 0);
             analysis.CanMoveDown = IsLegalMove(cellLookup, analysis.MyPos, 0, 1);
+
+            // Find move to nearest pellet if no immediate pellets are available
+            if (!analysis.PelletUp && !analysis.PelletDown && !analysis.PelletLeft && !analysis.PelletRight)
+            {
+                FindMoveToNearestPellet(gameState, analysis, cellLookup);
+            }
 
             return analysis;
         }
@@ -404,7 +423,7 @@ namespace GameStateInspector
             return count;
         }
 
-        static int CountLinkedPelletsInDirection(Dictionary<(int, int), CellContent> cellLookup, (int x, int y) pos, int dx, int dy)
+        static int CountLinkedPelletsInDirection(Dictionary<(int, int), CellContent> cellLookup, (int x, int y) botPos, int dx, int dy)
         {
             const int MAX_DEPTH = 10;
             const int MAX_COUNT = 50;
@@ -414,11 +433,11 @@ namespace GameStateInspector
             int count = 0;
             
             // Start exploring from the first position in the given direction
-            var startPos = (pos.x + dx, pos.y + dy);
-            if (cellLookup.TryGetValue(startPos, out var content) && content == CellContent.Pellet)
+            var explorationStartPos = (botPos.x + dx, botPos.y + dy);
+            if (cellLookup.TryGetValue(explorationStartPos, out var content) && content == CellContent.Pellet)
             {
-                queue.Enqueue((startPos, 1));
-                visited.Add(startPos);
+                queue.Enqueue((explorationStartPos, 1));
+                visited.Add(explorationStartPos);
             }
             
             // BFS to find all connected pellets in the general direction
@@ -443,7 +462,7 @@ namespace GameStateInspector
                     if (cellLookup.TryGetValue(nextPos, out var nextContent) && nextContent == CellContent.Pellet)
                     {
                         // Check if this pellet is in the same general direction from the original position
-                        if (IsInGeneralDirection(pos, nextPos, dx, dy))
+                        if (IsInGeneralDirection(botPos, nextPos, dx, dy))
                         {
                             queue.Enqueue((nextPos, depth + 1));
                             visited.Add(nextPos);
@@ -585,6 +604,86 @@ namespace GameStateInspector
             analysis.NearestZookeeperPos = nearestPos;
         }
 
+        static void FindMoveToNearestPellet(GameState gameState, StateAnalysis analysis, Dictionary<(int, int), CellContent> cellLookup)
+        {
+            var pellets = gameState.Cells.Where(c => c.Content == CellContent.Pellet).ToList();
+            if (!pellets.Any()) return;
+
+            // Find the closest pellet
+            (int x, int y) nearestPelletPos = (-1, -1);
+            int minPelletDist = int.MaxValue;
+
+            foreach (var pellet in pellets)
+            {
+                int dist = Math.Abs(analysis.MyPos.x - pellet.X) + Math.Abs(analysis.MyPos.y - pellet.Y);
+                if (dist < minPelletDist)
+                {
+                    minPelletDist = dist;
+                    nearestPelletPos = (pellet.X, pellet.Y);
+                }
+            }
+
+            if (nearestPelletPos == (-1, -1)) return;
+
+            // Determine which move gets us closer
+            var bestMove = (MoveDirection?)null;
+            int bestDist = minPelletDist;
+
+            var moves = new[] { MoveDirection.Up, MoveDirection.Down, MoveDirection.Left, MoveDirection.Right };
+
+            foreach (var move in moves)
+            {
+                var newPos = ApplyMove(analysis.MyPos, move);
+                if (!IsTraversable(cellLookup, newPos)) continue;
+
+                int newDist = Math.Abs(newPos.x - nearestPelletPos.x) + Math.Abs(newPos.y - nearestPelletPos.y);
+                if (newDist < bestDist)
+                {
+                    bestDist = newDist;
+                    bestMove = move;
+                }
+            }
+
+            analysis.MoveToNearestPellet = bestMove;
+        }
+
+        static void AnalyzePowerUps(GameState gameState, StateAnalysis analysis)
+        {
+            var powerUps = gameState.Cells.Where(c => c.Content == CellContent.PowerUp).ToList();
+            if (!powerUps.Any())
+            {
+                return;
+            }
+
+            analysis.PowerUpLocations = powerUps.Select(p => (p.X, p.Y)).ToList();
+
+            int width = gameState.Cells.Any() ? gameState.Cells.Max(c => c.X) + 1 : 0;
+            int height = gameState.Cells.Any() ? gameState.Cells.Max(c => c.Y) + 1 : 0;
+            int midX = width / 2;
+            int midY = height / 2;
+
+            foreach (var powerUp in powerUps)
+            {
+                int dist = Math.Abs(analysis.MyPos.x - powerUp.X) + Math.Abs(analysis.MyPos.y - powerUp.Y);
+                if (dist < analysis.NearestPowerUpDist)
+                {
+                    analysis.NearestPowerUpDist = dist;
+                    analysis.NearestPowerUpPos = (powerUp.X, powerUp.Y);
+                }
+
+                int quadrant;
+                if (powerUp.X < midX && powerUp.Y < midY) quadrant = 0; // Top-left
+                else if (powerUp.X >= midX && powerUp.Y < midY) quadrant = 1; // Top-right
+                else if (powerUp.X < midX && powerUp.Y >= midY) quadrant = 2; // Bottom-left
+                else quadrant = 3; // Bottom-right
+
+                if (quadrant >= 0 && quadrant < 4)
+                {
+                    analysis.PowerUpsPerQuadrant[quadrant]++;
+                }
+            }
+        }
+
         static void PrintAnalysis(StateAnalysis analysis)
         {
             Console.WriteLine("=== GAME STATE ANALYSIS ===");
@@ -656,11 +755,37 @@ namespace GameStateInspector
             Console.WriteLine("=== ZOOKEEPER ANALYSIS ===");
             if (analysis.NearestZookeeperDist != int.MaxValue)
             {
-                Console.WriteLine($"Nearest Zookeeper: ({analysis.NearestZookeeperPos.x}, {analysis.NearestZookeeperPos.y}) at distance {analysis.NearestZookeeperDist}");
+                Console.WriteLine($"Nearest Zookeeper: {analysis.NearestZookeeperDist} steps away at ({analysis.NearestZookeeperPos.x}, {analysis.NearestZookeeperPos.y})");
             }
             else
             {
                 Console.WriteLine("No zookeepers present.");
+            }
+
+            Console.WriteLine("\n--- Power-Up Analysis ---");
+            if (analysis.PowerUpLocations.Any())
+            {
+                Console.WriteLine($"Found {analysis.PowerUpLocations.Count} power-up(s):");
+                foreach (var loc in analysis.PowerUpLocations)
+                {
+                    Console.WriteLine($"- Location: ({loc.x}, {loc.y})");
+                }
+                Console.WriteLine($"Nearest Power-Up: {analysis.NearestPowerUpDist} steps away at ({analysis.NearestPowerUpPos.x}, {analysis.NearestPowerUpPos.y})");
+                Console.WriteLine("Power-Ups per Quadrant:");
+                Console.WriteLine($"- Top-Left:    {analysis.PowerUpsPerQuadrant[0]}");
+                Console.WriteLine($"- Top-Right:   {analysis.PowerUpsPerQuadrant[1]}");
+                Console.WriteLine($"- Bottom-Left: {analysis.PowerUpsPerQuadrant[2]}");
+                Console.WriteLine($"- Bottom-Right:{analysis.PowerUpsPerQuadrant[3]}");
+            }
+            else
+            {
+                Console.WriteLine("No power-ups on the map.");
+            }
+
+            if (analysis.MoveToNearestPellet.HasValue)
+            {
+                Console.WriteLine("\n--- NEAREST PELLET NAVIGATION ---");
+                Console.WriteLine($"Recommended move to nearest pellet: {analysis.MoveToNearestPellet.Value}");
             }
         }
     }

@@ -1,7 +1,7 @@
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Models;
 
-namespace ClingyHeuroBot2.Heuristics;
+namespace StaticHeuro.Heuristics;
 
 #pragma warning disable SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 

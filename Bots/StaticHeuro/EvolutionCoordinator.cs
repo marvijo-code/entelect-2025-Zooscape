@@ -4,7 +4,7 @@ using ClingyHeuroBot2.GeneticAlgorithm;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
-namespace ClingyHeuroBot2;
+namespace StaticHeuro;
 
 /// <summary>
 /// Simple coordinator that manages evolution and provides weights to bot instances

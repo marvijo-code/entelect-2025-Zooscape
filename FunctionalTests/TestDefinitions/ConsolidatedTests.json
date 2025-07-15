@@ -14,5 +14,36 @@
     "Bots": [
       "ClingyHeuroBot2"
     ]
+  },
+  {
+    "TestName": "ShouldChooseOneOfTwoOptimalPaths",
+    "GameStateFile": "SuboptimalChoice_EquallyOptimalPaths_1101.json",
+    "Description": "Automated test",
+    "BotNickname": null,
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Left",
+      "Down"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot"
+    ]
+  },
+  {
+    "TestName": "ShouldMoveTowardsDenserPelletQuadrant",
+    "GameStateFile": "SuboptimalChoice_LongTermStrategy.json",
+    "Description": "Automated test",
+    "BotNickname": "ClingyHeuroBot",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Right"
+    ],
+    "TestType": "BotInState",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
   }
 ]

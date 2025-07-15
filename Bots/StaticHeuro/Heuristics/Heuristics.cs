@@ -6,7 +6,7 @@ using ClingyHeuroBot2.Heuristics;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 
-namespace ClingyHeuroBot2.Heuristics;
+namespace StaticHeuro.Heuristics;
 
 public static class Heuristics
 {

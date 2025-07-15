@@ -96,6 +96,18 @@
     "Method": ""
   },
   {
+    "Timestamp": "2025-07-15T11:40:35.6761211Z",
+    "Generation": 61,
+    "IndividualId": "1654fde9-8e9a-44ae-af57-2c855b689266",
+    "Score": 138495,
+    "Fitness": 70217.75841644107,
+    "SurvivalTime": 0,
+    "Captures": 0,
+    "Rank": 1,
+    "TotalPlayers": 4,
+    "Method": ""
+  },
+  {
     "Timestamp": "2025-07-15T04:41:11.7774712Z",
     "Generation": 61,
     "IndividualId": "0e01bf8a-ef41-4c36-abf0-a30d80750e27",
@@ -200,6 +212,18 @@
     "SurvivalTime": 0,
     "Captures": 0,
     "Rank": 1,
+    "TotalPlayers": 4,
+    "Method": ""
+  },
+  {
+    "Timestamp": "2025-07-15T11:44:59.8429385Z",
+    "Generation": 61,
+    "IndividualId": "2e3740c9-0330-422a-86e6-f74b16e4e8f2",
+    "Score": 129365,
+    "Fitness": 65553.31111096128,
+    "SurvivalTime": 0,
+    "Captures": 0,
+    "Rank": 2,
     "TotalPlayers": 4,
     "Method": ""
   },
@@ -684,6 +708,18 @@
     "Method": ""
   },
   {
+    "Timestamp": "2025-07-15T11:49:20.6653359Z",
+    "Generation": 61,
+    "IndividualId": "2e3740c9-0330-422a-86e6-f74b16e4e8f2",
+    "Score": 97303,
+    "Fitness": 49451.06222180594,
+    "SurvivalTime": 0,
+    "Captures": 0,
+    "Rank": 2,
+    "TotalPlayers": 4,
+    "Method": ""
+  },
+  {
     "Timestamp": "2025-07-08T16:54:58.6853747Z",
     "Generation": 61,
     "IndividualId": "318970d1-03b2-479b-a7f7-1d0eea02d290",
@@ -692,6 +728,18 @@
     "SurvivalTime": 0,
     "Captures": 0,
     "Rank": 3,
+    "TotalPlayers": 4,
+    "Method": ""
+  },
+  {
+    "Timestamp": "2025-07-15T11:30:29.4271363Z",
+    "Generation": 61,
+    "IndividualId": "28776d7c-1c09-4903-aad1-2c2b49882216",
+    "Score": 95508,
+    "Fitness": 48549.573333233355,
+    "SurvivalTime": 0,
+    "Captures": 0,
+    "Rank": 2,
     "TotalPlayers": 4,
     "Method": ""
   },
@@ -924,6 +972,18 @@
     "Method": ""
   },
   {
+    "Timestamp": "2025-07-15T11:52:59.4649888Z",
+    "Generation": 61,
+    "IndividualId": "3a40d2af-0b2d-4602-b3ae-49810811c8fa",
+    "Score": 82139,
+    "Fitness": 41835.36444429445,
+    "SurvivalTime": 0,
+    "Captures": 0,
+    "Rank": 2,
+    "TotalPlayers": 4,
+    "Method": ""
+  },
+  {
     "Timestamp": "2025-07-15T11:12:54.0645674Z",
     "Generation": 61,
     "IndividualId": "3a40d2af-0b2d-4602-b3ae-49810811c8fa",
@@ -1044,6 +1104,18 @@
     "Method": ""
   },
   {
+    "Timestamp": "2025-07-15T11:36:34.9455985Z",
+    "Generation": 61,
+    "IndividualId": "0fcdf601-dede-4e32-8667-be21863585e5",
+    "Score": 70164,
+    "Fitness": 35821.25333316672,
+    "SurvivalTime": 0,
+    "Captures": 0,
+    "Rank": 2,
+    "TotalPlayers": 4,
+    "Method": ""
+  },
+  {
     "Timestamp": "2025-07-05T10:55:03.860383Z",
     "Generation": 61,
     "IndividualId": "b8ca9dc6-1646-4eb5-a404-1b559c6bb49f",
@@ -1100,6 +1172,18 @@
     "SurvivalTime": 0,
     "Captures": 0,
     "Rank": 3,
+    "TotalPlayers": 4,
+    "Method": ""
+  },
+  {
+    "Timestamp": "2025-07-15T11:57:29.9955583Z",
+    "Generation": 61,
+    "IndividualId": "29a1c298-5df8-49b5-acd1-2349efa87f4e",
+    "Score": 60089,
+    "Fitness": 30840.86444327859,
+    "SurvivalTime": 0,
+    "Captures": 0,
+    "Rank": 1,
     "TotalPlayers": 4,
     "Method": ""
   },

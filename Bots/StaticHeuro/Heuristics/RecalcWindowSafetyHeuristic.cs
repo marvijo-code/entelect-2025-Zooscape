@@ -6,7 +6,7 @@ using Marvijo.Zooscape.Bots.Common.Models;
 using Marvijo.Zooscape.Bots.Common.Utils;
 using Serilog;
 
-namespace ClingyHeuroBot2.Heuristics;
+namespace StaticHeuro.Heuristics;
 
 public class RecalcWindowSafetyHeuristic : IHeuristic
 {

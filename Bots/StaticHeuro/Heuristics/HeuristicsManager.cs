@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace ClingyHeuroBot2.Heuristics;
+namespace StaticHeuro.Heuristics;
 
 file record HeuristicScoreDetail(string Name, decimal Score, decimal AccumulatedScore);
 

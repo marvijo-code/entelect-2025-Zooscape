@@ -149,6 +149,7 @@ Read-Host
 
     # Build arguments for all tabs
     $allWtArgs = @(
+        "--window", "0", # Force a new window instance
         # First Tab: API Server
         "new-tab", 
         "--title", "APIServer", 

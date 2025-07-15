@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using ClingyHeuroBot2.Heuristics;
+using StaticHeuro.Heuristics;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;

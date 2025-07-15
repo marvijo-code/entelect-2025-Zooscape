@@ -2,7 +2,7 @@ using Marvijo.Zooscape.Bots.Common.Models;
 using System.IO;
 using System.Text.Json;
 
-namespace ClingyHeuroBot2.Heuristics;
+namespace StaticHeuro.Heuristics;
 
 public static class WeightManager
 {

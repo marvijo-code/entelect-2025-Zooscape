@@ -5,7 +5,7 @@ using System.Linq;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 
-namespace ClingyHeuroBot2.Heuristics;
+namespace StaticHeuro.Heuristics;
 
 public class EmptyCellAvoidanceHeuristic : IHeuristic
 {
