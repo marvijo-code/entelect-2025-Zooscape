@@ -26,14 +26,39 @@ public class TestDefinitionLoader
         };
     }
 
+    private string GetSourcePath(string subfolder)
+    {
+        var assemblyLocation = Assembly.GetExecutingAssembly().Location;
+        var currentDir = new DirectoryInfo(Path.GetDirectoryName(assemblyLocation));
+
+        // Traverse up to find the solution root directory (where the .sln file is)
+        while (currentDir != null && !currentDir.GetFiles("*.sln").Any())
+        {
+            currentDir = currentDir.Parent;
+        }
+
+        if (currentDir == null)
+        {
+            _logger.Error("Could not find solution root. Falling back to current directory.");
+            return Path.Combine(Directory.GetCurrentDirectory(), subfolder);
+        }
+
+        // Construct the path to the target directory in the source project
+        var projectPath = Path.Combine(currentDir.FullName, "FunctionalTests");
+        var targetPath = Path.Combine(projectPath, subfolder);
+
+        _logger.Debug("Resolved source path for {Subfolder}: {Path}", subfolder, targetPath);
+
+        return targetPath;
+    }
+
     /// <summary>
     /// Load all test definitions from the consolidated JSON file
     /// </summary>
     public List<TestDefinition> LoadAllTestDefinitions()
     {
         var testDefinitions = new List<TestDefinition>();
-        var currentDirectory = Directory.GetCurrentDirectory();
-        var testDefinitionsPath = Path.Combine(currentDirectory, "TestDefinitions");
+        var testDefinitionsPath = GetSourcePath("TestDefinitions");
 
         if (!Directory.Exists(testDefinitionsPath))
         {
@@ -132,8 +157,7 @@ public class TestDefinitionLoader
     public void SaveTestDefinition(TestDefinition testDefinition)
     {
         // Save to source directory instead of bin directory so it can be checked into version control
-        var currentDirectory = Directory.GetCurrentDirectory();
-        var testDefinitionsPath = Path.Combine(currentDirectory, "TestDefinitions");
+        var testDefinitionsPath = GetSourcePath("TestDefinitions");
         var consolidatedTestsFile = Path.Combine(testDefinitionsPath, "ConsolidatedTests.json");
 
         // Ensure TestDefinitions directory exists

@@ -1188,6 +1188,18 @@
     "Method": ""
   },
   {
+    "Timestamp": "2025-07-15T13:23:22.1902122Z",
+    "Generation": 61,
+    "IndividualId": "1b15bbf3-8ceb-4660-8c4f-d0b6ce428668",
+    "Score": 67721,
+    "Fitness": 34615.84836052258,
+    "SurvivalTime": 0,
+    "Captures": 0,
+    "Rank": 1,
+    "TotalPlayers": 4,
+    "Method": ""
+  },
+  {
     "Timestamp": "2025-07-01T02:32:23.3707722Z",
     "Generation": 61,
     "IndividualId": "99e68677-124b-4d79-a4f8-2aa0b0405728",
@@ -1229,6 +1241,18 @@
     "IndividualId": "29a1c298-5df8-49b5-acd1-2349efa87f4e",
     "Score": 60089,
     "Fitness": 30840.86444327859,
+    "SurvivalTime": 0,
+    "Captures": 0,
+    "Rank": 1,
+    "TotalPlayers": 4,
+    "Method": ""
+  },
+  {
+    "Timestamp": "2025-07-15T13:21:29.5478191Z",
+    "Generation": 61,
+    "IndividualId": "1b15bbf3-8ceb-4660-8c4f-d0b6ce428668",
+    "Score": 60036,
+    "Fitness": 30814.24666598394,
     "SurvivalTime": 0,
     "Captures": 0,
     "Rank": 1,

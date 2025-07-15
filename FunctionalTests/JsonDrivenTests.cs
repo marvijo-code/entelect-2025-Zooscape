@@ -1,3 +1,4 @@
+using System.Reflection;
 using FunctionalTests.Models;
 using FunctionalTests.Services;
 using Marvijo.Zooscape.Bots.Common;
@@ -89,9 +90,39 @@ public class JsonDrivenTests : BotTestsBase
         return definitions.Select(def => new object[] { def });
     }
 
+    private string GetSourcePath(string subfolder = "")
+    {
+        var assemblyLocation = Assembly.GetExecutingAssembly().Location;
+        var currentDir = new DirectoryInfo(Path.GetDirectoryName(assemblyLocation));
+
+        while (currentDir != null && !currentDir.GetFiles("*.sln").Any())
+        {
+            currentDir = currentDir.Parent;
+        }
+
+        if (currentDir == null)
+        {
+            _logger.Error("Could not find solution root. Falling back to current directory.");
+            return Path.Combine(Directory.GetCurrentDirectory(), "FunctionalTests", subfolder);
+        }
+
+        var projectPath = Path.Combine(currentDir.FullName, "FunctionalTests");
+        return !string.IsNullOrEmpty(subfolder) ? Path.Combine(projectPath, subfolder) : projectPath;
+    }
+
     private void ExecuteTestDefinition(TestDefinition definition)
     {
         var testParams = _testDefinitionLoader.ConvertToTestParams(definition);
+        var gameStatesPath = GetSourcePath("GameStates");
+        var gameStateFilePath = Path.Combine(gameStatesPath, testParams.TestGameStateJsonPath);
+
+        _logger.Information("Attempting to load game state from: {Path}", gameStateFilePath);
+
+        if (!File.Exists(gameStateFilePath))
+        {
+            _logger.Error("Game state file not found at resolved path: {Path}", gameStateFilePath);
+            throw new FileNotFoundException("Game state file not found.", gameStateFilePath);
+        }
 
         switch (definition.TestType)
         {
@@ -100,11 +131,14 @@ public class JsonDrivenTests : BotTestsBase
                 break;
 
             case TestType.SingleBot:
-                var bot = _botFactory.CreateBot("ClingyHeuroBot2"); // Default to first bot
-                // Use the existing method that works with object
+                if (string.IsNullOrEmpty(definition.BotNickname))
+                {
+                    throw new InvalidOperationException($"Test {definition.TestName} is of type SingleBot but has no BotNickname specified.");
+                }
+                var bot = _botFactory.CreateBot(definition.BotNickname);
                 TestBotFromArray(
                     bot,
-                    _gameStateLoader.LoadGameState(testParams.TestGameStateJsonPath),
+                    _gameStateLoader.LoadGameState(gameStateFilePath),
                     testParams
                 );
                 break;

@@ -28,6 +28,13 @@ This workflow provides a clear, step-by-step guide to analyze game state logs, c
 
 ### Step 1: Find & Analyze a Game State
 
+> [!WARNING]
+> **NEVER read raw `*.json` log files directly.** These files are large and complex. Instead, you **MUST** use the provided tools to find and analyze game states.
+> - **To Find a Scenario**: Use scripts like `find_close_zookeeper_state.ps1`.
+> - **To Analyze a State**: Use the `GameStateInspector`.
+> 
+> Direct file access is a violation of this workflow.
+
 Before creating a test, you need a compelling game state to analyze. You can either manually select one from the `logs/` directory or use a script to find a specific scenario automatically.
 
 #### A) Finding a Specific Scenario: Zookeeper Proximity

@@ -524,5 +524,16 @@
     "Bots": [
       "ClingyHeuroBot"
     ]
+  },
+  {
+    "TestName": "TemptingZookeeper_ShouldAvoid",
+    "GameStateFile": "TemptingZookeeperTest.json",
+    "Description": "When a bot is adjacent to a zookeeper and a pellet, it should prioritize moving to a safe square over collecting the pellet.",
+    "BotNickname": "StaticHeuro",
+    "ExpectedAction": "Down",
+    "AcceptableActions": [],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": ["StaticHeuro"]
   }
 ]

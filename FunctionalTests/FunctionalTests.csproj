@@ -46,4 +46,10 @@
     <ProjectReference Include="..\Marvijo.Zooscape.Bots.Common\Marvijo.Zooscape.Bots.Common.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="TestDefinitions\**\*.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project> 

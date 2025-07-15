@@ -618,8 +618,12 @@ public class TestController : ControllerBase
                     break;
 
                 case TestType.SingleBot:
-                    var bot = _botFactory.CreateBot("ClingyHeuroBot2");
-                    var result = ExecuteBotTest(bot, "ClingyHeuroBot2", gameState, testParams);
+                    if (string.IsNullOrEmpty(definition.BotNickname))
+                    {
+                        throw new InvalidOperationException($"Test {definition.TestName} is of type SingleBot but has no BotNickname specified.");
+                    }
+                    var bot = _botFactory.CreateBot(definition.BotNickname);
+                    var result = ExecuteBotTest(bot, definition.BotNickname, gameState, testParams);
                     botResults.Add(result);
                     break;
 
