@@ -2783,3 +2783,68 @@ System.Text.Json.JsonException: The input does not contain any JSON tokens. Expe
 2025-07-15 16:59:20.596 +02:00 [DBG] Connection id "0HNE3LGKKOLRM" sending FIN because: "The Socket transport's send loop completed gracefully."
 2025-07-15 16:59:20.597 +02:00 [DBG] Connection id "0HNE3LGKKOLRM" disconnecting.
 2025-07-15 16:59:20.597 +02:00 [DBG] Connection id "0HNE3LGKKOLRM" stopped.
+2025-07-15 17:36:43.434 +02:00 [DBG] Executed controller factory for controller FunctionalTests.Controllers.LeaderboardController (FunctionalTests)
+2025-07-15 17:36:43.563 +02:00 [INF] API: Calculating leaderboard stats from logs C:\dev\2025-Zooscape\logs
+2025-07-15 17:36:43.571 +02:00 [INF] Cache miss for leaderboard-stats. Recalculating...
+2025-07-15 17:36:43.572 +02:00 [INF] Found 21 game run directories
+2025-07-15 17:36:44.383 +02:00 [ERR] Error processing game run C:\dev\2025-Zooscape\logs\20250715_143638
+System.Text.Json.JsonException: The input does not contain any JSON tokens. Expected the input to start with a valid JSON token, when isFinalBlock is true. Path: $ | LineNumber: 0 | BytePositionInLine: 0.
+ ---> System.Text.Json.JsonReaderException: The input does not contain any JSON tokens. Expected the input to start with a valid JSON token, when isFinalBlock is true. LineNumber: 0 | BytePositionInLine: 0.
+   at System.Text.Json.ThrowHelper.ThrowJsonReaderException(Utf8JsonReader& json, ExceptionResource resource, Byte nextByte, ReadOnlySpan`1 bytes)
+   at System.Text.Json.Utf8JsonReader.Read()
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   --- End of inner exception stack trace ---
+   at System.Text.Json.ThrowHelper.ReThrowWithPath(ReadStack& state, JsonReaderException ex)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.Deserialize(Utf8JsonReader& reader, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at FunctionalTests.Controllers.LeaderboardController.<GetLeaderboardStats>b__4_0() in C:\dev\2025-Zooscape\FunctionalTests\Controllers\LeaderboardController.cs:line 65
+2025-07-15 17:36:45.087 +02:00 [INF] Returning leaderboard with 4 bots
+2025-07-15 17:36:45.098 +02:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-07-15 17:36:45.101 +02:00 [DBG] No information found on request to perform content negotiation.
+2025-07-15 17:36:45.101 +02:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-07-15 17:36:45.101 +02:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-07-15 17:36:45.102 +02:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-07-15 17:36:45.103 +02:00 [INF] Executing OkObjectResult, writing value of type 'System.Collections.Generic.List`1[[FunctionalTests.Models.BotStats, FunctionalTests, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]'.
+2025-07-15 17:36:45.157 +02:00 [INF] Executed action FunctionalTests.Controllers.LeaderboardController.GetLeaderboardStats (FunctionalTests) in 1864.0319ms
+2025-07-15 17:36:45.160 +02:00 [DBG] Connection id "0HNE3MLJ6AF1B" accepted.
+2025-07-15 17:36:45.161 +02:00 [DBG] Connection id "0HNE3MLJ6AF1B" started.
+2025-07-15 17:36:45.162 +02:00 [INF] Executed endpoint 'FunctionalTests.Controllers.LeaderboardController.GetLeaderboardStats (FunctionalTests)'
+2025-07-15 17:36:45.164 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5008/api/Leaderboard/stats - null null
+2025-07-15 17:36:45.166 +02:00 [DBG] 1 candidate(s) found for the request path '/api/Leaderboard/stats'
+2025-07-15 17:36:45.166 +02:00 [DBG] Connection id "0HNE3MLJ6AF1A" completed keep alive response.
+2025-07-15 17:36:45.166 +02:00 [DBG] Endpoint 'FunctionalTests.Controllers.LeaderboardController.GetLeaderboardStats (FunctionalTests)' with route pattern 'api/Leaderboard/stats' is valid for the request path '/api/Leaderboard/stats'
+2025-07-15 17:36:45.166 +02:00 [DBG] Request matched endpoint 'FunctionalTests.Controllers.LeaderboardController.GetLeaderboardStats (FunctionalTests)'
+2025-07-15 17:36:45.168 +02:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-07-15 17:36:45.169 +02:00 [DBG] The request has an origin header: 'http://localhost:5252'.
+2025-07-15 17:36:45.169 +02:00 [INF] CORS policy execution successful.
+2025-07-15 17:36:45.169 +02:00 [INF] Executing endpoint 'FunctionalTests.Controllers.LeaderboardController.GetLeaderboardStats (FunctionalTests)'
+2025-07-15 17:36:45.170 +02:00 [INF] Route matched with {action = "GetLeaderboardStats", controller = "Leaderboard"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] GetLeaderboardStats() on controller FunctionalTests.Controllers.LeaderboardController (FunctionalTests).
+2025-07-15 17:36:45.170 +02:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-07-15 17:36:45.170 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5008/api/Leaderboard/stats - 200 null application/json; charset=utf-8 2047.1964ms
+2025-07-15 17:36:45.170 +02:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-07-15 17:36:45.170 +02:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-07-15 17:36:45.170 +02:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-07-15 17:36:45.171 +02:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-07-15 17:36:45.171 +02:00 [DBG] Executing controller factory for controller FunctionalTests.Controllers.LeaderboardController (FunctionalTests)
+2025-07-15 17:36:45.171 +02:00 [DBG] Executed controller factory for controller FunctionalTests.Controllers.LeaderboardController (FunctionalTests)
+2025-07-15 17:36:45.171 +02:00 [INF] API: Calculating leaderboard stats from logs C:\dev\2025-Zooscape\logs
+2025-07-15 17:36:45.171 +02:00 [INF] Returning leaderboard with 4 bots
+2025-07-15 17:36:45.172 +02:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-07-15 17:36:45.173 +02:00 [DBG] No information found on request to perform content negotiation.
+2025-07-15 17:36:45.173 +02:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-07-15 17:36:45.173 +02:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-07-15 17:36:45.173 +02:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-07-15 17:36:45.173 +02:00 [INF] Executing OkObjectResult, writing value of type 'System.Collections.Generic.List`1[[FunctionalTests.Models.BotStats, FunctionalTests, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]'.
+2025-07-15 17:36:45.173 +02:00 [INF] Executed action FunctionalTests.Controllers.LeaderboardController.GetLeaderboardStats (FunctionalTests) in 2.7092ms
+2025-07-15 17:36:45.174 +02:00 [INF] Executed endpoint 'FunctionalTests.Controllers.LeaderboardController.GetLeaderboardStats (FunctionalTests)'
+2025-07-15 17:36:45.174 +02:00 [DBG] Connection id "0HNE3MLJ6AF1B" completed keep alive response.
+2025-07-15 17:36:45.174 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5008/api/Leaderboard/stats - 200 null application/json; charset=utf-8 10.613ms
+2025-07-15 17:38:55.923 +02:00 [DBG] Connection id "0HNE3MLJ6AF1A" disconnecting.
+2025-07-15 17:38:55.923 +02:00 [DBG] Connection id "0HNE3MLJ6AF1A" stopped.
+2025-07-15 17:38:55.924 +02:00 [DBG] Connection id "0HNE3MLJ6AF1A" sending FIN because: "The Socket transport's send loop completed gracefully."
+2025-07-15 17:38:56.933 +02:00 [DBG] Connection id "0HNE3MLJ6AF1B" disconnecting.
+2025-07-15 17:38:56.934 +02:00 [DBG] Connection id "0HNE3MLJ6AF1B" stopped.
+2025-07-15 17:38:56.934 +02:00 [DBG] Connection id "0HNE3MLJ6AF1B" sending FIN because: "The Socket transport's send loop completed gracefully."

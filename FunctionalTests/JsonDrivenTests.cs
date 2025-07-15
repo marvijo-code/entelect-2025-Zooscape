@@ -136,6 +136,16 @@ public class JsonDrivenTests : BotTestsBase
                     throw new InvalidOperationException($"Test {definition.TestName} is of type SingleBot but has no BotNickname specified.");
                 }
                 var bot = _botFactory.CreateBot(definition.BotNickname);
+
+                // Enable heuristic logging for supported bots
+                if (bot is StaticHeuro.Services.HeuroBotService staticHeuroBot)
+                {
+                    staticHeuroBot.LogHeuristicScores = true;
+                }
+                else if (bot is ClingyHeuroBot2.Services.HeuroBotService clingyHeuroBot2)
+                {
+                    clingyHeuroBot2.LogHeuristicScores = true;
+                }
                 TestBotFromArray(
                     bot,
                     _gameStateLoader.LoadGameState(gameStateFilePath),

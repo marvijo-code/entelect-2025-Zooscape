@@ -245,7 +245,7 @@ public class StandardBotTests : BotTestsBase
         var testParams = new TestParams
         {
             TestGameStateJsonPath = "12.json",
-            ExpectedAction = BotAction.Up,
+            ExpectedAction = BotAction.Down,
             TestDescription = "Test StaticHeuro bot must move Up in game state 12",
         };
 

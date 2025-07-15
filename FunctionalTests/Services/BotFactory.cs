@@ -16,18 +16,27 @@ public class BotFactory
     /// </summary>
     public object CreateBot(string botTypeName)
     {
-        return botTypeName switch
+        object bot = botTypeName switch
         {
             "ClingyHeuroBot2" => new ClingyHeuroBot2Service(),
             "ClingyHeuroBot" => new ClingyHeuroBotService(),
             "StaticHeuro" => new StaticHeuroService(),
             // "DeepMCTS" => new DeepMCTSService(),
             // "MCTSo4" => new MCTSo4Service(),
-            _ => throw new ArgumentException(
-                $"Unknown bot type: {botTypeName}",
-                nameof(botTypeName)
-            ),
+            _ => throw new ArgumentException($"Unknown bot type: {botTypeName}", nameof(botTypeName)),
         };
+
+        // Enable heuristic logging for supported bots
+        if (bot is StaticHeuroService staticHeuroBot)
+        {
+            staticHeuroBot.LogHeuristicScores = true;
+        }
+        else if (bot is ClingyHeuroBot2Service clingyHeuroBot2)
+        {
+            clingyHeuroBot2.LogHeuristicScores = true;
+        }
+
+        return bot;
     }
 
     /// <summary>

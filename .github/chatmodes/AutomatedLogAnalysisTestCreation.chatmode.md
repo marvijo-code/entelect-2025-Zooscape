@@ -5,104 +5,99 @@ name: AutomatedLogAnalysisTestCreation
 
 # Automated Log Analysis & Test Creation Workflow
 
-## 1. Purpose
-This workflow provides a clear, step-by-step guide to analyze game state logs, create new functional tests via the API, and validate bot behavior. Following this guide will prevent common issues and streamline the process of improving bot heuristics.
+## 1. The Golden Rule: Always Restart the API
 
-## Key Gameplay Assumptions for Heuristic Development
+> [!IMPORTANT]
+> The `FunctionalTests` API server compiles and loads bot logic on startup. If you make **any code changes** to a bot's heuristics, services, or any related files, you **MUST** restart the API. Otherwise, your changes will not take effect, and you will be testing against stale code.
 
-- **Opponent Clashes**: There is no penalty for being close to or clashing with opponent animals. Bots can occupy the same tile. The only collision penalty comes from clashing with a zookeeper. This is a critical factor when designing movement and pathfinding heuristics.
+**Use this command to force a rebuild and restart:**
+```powershell
+# Run from the project root
+.\start-api.ps1 -Force
+```
 
-## 2. Quick Reference: Key Files & Directories
+## 2. Scenario-Based Test Creation
 
-| Item | Path | Purpose |
-| :--- | :--- | :--- |
-| **Game State Logs** | `logs/` | Contains raw game state JSON files for analysis. |
-| **Game State Inspector**| `tools/GameStateInspector/` | C# tool to analyze a game state file and determine legal moves. |
-| **Create Test Script** | `create_test.ps1` | PowerShell script to create a new test via the API. |
-| **Test API Project** | `FunctionalTests/` | The ASP.NET project containing the test API and test logic. |
-| **Test Definitions** | `FunctionalTests/TestDefinitions/ConsolidatedTests.json` | The single source of truth for all JSON-driven tests. |
-| **Game States for Tests**| `FunctionalTests/GameStates/` | Directory where game state files used in tests must be stored. |
-| **Heuristic Weights** | `Bots/StaticHeuro/heuristic-weights.json` | Configuration file for the bot's decision weights. |
+This section provides guides for creating tests based on specific, interesting in-game scenarios.
 
-## 3. The Workflow: Step-by-Step
+### Scenario 1: Bot is Near a Zookeeper
 
-### Step 1: Find & Analyze a Game State
+**Goal**: Create a test to verify a bot's defensive behavior when a zookeeper is nearby or has captured it.
 
-> [!WARNING]
-> **NEVER read raw `*.json` log files directly.** These files are large and complex. Instead, you **MUST** use the provided tools to find and analyze game states.
-> - **To Find a Scenario**: Use scripts like `find_close_zookeeper_state.ps1`.
-> - **To Analyze a State**: Use the `GameStateInspector`.
-> 
-> Direct file access is a violation of this workflow.
+#### Step 1.1: Find the Game State
 
-Before creating a test, you need a compelling game state to analyze. You can either manually select one from the `logs/` directory or use a script to find a specific scenario automatically.
-
-#### A) Finding a Specific Scenario: Zookeeper Proximity
-
-If you want to test how a bot behaves near a zookeeper, use the `find_close_zookeeper_state.ps1` script. It searches through a log directory and returns the first game state file where the specified bot is less than 4 steps away from a zookeeper.
-
-- **Action**: Run the script, providing the log directory and bot nickname.
+- **Action**: Use `find_close_zookeeper_state.ps1` to find a relevant game state from your logs.
 - **Command**:
   ```powershell
-  # This will output the path to a suitable game state file
-  ./tools/find_close_zookeeper_state.ps1 -LogDirectory "logs/20250715-064223" -BotNickname "ClingyHeuroBot"
+  # This outputs the path to the first relevant game state it finds.
+  .\tools\find_close_zookeeper_state.ps1 -LogDirectory "logs\<your_log_directory>" -BotNickname "StaticHeuro"
   ```
 
-Once you have the file path, proceed to the analysis step below.
+#### Step 1.2: Analyze the Game State
 
-#### B) Manual Selection & Analysis
-
-Select a log file and use the `GameStateInspector` to understand the strategic context and, most importantly, determine the **legal moves**.
-
-- **Action**: Run the inspector tool, pointing it to a specific game state JSON file and the bot you want to analyze.
+- **Action**: Use the `GameStateInspector` on the file you found to determine the bot's legal moves.
 - **Command**:
   ```powershell
-  # Replace the path and bot name as needed
-  dotnet run --project tools/GameStateInspector -- "logs/20250715-064223/100_100_3.json" "ClingyHeuroBot"
+  # Use the file path from the previous command.
+  dotnet run --project tools\GameStateInspector -- "<path_to_gamestate.json>" "StaticHeuro"
   ```
-- **CRITICAL**: Note the **"LEGAL MOVE ANALYSIS"** section in the output. This is the source of truth for a bot's available actions.
+- **CRITICAL**: Note the **"LEGAL MOVE ANALYSIS"** output. This is the source of truth for the `AcceptableActions` parameter in the next step.
 
-### Step 2: Create a New Test
-Use the `create_test.ps1` script to send a request to the running API. This will create the test definition and save the associated game state.
+### Scenario 2: Bot is Stuck or Inefficient
 
-- **Prerequisite**: First, copy the game state JSON file from its `logs` directory to the `FunctionalTests/GameStates/` directory. The script needs the file to be in this location.
+> [!NOTE]
+> This section is a placeholder for future scripts and workflows designed to identify and test loops or inefficient pellet collection.
+
+### Step 3: Create the Test
+
+Now, create the functional test using the `create_test.ps1` script.
+
+- **Prerequisite**: Copy the game state file to `FunctionalTests/GameStates/`.
   ```powershell
-  # Example:
-  cp logs/20250715_064223/500.json FunctionalTests/GameStates/
+  cp "<path_to_gamestate.json>" "FunctionalTests/GameStates/"
   ```
-
-- **Action**: Run the `create_test.ps1` script with the required parameters.
-- **Command**:
+- **Action**: Run `create_test.ps1` from the project root with the correct parameters.
+- **Command Template**:
   ```powershell
-  # Note the format for AcceptableActions is a comma-separated string of integers.
-  ./create_test.ps1 \
-    -TestName "ClingyHeuroBot_Scenario_1" \
-    -GameStateFile "500.json" \
-    -BotNicknameInState "ClingyHeuroBot" \
-    -AcceptableActions "3,4" # 1:Up, 2:Down, 3:Left, 4:Right
+  # Move-to-integer mapping: 1=Up, 2=Down, 3=Left, 4=Right
+  .\create_test.ps1 \
+    -TestName "DescriptiveTestName" \
+    -GameStateFile "<gamestate_file_name.json>" \
+    -BotNickName "StaticHeuro" `
+    -BotsToTest "StaticHeuro" `
+    -Description "A clear description of what this test verifies." `
+    -AcceptableActions "3,4" # Example for legal moves: Left, Right
   ```
-- **Verification**: The script should report success. You can also check `FunctionalTests/TestDefinitions/ConsolidatedTests.json` to see your new test definition.
 
-### Step 3: Run Your Specific Test
-Run the newly created test by calling the dedicated API endpoint. **Do not use `dotnet test` with a filter.**
+### Step 4: Run the Test & Verify
+
+Execute the test via the API.
 
 - **Action**: Use `Invoke-RestMethod` to call the `/api/Test/run/{testName}` endpoint.
 - **Command**:
   ```powershell
-  # Replace the test name with the one you just created
-  Invoke-RestMethod -Uri "http://localhost:5008/api/Test/run/ClingyHeuroBot_Scenario_1" -Method Post
+  Invoke-RestMethod -Uri "http://localhost:5008/api/Test/run/DescriptiveTestName" -Method POST | ConvertTo-Json -Depth 5
   ```
-- **Result**: The output will show if the test passed (`success: True`) and which action the bot took.
+- **Result**: Analyze the JSON output. `"success": true` means the test passed. If it's `false`, proceed to the debugging loop.
 
-### Step 4: Iteratively Improve Heuristics (If Needed)
-If the test fails, or if the bot's choice was suboptimal, adjust the weights in `Bots/StaticHeuro/heuristic-weights.json` and re-run the test until it passes.
+## 5. The Debugging Loop
 
-## Troubleshooting Common Issues
+If a test fails, follow this exact sequence to debug and fix the issue:
+
+1.  **Analyze Failure**: Read the `errorMessage` in the test result to understand the exception or failure condition.
+2.  **Fix the Code**: Modify the relevant C# file (e.g., a heuristic in `Bots/StaticHeuro/Heuristics/`).
+3.  **Restart the API**: This is the most important step. **Your fix will not be applied until you restart.**
+    ```powershell
+    .\start-api.ps1 -Force
+    ```
+4.  **Re-run the Test**: Execute the `Invoke-RestMethod` command from Step 4 again.
+5.  **Repeat**: Continue this loop until the test passes.
+
+## 6. Troubleshooting & Quick Reference
 
 | Problem | Solution |
 | :--- | :--- |
-| **`create_test.ps1` fails with a parameter error** | The `-AcceptableActions` parameter expects a **comma-separated string of integers**, not text. The mapping is: `1`=Up, `2`=Down, `3`=Left, `4`=Right. Example: `-AcceptableActions "3,4"`. |
-| **Test fails with "File Not Found" at runtime** | This happens if the test runner looks for game state files in the wrong directory (e.g., `bin/Release`). **Solution**: The file `FunctionalTests/BotTestHelper.cs` has been fixed to build a robust path from the project root. If this error reappears, ensure the API was **rebuilt and restarted** after any code changes. |
-| **Connection Refused / API Not Responding** | The Test API should always be running. If you encounter this, there may be an issue with the environment. Check the logs for the `Tests.Api` service. |
-| **Test Fails on an "Illegal Move"** | The `AcceptableActions` for your test are incorrect. Re-run the `GameStateInspector` (Step 1) to get the correct list of legal moves and update your test definition. |
-| **Test Not Found or Not Running** | You are likely using `dotnet test --filter`. **Do not do this.** Run specific tests via the API endpoint as shown in Step 3. The `dotnet test` command is only for running the *entire* test suite. |
+| **Code changes don't work** | You forgot to restart the API. Run `.\start-api.ps1 -Force`. |
+| **Parameter error on `create_test.ps1`** | You used the wrong parameter name or format. Refer to the template in Step 3. Common mistakes are `-AcceptableMoves` (wrong) vs. `-AcceptableActions` (correct) or `-TestDescription` (wrong) vs. `-Description` (correct). |
+| **Test fails on "Illegal Move"** | The `AcceptableActions` in your test are wrong. Re-run the `GameStateInspector` (Step 1.2) to get the correct legal moves. |
+| **Connection Refused** | The API is not running. Run `.\start-api.ps1` to start it. |
