@@ -39,7 +39,7 @@ function Test-PortAvailable {
 function Stop-DotnetProcesses {
     Write-Host "Stopping processes managed by ra-run-all-local.ps1..." -ForegroundColor Yellow
 
-    # Get all bot executable names for more reliable process stopping
+    # Executable names managed by this script (engine and bots)
     $managedExecutableNames = @("Zooscape", "AdvancedMCTSBot", "DeepMCTS", "python")
     foreach ($botDefinition in $bots) {
         if ($botDefinition.Language -eq "csharp") {
@@ -48,45 +48,24 @@ function Stop-DotnetProcesses {
         }
     }
 
-    # Stop ONLY Zooscape-related dotnet processes (avoid killing unrelated dotnet apps)
-    Write-Host "Stopping Zooscape-related dotnet processes..." -ForegroundColor DarkGray
+    # Processes to explicitly IGNORE, even if they use a managed port.
+    $ignoredProcessNames = @("Tests.Api")
     $stoppedProcesses = @()
 
-    # Build list of workspace paths/patterns that indicate a managed process
-    $workspaceRoot = $scriptRoot
-    $managedPaths = @($workspaceRoot)
-    foreach ($botDefinition in $bots) {
-        if ($botDefinition.Language -eq "csharp") {
-            $managedPaths += (Join-Path $workspaceRoot $botDefinition.Path)
-        }
-    }
+    # --- DIAGNOSTIC LOGGING --- 
+    Write-Host "[DIAGNOSTIC] Starting process cleanup..." -ForegroundColor Magenta
+    Write-Host "[DIAGNOSTIC] Managed executables: $($managedExecutableNames -join ', ')" -ForegroundColor Magenta
+    Write-Host "[DIAGNOSTIC] Ignored processes: $($ignoredProcessNames -join ', ')" -ForegroundColor Magenta
 
-    # Query running dotnet processes with command-line info (requires CIM/WMI)
-    $dotnetProcesses = Get-CimInstance Win32_Process -Filter "Name='dotnet.exe'" -ErrorAction SilentlyContinue
-    foreach ($proc in $dotnetProcesses) {
-        $cmdLine = $proc.CommandLine
-        if (-not $cmdLine) { continue }
-
-        $isManaged = $false
-        foreach ($path in $managedPaths) {
-            if ($cmdLine -like "*${path}*") { $isManaged = $true; break }
-        }
-
-        if ($isManaged) {
-            try {
-                Write-Host "Stopping dotnet process (Zooscape): $($proc.ProcessId)" -ForegroundColor Gray
-                Stop-Process -Id $proc.ProcessId -Force -ErrorAction Stop
-                $stoppedProcesses += $proc.ProcessId
-            }
-            catch {
-                Write-Warning "Error stopping dotnet process $($proc.ProcessId): $($_.Exception.Message)"
-            }
-        }
-    }
-
-    # Stop bot executables by name
+    # Stop managed executables by name first
+    Write-Host "Stopping managed executables (engine and bots) by name..." -ForegroundColor DarkGray
     foreach ($executableName in $managedExecutableNames) {
         Get-Process -Name $executableName -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "[DIAGNOSTIC] Found process matching '$($executableName)': $($_.ProcessName) (ID: $($_.Id))" -ForegroundColor Magenta
+            if ($ignoredProcessNames -contains $_.ProcessName) {
+                Write-Host "[DIAGNOSTIC] IGNORING process $($_.ProcessName) because it is in the ignore list." -ForegroundColor Cyan
+                return
+            }
             try {
                 Write-Host "Stopping managed executable: $($_.ProcessName) (ID: $($_.Id))" -ForegroundColor Gray
                 $_ | Stop-Process -Force -ErrorAction Stop
@@ -97,8 +76,8 @@ function Stop-DotnetProcesses {
             }
         }
     }
-    
-    # Stop processes using port 5000
+
+    # Stop any remaining process using the engine port (5000), unless it's on the ignore list
     Write-Host "Checking for processes using port 5000 (engine port)..." -ForegroundColor Yellow
     try {
         netstat -ano | Select-String ":5000\s" | ForEach-Object {
@@ -109,10 +88,13 @@ function Stop-DotnetProcesses {
                 if ($processId -match '^\d+$' -and [int]$processId -ne 0) {
                     try {
                         $processOnPort = Get-Process -Id $processId -ErrorAction SilentlyContinue
-                        if ($processOnPort -and $processOnPort.ProcessName -ne "Idle") {
+                        Write-Host "[DIAGNOSTIC] Found process on port 5000: $($processOnPort.ProcessName) (ID: $($processOnPort.Id))" -ForegroundColor Magenta
+                        if ($processOnPort -and $processOnPort.ProcessName -ne "Idle" -and ($ignoredProcessNames -notcontains $processOnPort.ProcessName)) {
                             Write-Host "Found process $($processOnPort.ProcessName) (ID: $($processOnPort.Id)) using port 5000. Stopping it." -ForegroundColor Gray
                             $processOnPort | Stop-Process -Force -ErrorAction Stop
                             $stoppedProcesses += [int]$processId
+                        } elseif ($processOnPort -and ($ignoredProcessNames -contains $processOnPort.ProcessName)) {
+                            Write-Host "[DIAGNOSTIC] IGNORING process on port 5000 ($($processOnPort.ProcessName)) because it is in the ignore list." -ForegroundColor Cyan
                         }
                     }
                     catch {
@@ -125,6 +107,7 @@ function Stop-DotnetProcesses {
     catch {
         Write-Warning "Failed to check port 5000 usage: $($_.Exception.Message)"
     }
+    Write-Host "[DIAGNOSTIC] Process cleanup finished." -ForegroundColor Magenta
     
     # Wait for processes to fully terminate and release file locks
     if ($stoppedProcesses.Count -gt 0) {
@@ -178,11 +161,11 @@ $bots = @(
     # @{ Name = "ClingyHeuroBotExp"; Path = "Bots\ClingyHeuroBotExp\ClingyHeuroBotExp.csproj"; Language = "csharp" },
     @{ Name = "StaticHeuro"; Path = "Bots\StaticHeuro\StaticHeuro.csproj"; Language = "csharp" },
     # @{ Name = "ReferenceBot"; Path = "engine\ReferenceBot\ReferenceBot.csproj"; Language = "csharp" },
-    @{ Name = "RLPlayBot"; Path = "Bots\rl"; Language = "python" },
+    # @{ Name = "RLPlayBot"; Path = "Bots\rl"; Language = "python" },
     @{ Name = "AdvancedMCTSBot"; Path = "Bots\AdvancedMCTSBot"; Language = "cpp" },
     # @{ Name = "DeepMCTS"; Path = "Bots\DeepMCTS\DeepMCTS.csproj"; Language = "csharp" },
     # @{ Name = "MCTSo4"; Path = "Bots\MCTSo4\MCTSo4.csproj"; Language = "csharp" },
-    # @{ Name = "ClingyHeuroBot"; Path = "Bots\ClingyHeuroBot\ClingyHeuroBot.csproj"; Language = "csharp" }
+    @{ Name = "ClingyHeuroBot"; Path = "Bots\ClingyHeuroBot\ClingyHeuroBot.csproj"; Language = "csharp" }
 )
 
 # Tab Colors

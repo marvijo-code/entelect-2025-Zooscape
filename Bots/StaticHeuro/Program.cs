@@ -440,21 +440,70 @@ public class Program
                 }
 
                 await Task.Delay(new Random().Next(0, 5) * 1000);
-                try
+                // Connection retry logic with exponential backoff
+                const int MaxRetries = 5;
+                bool connected = false;
+                for (int attempt = 1; attempt <= MaxRetries && !connected; attempt++)
                 {
-                    await connection.StartAsync();
-                    await connection.InvokeAsync("Register", botToken, botNickname);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Reconnection failed: {ex.Message}");
+                    try
+                    {
+                        Log.Information($"Connection attempt {attempt}/{MaxRetries}...");
+                        await connection.StartAsync();
+                        await connection.InvokeAsync("Register", botToken, botNickname);
+                        connected = true;
+                        Log.Information($"Successfully connected on attempt {attempt}.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Connection attempt {attempt} failed: {ex.Message}");
+                        if (attempt < MaxRetries)
+                        {
+                            // Exponential backoff: 2s, 4s, 8s, 16s
+                            int delayMs = (int)Math.Pow(2, attempt) * 1000;
+                            Log.Information($"Waiting {delayMs}ms before retry...");
+                            await Task.Delay(delayMs);
+                        }
+                        else
+                        {
+                            Log.Error($"Failed to connect after {MaxRetries} attempts. Exiting.");
+                            return; // Exit if all retries fail
+                        }
+                    }
                 }
             };
 
             try
             {
-                await connection.StartAsync();
-                await connection.InvokeAsync("Register", botToken, botNickname);
+                // Connection retry logic with exponential backoff
+                const int MaxRetries = 5;
+                bool connected = false;
+                for (int attempt = 1; attempt <= MaxRetries && !connected; attempt++)
+                {
+                    try
+                    {
+                        Log.Information($"Connection attempt {attempt}/{MaxRetries}...");
+                        await connection.StartAsync();
+                        await connection.InvokeAsync("Register", botToken, botNickname);
+                        connected = true;
+                        Log.Information($"Successfully connected on attempt {attempt}.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Connection attempt {attempt} failed: {ex.Message}");
+                        if (attempt < MaxRetries)
+                        {
+                            // Exponential backoff: 2s, 4s, 8s, 16s
+                            int delayMs = (int)Math.Pow(2, attempt) * 1000;
+                            Log.Information($"Waiting {delayMs}ms before retry...");
+                            await Task.Delay(delayMs);
+                        }
+                        else
+                        {
+                            Log.Error($"Failed to connect after {MaxRetries} attempts. Exiting.");
+                            return; // Exit if all retries fail
+                        }
+                    }
+                }
             }
             catch (HttpRequestException httpEx)
                 when (httpEx.InnerException is SocketException sockEx

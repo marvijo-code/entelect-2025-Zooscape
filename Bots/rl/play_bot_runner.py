@@ -113,18 +113,16 @@ class PlayBotService:
 
 class PlayBotSignalR:
     """Play bot that uses trained model via SignalR"""
-    
+
     def __init__(self, bot_id="PlayBot", model_path=None):
         self.bot_id = bot_id
         self.play_service = PlayBotService(model_path)
         self.connection = None
-        self.connected = False
         print(f"🤖 Initialized Play Bot with ID: {self.bot_id}")
 
     def connect(self, hub_url="http://localhost:5000/bothub"):
         """Connect to the SignalR hub"""
         try:
-            # Build the connection
             self.connection = HubConnectionBuilder() \
                 .with_url(hub_url) \
                 .configure_logging(logging.INFO) \
@@ -134,43 +132,35 @@ class PlayBotSignalR:
                     "reconnect_interval": 5,
                     "max_attempts": 5
                 }).build()
-            
+
             # Set up event handlers
             self.connection.on_open(self._on_connect)
             self.connection.on_close(self._on_disconnect)
             self.connection.on_error(self._on_error)
-            
-            # Set up game state handler (match C# bot event names)
             self.connection.on("GameState", self._on_receive_game_state)
             self.connection.on("Registered", self._on_registered)
             self.connection.on("Disconnect", self._on_disconnect_reason)
-            
-            # Start the connection
+
+            print("Starting connection...")
             self.connection.start()
-            print(f"🔗 Connected to SignalR hub: {hub_url}")
-            
-            # Register the bot with token and nickname (like C# bots do)
-            import uuid
-            token = str(uuid.uuid4())
-            self.connection.send("Register", [token, self.bot_id])
-            print(f"📝 Registration message sent for bot: {self.bot_id} with token: {token}")
-            
-            self.connected = True
+            print(f"🔗 Connection process started for SignalR hub: {hub_url}")
             return True
-            
+
         except Exception as e:
             print(f"❌ Connection error: {e}")
             return False
 
     def _on_connect(self):
         """Called when connection is established"""
-        print("✅ Connected to SignalR hub")
-        self.connected = True
+        print("✅ Connected to SignalR hub. Registering bot...")
+        import uuid
+        token = str(uuid.uuid4())
+        self.connection.send("Register", [token, self.bot_id])
+        print(f"📝 Registration message sent for bot: {self.bot_id} with token: {token}")
 
     def _on_disconnect(self):
         """Called when disconnected"""
         print("❌ Disconnected from SignalR hub")
-        self.connected = False
 
     def _on_error(self, data):
         """Called when an error occurs"""
@@ -183,7 +173,6 @@ class PlayBotSignalR:
     def _on_disconnect_reason(self, reason):
         """Called when server sends disconnect"""
         print(f"📤 Server disconnect reason: {reason}")
-        self.connected = False
 
     def _on_receive_game_state(self, game_state_json):
         """Called when game state is received"""
@@ -225,19 +214,50 @@ class PlayBotSignalR:
         """Creates a mock game state object from dictionary data."""
         return MockGameState(data)
 
-    def run(self):
-        """Run the bot indefinitely"""
+def main():
+    """Main function to run the play bot"""
+    hub_url = "http://localhost:5000/bothub"
+    bot_id = "PlayBot"
+    model_path = None
+    
+    if len(sys.argv) > 1:
+        hub_url = sys.argv[1]
+    if len(sys.argv) > 2:
+        bot_id = sys.argv[2]
+    if len(sys.argv) > 3:
+        model_path = sys.argv[3]
+
+    print("🚀 Starting Zooscape Play Bot")
+    print(f"🌐 Hub URL: {hub_url}")
+    print(f"🤖 Bot ID: {bot_id}")
+    if model_path:
+        print(f"🧠 Model: {model_path}")
+
+    # Create and run the bot
+    bot = PlayBotSignalR(bot_id, model_path)
+
+    if bot.connect(hub_url):
+        print("✅ Connection established. Bot is running...")
         try:
-            print("🎮 Play bot is running... Press Ctrl+C to stop")
-            # Keep the connection alive
-            while self.connected:
+            # Keep the main thread alive to allow background threads to run
+            while True:
                 import time
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("🛑 Bot stopped by user")
+            print("\n🛑 Bot stopped by user.")
         finally:
-            if self.connection:
-                self.connection.stop()
+            if bot.connection:
+                print("Stopping connection...")
+                bot.connection.stop()
+                print("Connection stopped.")
+    else:
+        print("❌ Failed to connect to SignalR hub")
+        return 1
+    
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main()) 
 
 # Mock classes to match the structure expected by the agent
 class MockGameState:
@@ -292,37 +312,3 @@ class MockMap:
     def Cells(self):
         """Return flat 1D array of cells."""
         return self.cells_1d
-
-def main():
-    """Main function to run the play bot"""
-    hub_url = "http://localhost:5000/bothub"
-    bot_id = "PlayBot"
-    model_path = None
-    
-    if len(sys.argv) > 1:
-        hub_url = sys.argv[1]
-    if len(sys.argv) > 2:
-        bot_id = sys.argv[2]
-    if len(sys.argv) > 3:
-        model_path = sys.argv[3]
-
-    print("🚀 Starting Zooscape Play Bot")
-    print(f"🌐 Hub URL: {hub_url}")
-    print(f"🤖 Bot ID: {bot_id}")
-    if model_path:
-        print(f"🧠 Model: {model_path}")
-
-    # Create and run the bot
-    bot = PlayBotSignalR(bot_id, model_path)
-    
-    if bot.connect(hub_url):
-        print("✅ Connected successfully. Running play bot...")
-        bot.run()
-    else:
-        print("❌ Failed to connect to SignalR hub")
-        return 1
-    
-    return 0
-
-if __name__ == "__main__":
-    sys.exit(main()) 

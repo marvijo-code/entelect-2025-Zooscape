@@ -168,7 +168,7 @@ Read-Host
 
     # Launch Windows Terminal with all tabs at once
     Write-Host "Starting FunctionalTests API and Frontend in a single Windows Terminal instance..."
-    Start-Process wt.exe -ArgumentList $allWtArgs
+    Start-Process wt.exe -ArgumentList $allWtArgs -WindowStyle Minimized
 } else {
     # Fallback to separate PowerShell windows using temporary files
     $tempDir = [System.IO.Path]::GetTempPath()
@@ -196,10 +196,10 @@ Read-Host
     $frontendCommandForFile | Set-Content -Path $frontendScriptPath -Encoding UTF8 -Force
     
     Write-Host "Starting FunctionalTests API server (with Leaderboard) on port 5008 in new window..."
-    Start-Process powershell.exe -ArgumentList "-NoExit", "-File", $apiScriptPath -WindowStyle Normal
+    Start-Process powershell.exe -ArgumentList "-NoExit", "-File", $apiScriptPath -WindowStyle Minimized
 
     Write-Host "Starting Frontend server in new window..."
-    Start-Process powershell.exe -ArgumentList "-NoExit", "-File", $frontendScriptPath -WindowStyle Normal
+    Start-Process powershell.exe -ArgumentList "-NoExit", "-File", $frontendScriptPath -WindowStyle Minimized
 }
 
 # Give the services a moment to start
@@ -227,8 +227,8 @@ try {
         Start-Sleep -Seconds 5
         
         # Check if services are still running
-        $apiRunning = (netstat -ano | Select-String ":5008" | Select-String "LISTENING") -ne $null
-        $frontendRunning = (netstat -ano | Select-String ":5252" | Select-String "LISTENING") -ne $null
+        $apiRunning = $null -ne (netstat -ano | Select-String ":5008" | Select-String "LISTENING")
+        $frontendRunning = $null -ne (netstat -ano | Select-String ":5252" | Select-String "LISTENING")
         
         if (-not $apiRunning -and -not $frontendRunning) {
             Write-Host "Both services appear to have stopped. Exiting monitoring." -ForegroundColor Yellow

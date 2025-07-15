@@ -97,6 +97,7 @@ public class HeuristicWeights
     public decimal TimeToCaptureSafety { get; set; }
     public decimal QuadrantPelletBonus { get; set; }
     public decimal QuadrantAnimalPenalty { get; set; }
+    public decimal LongTermPelletSeeking { get; set; }
 
     // Properties added based on further build errors in ClingyHeuroBot2 (Batch 2)
     public decimal PathSafetyPenalty { get; set; }

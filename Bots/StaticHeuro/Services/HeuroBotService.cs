@@ -12,6 +12,7 @@ public class HeuroBotService : IBot<HeuroBotService>
 {
     private readonly ILogger _logger;
     private readonly HeuristicsManager _heuristics;
+    private readonly HeuristicWeights _weights;
     public bool LogHeuristicScores { get; set; } = false;
 
     public HeuroBotService(ILogger? logger = null)
@@ -19,16 +20,16 @@ public class HeuroBotService : IBot<HeuroBotService>
         _logger = logger ?? Logger.None;
 
         // Get weights with null safety
-        var weights = WeightManager.Instance;
-        if (weights == null)
+        _weights = WeightManager.Instance;
+        if (_weights == null)
         {
             Console.WriteLine(
                 "CRITICAL: WeightManager.Instance returned null! Creating emergency weights."
             );
-            weights = new HeuristicWeights();
+            _weights = new HeuristicWeights();
         }
 
-        _heuristics = new HeuristicsManager(_logger, weights);
+        _heuristics = new HeuristicsManager(_logger, _weights);
     }
 
     public Guid BotId { get; set; }
@@ -367,27 +368,6 @@ public class HeuroBotService : IBot<HeuroBotService>
             // Apply penalties/bonuses specific to HeuroBotService
             // These should ideally be heuristics, but for now, we adjust the score and log them manually if needed.
 
-            // Penalty for reversing the previous move
-            if (_previousAction.HasValue && IsOpposite(_previousAction.Value, action))
-            {
-                decimal reverseMovePenaltyValue = WeightManager.Instance.ReverseMovePenalty;
-                if (LogHeuristicScores)
-                {
-                    int insertIndex = Math.Max(0, currentDetailedLog.Count - 2);
-                    currentDetailedLog.Insert(
-                        insertIndex,
-                        string.Format(
-                            "    {0,-35}: Raw={1,8:F4}, Weight={2,8:F4}, Contribution={3,8:F4}, NewScore={4,8:F4}",
-                            "ReverseMovePenalty",
-                            reverseMovePenaltyValue,
-                            1m,
-                            reverseMovePenaltyValue,
-                            currentTotalScore + reverseMovePenaltyValue
-                        )
-                    );
-                }
-                currentTotalScore += reverseMovePenaltyValue;
-            }
 
             // Visit penalty and exploration bonuses
             int nx = me!.X,
@@ -679,4 +659,6 @@ public class HeuroBotService : IBot<HeuroBotService>
             return 3;
         return 4;
     }
+
+
 }

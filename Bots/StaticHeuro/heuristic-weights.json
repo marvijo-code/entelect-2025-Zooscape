@@ -4,8 +4,8 @@
   "ResourceClustering": 540.0,
   "AreaControl": 0.7,
   "Mobility": 50.0,
-  "PathSafety": -0.9,
-  "ReverseMovePenalty": -1.5,
+  "PathSafety": 0,
+  "ReverseMovePenalty": -10,
   "UnexploredBonus": 1.0,
   "VisitPenalty": -100.0,
   "UnexploredQuadrantBonus": 2.0,
@@ -36,7 +36,7 @@
   "DirectionalVariety": 1.2,
   "EmptyCellAvoidance": 1.6,
   "WallCollisionRisk": 1.8,
-  "LineOfSightPellets": 120.0,
+  "LineOfSightPellets": 250.0,
   "PelletRace": 1.1,
   "RecalcWindowSafety": 0.8,
   "CenterControl": 0.6,
@@ -71,5 +71,6 @@
   "OpponentTrailChasingMinDistance": 2,
   "OpponentTrailChasingMaxDistance": 8,
   "OpponentTrailChasingBonus": 1.5,
-  "ZookeeperPredictionPenalty": -2.0
+  "ZookeeperPredictionPenalty": -2.0,
+  "LongTermPelletSeeking": 300.0
 }

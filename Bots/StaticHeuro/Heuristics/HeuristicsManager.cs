@@ -83,6 +83,7 @@ public class HeuristicsManager
             new PositionalDominanceHeuristic(),
             new QuadrantAwarenessHeuristic(),
             new RecalcWindowSafetyHeuristic(),
+            new ReverseMovePenaltyHeuristic(),
             new ResourceClusteringHeuristic(),
             new ScoreLossMinimizerHeuristic(),
             new ShortestPathToGoalHeuristic(),
@@ -97,6 +98,7 @@ public class HeuristicsManager
             new UnoccupiedCellBonusHeuristic(),
             new WallCollisionRiskHeuristic(),
             new ZookeeperCooldownHeuristic(),
+            new LongTermPelletSeekingHeuristic(),
             new ZookeeperPredictionHeuristic(),
             // new UnexploredBonusHeuristic(), // Temporarily disabled
             new PowerUpCollectionHeuristic(),
