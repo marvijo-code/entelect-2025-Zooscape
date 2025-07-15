@@ -1,0 +1,14 @@
+{
+  "TestName": "AutoGen_20250115_1025",
+  "GameStateFile": "tick_1025.json",
+  "Description": "Automated test for tick 1025 - ClingyHeuroBot2 at (25,21) with zookeeper threat below and 50 pellets UP",
+  "BotNickname": "ClingyHeuroBot2",
+  "ExpectedAction": null,
+  "AcceptableActions": [],
+  "TestType": "MultiBotArray",
+  "TickOverride": null,
+  "Bots": [
+    "ClingyHeuroBot",
+    "ClingyHeuroBot2"
+  ]
+} 

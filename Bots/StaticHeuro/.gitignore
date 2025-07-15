@@ -1,0 +1,39 @@
+# Build artifacts
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# Evolution data (generated at runtime)
+evolution-data/
+!evolution-data/.gitkeep
+
+# Best individuals (preserved for git sharing)
+!best-individuals.json
+!best-individuals-gen*.json
+
+# Logs and temporary files
+logs/
+*.log
+*-logs/
+
+# IDE and editor files
+.vs/
+.vscode/
+*.user
+*.suo
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Environment files
+.env
+.env.local
+
+# Backup files
+*.bak
+*.backup 

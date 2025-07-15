@@ -1,5 +1,6 @@
 using ClingyHeuroBot2Service = ClingyHeuroBot2.Services.HeuroBotService;
 using ClingyHeuroBotService = HeuroBotV2.Services.HeuroBotService;
+using StaticHeuroService = StaticHeuro.Services.HeuroBotService;
 // using DeepMCTSService = DeepMCTS.Services.BotService;
 // using MCTSo4Service = MCTSo4.Services.MCTSo4Logic;
 
@@ -19,6 +20,7 @@ public class BotFactory
         {
             "ClingyHeuroBot2" => new ClingyHeuroBot2Service(),
             "ClingyHeuroBot" => new ClingyHeuroBotService(),
+            "StaticHeuro" => new StaticHeuroService(),
             // "DeepMCTS" => new DeepMCTSService(),
             // "MCTSo4" => new MCTSo4Service(),
             _ => throw new ArgumentException(
@@ -33,7 +35,7 @@ public class BotFactory
     /// </summary>
     public List<string> GetAvailableBotTypes()
     {
-        return ["ClingyHeuroBot2", "ClingyHeuroBot"]; // , "DeepMCTS", "MCTSo4"];
+        return ["ClingyHeuroBot2", "ClingyHeuroBot", "StaticHeuro"]; // , "DeepMCTS", "MCTSo4"];
     }
 
     /// <summary>

@@ -6,7 +6,7 @@ using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 using Serilog.Core;
 
-namespace ClingyHeuroBot2.Services;
+namespace StaticHeuro.Services;
 
 public class HeuroBotService : IBot<HeuroBotService>
 {

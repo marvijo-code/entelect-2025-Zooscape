@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
@@ -8,8 +5,7 @@ using Xunit;
 using Xunit.Abstractions;
 using ClingyHeuroBot2Service = ClingyHeuroBot2.Services.HeuroBotService;
 using ClingyHeuroBotService = HeuroBotV2.Services.HeuroBotService;
-using FunctionalTests.Services;
-using Microsoft.Extensions.Logging;
+using StaticHeuroService = StaticHeuro.Services.HeuroBotService;
 
 namespace FunctionalTests;
 
@@ -20,6 +16,7 @@ public class StandardBotTests : BotTestsBase
 {
     private readonly ClingyHeuroBot2Service _clingyHeuroBot2;
     private readonly ClingyHeuroBotService _clingyHeuroBot;
+    private readonly StaticHeuroService _staticHeuro;
 
     public StandardBotTests(ITestOutputHelper outputHelper)
         : base(outputHelper)
@@ -28,6 +25,9 @@ public class StandardBotTests : BotTestsBase
         _clingyHeuroBot2.LogHeuristicScores = true;
 
         _clingyHeuroBot = new ClingyHeuroBotService();
+
+        _staticHeuro = new StaticHeuroService(_logger);
+        _staticHeuro.LogHeuristicScores = true;
     }
 
     protected override void TestBotFromArray(object bot, GameState gameState, TestParams testParams)
@@ -237,5 +237,18 @@ public class StandardBotTests : BotTestsBase
         };
 
         TestBotAction(_clingyHeuroBot2, testParams);
+    }
+
+    [Fact]
+    public void GameState12StaticHeuroMustMoveUp()
+    {
+        var testParams = new TestParams
+        {
+            TestGameStateJsonPath = "12.json",
+            ExpectedAction = BotAction.Up,
+            TestDescription = "Test StaticHeuro bot must move Up in game state 12",
+        };
+
+        TestBotAction(_staticHeuro, testParams);
     }
 }
