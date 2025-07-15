@@ -242,9 +242,9 @@
     "testName": "AutoGen_20250115_1055_WeightImprovement",
     "gameStateFile": "tick_1055.json",
     "testType": "SingleBot",
-    "botNickname": "StaticHeuro",
+    "botNickname": "ClingyHeuroBot2",
     "acceptableActions": ["Left", "Right"],
-    "description": "Automated test for tick 1055 - StaticHeuro at (46,37) with no immediate pellets, walls blocking Up/Down movement, must choose between Left/Right based on pellet clustering heuristics",
+    "description": "Automated test for tick 1055 - ClingyHeuroBot2 at (46,37) with no immediate pellets, walls blocking Up/Down movement, must choose between Left/Right based on pellet clustering heuristics",
     "tickOverride": false
   }
 ] 
