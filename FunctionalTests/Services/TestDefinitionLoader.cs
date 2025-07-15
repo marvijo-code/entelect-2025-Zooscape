@@ -27,7 +27,7 @@ public class TestDefinitionLoader
     }
 
     /// <summary>
-    /// Load all test definitions from JSON files in the TestDefinitions directory
+    /// Load all test definitions from the consolidated JSON file
     /// </summary>
     public List<TestDefinition> LoadAllTestDefinitions()
     {
@@ -42,30 +42,26 @@ public class TestDefinitionLoader
             return testDefinitions;
         }
 
-        var jsonFiles = Directory
-            .GetFiles(testDefinitionsPath, "*.json", SearchOption.AllDirectories)
-            .Where(f =>
-                !Path.GetFileName(f).Equals("TestSchema.json", StringComparison.OrdinalIgnoreCase)
-            )
-            .ToArray();
-        _logger.Information("Found {Count} JSON test definition files", jsonFiles.Length);
-
-        foreach (var filePath in jsonFiles)
+        var consolidatedTestFile = Path.Combine(testDefinitionsPath, "ConsolidatedTests.json");
+        
+        if (!File.Exists(consolidatedTestFile))
         {
-            try
-            {
-                var definitions = LoadTestDefinitionsFromFile(filePath);
-                testDefinitions.AddRange(definitions);
-                _logger.Information(
-                    "Loaded {Count} test definitions from {FileName}",
-                    definitions.Count,
-                    Path.GetFileName(filePath)
-                );
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Failed to load test definitions from {FilePath}", filePath);
-            }
+            _logger.Warning("ConsolidatedTests.json not found at: {Path}", consolidatedTestFile);
+            return testDefinitions;
+        }
+
+        try
+        {
+            var definitions = LoadTestDefinitionsFromFile(consolidatedTestFile);
+            testDefinitions.AddRange(definitions);
+            _logger.Information(
+                "Loaded {Count} test definitions from ConsolidatedTests.json",
+                definitions.Count
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to load test definitions from ConsolidatedTests.json");
         }
 
         _logger.Information("Total test definitions loaded: {Count}", testDefinitions.Count);

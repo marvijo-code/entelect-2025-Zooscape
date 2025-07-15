@@ -1,0 +1,241 @@
+[
+  {
+    "testName": "GameState7LoadTest",
+    "gameStateFile": "7.json",
+    "testType": "GameStateLoad",
+    "description": "Validate that GameState 7 loads without errors - tick 7 with 4 bots and 1 zookeeper"
+  },
+  {
+    "testName": "GameState7ClingyHeuroBotMovement",
+    "gameStateFile": "7.json",
+    "testType": "SingleBot",
+    "botNickname": "ClingyHeuroBot",
+    "acceptableActions": ["Up", "Down"],
+    "description": "Test ClingyHeuroBot movement from position (43,3) - should prioritize Up or Down moves due to immediate pellet availability and strong line-of-sight (37 pellets total, 32 down)"
+  },
+  {
+    "testName": "GameState7StaticHeuroMovement",
+    "gameStateFile": "7.json",
+    "testType": "SingleBot",
+    "botNickname": "StaticHeuro",
+    "acceptableActions": ["Left"],
+    "description": "Test StaticHeuro movement from position (47,43) - should move Left due to only immediate pellet available in that direction with 16 pellets in line-of-sight"
+  },
+  {
+    "testName": "GameState7AdvancedMCTSBotMovement",
+    "gameStateFile": "7.json",
+    "testType": "SingleBot",
+    "botNickname": "ClingyHeuroBot2",
+    "acceptableActions": ["Up"],
+    "description": "Test ClingyHeuroBot2 movement from position (3,4) - should move Up due to immediate pellet availability and 15 pellets in line-of-sight in that direction"
+  },
+  {
+    "testName": "GameState7ClingyHeuroBot2Movement",
+    "gameStateFile": "7.json",
+    "testType": "SingleBot",
+    "botNickname": "ClingyHeuroBot2",
+    "acceptableActions": ["Right", "Down"],
+    "description": "Test ClingyHeuroBot2 movement from position (9,45) - should prioritize Right or Down moves due to excellent pellet line-of-sight (57 total: 35 right, 22 down)"
+  },
+  {
+    "testName": "GameState7MultiBotAnalysis",
+    "gameStateFile": "7.json",
+    "testType": "MultiBotArray",
+    "bots": ["ClingyHeuroBot2", "ClingyHeuroBot", "StaticHeuro"],
+    "description": "Compare behavior between all bots - ClingyHeuroBot2 has best pellet visibility (57), ClingyHeuroBot has good visibility (37), all should make optimal moves toward pellet clusters"
+  },
+  {
+    "testName": "GameState7AllBotsAnalysis",
+    "gameStateFile": "7.json",
+    "testType": "MultiBotArray",
+    "bots": ["ClingyHeuroBot2", "ClingyHeuroBot", "StaticHeuro"],
+    "description": "Analyze all available bots in GameState 7 - comprehensive bot behavior comparison across different quadrants and pellet availability scenarios"
+  },
+  {
+    "testName": "GameState7ZookeeperAvoidance",
+    "gameStateFile": "7.json",
+    "testType": "SingleBot",
+    "botNickname": "ClingyHeuroBot2",
+    "acceptableActions": ["Right", "Down"],
+    "description": "Test bot behavior with zookeeper at (25,29) - ClingyHeuroBot2 at distance 32 should prioritize pellet collection over avoidance due to safe distance"
+  },
+  {
+    "testName": "GameState7FoodSeekingBehavior",
+    "gameStateFile": "7.json",
+    "testType": "SingleBot",
+    "botNickname": "ClingyHeuroBot2",
+    "acceptableActions": ["Up"],
+    "description": "Test ClingyHeuroBot2 food-seeking behavior - should move Up toward the 15 pellets in line-of-sight despite being in a complex maze environment"
+  },
+  {
+    "testName": "GameState7TickOverrideTest",
+    "gameStateFile": "7.json",
+    "testType": "TickOverride",
+    "tickOverride": true,
+    "description": "Test tick override functionality with GameState 7 - validate tick manipulation at tick 7"
+  },
+  {
+    "testName": "GameState7PelletClusterAnalysis",
+    "gameStateFile": "7.json",
+    "testType": "SingleBot",
+    "botNickname": "ClingyHeuroBot2",
+    "acceptableActions": ["Right"],
+    "description": "Test pellet cluster prioritization - ClingyHeuroBot2 should prefer Right movement toward the largest pellet cluster (35 pellets in line-of-sight)"
+  },
+  {
+    "testName": "GameState7QuadrantDistribution",
+    "gameStateFile": "7.json",
+    "testType": "MultiBotArray",
+    "bots": ["ClingyHeuroBot", "StaticHeuro", "ClingyHeuroBot2"],
+    "description": "Validate quadrant-based behavior - each bot in different quadrant should optimize for their local pellet distribution (Top-Right: 370, Top-Left: 394, Bottom-Left: 370, Bottom-Right: 347)"
+  },
+  {
+    "testName": "GameState13ClingyHeuroBot2ShouldMoveRight",
+    "gameStateFile": "13.json",
+    "testType": "SingleBot",
+    "botNickname": "ClingyHeuroBot2",
+    "expectedAction": "Right",
+    "description": "ClingyHeuroBot2 should move Right from (15,35) to access immediate pellet at (17,35)"
+  },
+  {
+    "testName": "GameState13ClingyHeuroBot2PelletAnalysis",
+    "gameStateFile": "13.json",
+    "testType": "MultiBotArray",
+    "botNickname": "ClingyHeuroBot2",
+    "acceptableActions": ["Up", "Down", "Left", "Right"],
+    "bots": ["ClingyHeuroBot2"],
+    "description": "Analyze ClingyHeuroBot2's pellet detection in GameState 13 - should see immediate pellet Right"
+  },
+  {
+    "testName": "GameState13LoadTest",
+    "gameStateFile": "13.json",
+    "testType": "GameStateLoad",
+    "description": "Validate that GameState 13 loads without errors"
+  },
+  {
+    "testName": "ExampleNewTest_LoadGameState34",
+    "gameStateFile": "34.json",
+    "testType": "GameStateLoad",
+    "description": "Example test showing how to add new tests via JSON - validates game state loading"
+  },
+  {
+    "testName": "ExampleNewTest_BotMustMoveLeft",
+    "gameStateFile": "34.json",
+    "testType": "MultiBotArray",
+    "botNickname": "ClingyHeuroBot2",
+    "expectedAction": "Left",
+    "bots": ["ClingyHeuroBot2", "ClingyHeuroBot"],
+    "description": "Example test demonstrating strict action validation - bot must choose Left"
+  },
+  {
+    "testName": "BotPerformanceComparison_GameState162",
+    "gameStateFile": "162.json",
+    "testType": "MultiBotArray",
+    "botNickname": "ClingyHeuroBot2",
+    "acceptableActions": ["Up", "Down", "Left", "Right"],
+    "bots": ["ClingyHeuroBot2", "ClingyHeuroBot"],
+    "description": "Compare performance of both bots on complex game state"
+  },
+  {
+    "testName": "LoadTest_GameState162",
+    "gameStateFile": "162.json",
+    "testType": "GameStateLoad",
+    "description": "Validate that game state 162 loads without errors"
+  },
+  {
+    "testName": "SingleBot_ExpectedUp_GameState162",
+    "gameStateFile": "162.json",
+    "testType": "SingleBot",
+    "expectedAction": "Up",
+    "description": "Test that single bot returns expected Up action on game state 162"
+  },
+  {
+    "testName": "GameState34LoadTest",
+    "gameStateFile": "34.json",
+    "testType": "GameStateLoad",
+    "description": "Validate game state 34 loads correctly"
+  },
+  {
+    "testName": "GameState34ActionTest",
+    "gameStateFile": "34.json",
+    "testType": "SingleBot",
+    "acceptableActions": ["Up", "Down", "Left", "Right"],
+    "description": "Test ClingyHeuroBot2 action on game state 34"
+  },
+  {
+    "testName": "GameState34TickOverrideTest",
+    "gameStateFile": "34.json",
+    "testType": "TickOverride",
+    "tickOverride": true,
+    "description": "Test tick override functionality"
+  },
+  {
+    "testName": "ChaseImmediatePellet_LeftOrDown_EvenWhenChased",
+    "gameStateFile": "34.json",
+    "testType": "MultiBotArray",
+    "botNickname": "ClingyHeuroBot2",
+    "acceptableActions": ["Down", "Left"],
+    "bots": ["ClingyHeuroBot2", "ClingyHeuroBot"],
+    "description": "Chase immediate pellet - should choose Left or Down even when chased"
+  },
+  {
+    "testName": "ChaseMorePelletGroups",
+    "gameStateFile": "162.json",
+    "testType": "MultiBotArray",
+    "botNickname": "ClingyHeuroBot2",
+    "expectedAction": "Up",
+    "bots": ["ClingyHeuroBot2", "ClingyHeuroBot"],
+    "description": "Bot should choose Up action to chase more pellet groups"
+  },
+  {
+    "testName": "Bot should not stop 2",
+    "gameStateFile": "20250601_125601_15.json",
+    "testType": "SingleBot",
+    "acceptableActions": ["Down"],
+    "description": "Test created from 20250601_125601",
+    "tickOverride": false
+  },
+  {
+    "testName": "aaaa",
+    "gameStateFile": "20250601_125601_15_1.json",
+    "testType": "SingleBot",
+    "acceptableActions": ["Up", "Down"],
+    "bots": ["ClingyHeuroBot2"],
+    "description": "Test created from 20250601_125601",
+    "tickOverride": false
+  },
+  {
+    "testName": "move-3",
+    "gameStateFile": "6_7.json",
+    "testType": "MultiBotArray",
+    "bots": ["ClingyHeuroBot2"],
+    "description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250705_183627/6.json",
+    "tickOverride": false
+  },
+  {
+    "testName": "move-323",
+    "gameStateFile": "6_7_1.json",
+    "testType": "MultiBotArray",
+    "acceptableActions": ["Left", "Right"],
+    "bots": ["ClingyHeuroBot2"],
+    "description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250705_183627/6.json",
+    "tickOverride": false
+  },
+  {
+    "testName": "move-somewhere",
+    "gameStateFile": "6_7_2.json",
+    "testType": "MultiBotArray",
+    "bots": ["ClingyHeuroBot2"],
+    "description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250705_183627/6.json",
+    "tickOverride": false
+  },
+  {
+    "testName": "AutoGen_20250115_1025",
+    "gameStateFile": "tick_1025.json",
+    "testType": "MultiBotArray",
+    "botNickname": "ClingyHeuroBot2",
+    "bots": ["ClingyHeuroBot", "ClingyHeuroBot2"],
+    "description": "Automated test for tick 1025 - ClingyHeuroBot2 at (25,21) with zookeeper threat below and 50 pellets UP",
+    "tickOverride": false
+  }
+] 
