@@ -222,11 +222,11 @@ public class TestController : ControllerBase
                 }
                 catch (Exception ex)
                 {
-                    _logger.Warning(
+                    _logger.Error(
                         ex,
-                        "Failed to save current game state, using original filename"
+                        "Failed to save current game state. Aborting test creation."
                     );
-                    gameStateFileName = request.GameStateFile;
+                    return StatusCode(500, "Failed to save game state file, cannot create test.");
                 }
             }
 
@@ -237,14 +237,14 @@ public class TestController : ControllerBase
                 GameStateFile = gameStateFileName, // Use the potentially modified filename
                 Description =
                     request.Description ?? $"Dynamically created test for {gameStateFileName}",
-                BotNickname = request.BotNickname,
+                BotNickname = request.BotNicknameInState,
                 ExpectedAction = request.ExpectedAction,
                 AcceptableActions =
                     request.AcceptableActions
                     ?? new List<Marvijo.Zooscape.Bots.Common.Enums.BotAction>(),
                 TestType = testType,
                 TickOverride = request.TickOverride,
-                Bots = request.Bots ?? new List<string>(),
+                Bots = request.BotsToTest ?? new List<string>(),
             };
 
             // Save the test definition
@@ -301,14 +301,14 @@ public class TestController : ControllerBase
                 GameStateFile = request.GameStateFile ?? "temp-state.json",
                 Description =
                     request.Description ?? $"Direct test execution for {request.TestName}",
-                BotNickname = request.BotNickname,
+                BotNickname = request.BotNicknameInState,
                 ExpectedAction = request.ExpectedAction,
                 AcceptableActions =
                     request.AcceptableActions
                     ?? new List<Marvijo.Zooscape.Bots.Common.Enums.BotAction>(),
                 TestType = testType,
                 TickOverride = request.TickOverride,
-                Bots = request.Bots ?? new List<string>(),
+                Bots = request.BotsToTest ?? new List<string>(),
             };
 
             // Execute test directly with provided game state

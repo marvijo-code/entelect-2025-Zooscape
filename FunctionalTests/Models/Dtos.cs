@@ -54,11 +54,11 @@ public class CreateTestRequest
     public required string TestName { get; set; }
     public required string GameStateFile { get; set; }
     public string? Description { get; set; }
-    public string? BotNickname { get; set; }
+    public string? BotNicknameInState { get; set; }
     public Marvijo.Zooscape.Bots.Common.Enums.BotAction? ExpectedAction { get; set; }
     public List<Marvijo.Zooscape.Bots.Common.Enums.BotAction>? AcceptableActions { get; set; }
     public required string TestType { get; set; }
     public bool TickOverride { get; set; }
-    public List<string>? Bots { get; set; }
+    public List<string>? BotsToTest { get; set; }
     public object? CurrentGameState { get; set; } // The actual game state JSON data from visualizer
 }

@@ -16,6 +16,8 @@ public class TestDefinition
     public required TestType TestType { get; set; }
     public bool TickOverride { get; set; }
     public List<string> Bots { get; set; } = [];
+
+    public override string ToString() => TestName ?? "Unnamed Test";
 }
 
 /// <summary>

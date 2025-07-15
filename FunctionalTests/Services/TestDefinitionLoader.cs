@@ -32,9 +32,8 @@ public class TestDefinitionLoader
     public List<TestDefinition> LoadAllTestDefinitions()
     {
         var testDefinitions = new List<TestDefinition>();
-        var assemblyLocation = Assembly.GetExecutingAssembly().Location;
-        var assemblyDirectory = Path.GetDirectoryName(assemblyLocation);
-        var testDefinitionsPath = Path.Combine(assemblyDirectory!, "TestDefinitions");
+        var currentDirectory = Directory.GetCurrentDirectory();
+        var testDefinitionsPath = Path.Combine(currentDirectory, "TestDefinitions");
 
         if (!Directory.Exists(testDefinitionsPath))
         {

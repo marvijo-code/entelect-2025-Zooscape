@@ -22,12 +22,14 @@ public static class BotTestHelper
     {
         try
         {
-            // Get the directory where the test assembly is located
-            var assemblyLocation = Assembly.GetExecutingAssembly().Location;
-            var assemblyDirectory = Path.GetDirectoryName(assemblyLocation);
+            // Get the directory where the test assembly is located (e.g., .../bin/Release/net8.0)
+            var assemblyDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
-            // Construct the full path to the game state file in GameStates subdirectory
-            var gameStatesPath = Path.Combine(assemblyDirectory!, "GameStates", fileName);
+            // Navigate up from the output directory to the project root to reliably find the GameStates folder
+            var projectDirectory = Path.GetFullPath(Path.Combine(assemblyDirectory!, "..", "..", ".."));
+
+            // Construct the full path to the game state file
+            var gameStatesPath = Path.Combine(projectDirectory, "GameStates", fileName);
 
             logger.Information("Loading game state from: {FilePath}", gameStatesPath);
 

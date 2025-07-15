@@ -1,217 +1,90 @@
 ---
-description: 'Automated Log Analysis & Test Creation: Analyze random log files, test bot decisions, and iteratively improve weights until tests pass.'
+description: 'Automated Log Analysis & Test Creation: Analyze game logs, create, and run functional tests via API to iteratively improve bot heuristics.'
 name: AutomatedLogAnalysisTestCreation
 ---
 
 # Automated Log Analysis & Test Creation Workflow
 
-## Purpose
-Automate the analysis of random log files, create tests for interesting game states, and iteratively improve StaticHeuro bot weights until tests pass while maintaining existing test compatibility.
+## 1. Purpose
+This workflow provides a clear, step-by-step guide to analyze game state logs, create new functional tests via the API, and validate bot behavior. Following this guide will prevent common issues and streamline the process of improving bot heuristics.
 
-## Test Infrastructure Overview
-- **Consolidated Tests**: All 32 tests unified in `FunctionalTests/TestDefinitions/ConsolidatedTests.json`
-- **StaticHeuro Bot**: Uses static weights from `heuristic-weights.json` (evolution disabled)
-- **Validation**: Single test command validates all existing functionality
-- **Enhanced GameStateInspector**: Now uses shared `BotUtils.IsTraversable` logic for accurate wall detection
-- **Optimized**: Faster test loading and simplified maintenance
+## 2. Quick Reference: Key Files & Directories
 
-## Key Improvements Made
-- **Shared Logic**: GameStateInspector now uses `Marvijo.Zooscape.Bots.Common.Utils.BotUtils.IsTraversable`
-- **Accurate Wall Detection**: Legal move analysis correctly identifies walls and illegal moves
-- **Enhanced Analysis**: Added legal move analysis to `StateAnalysis` class
-- **Better Weight Targeting**: Focus on `LineOfSightPellets` and `ResourceClustering` for pellet-based decisions
-- **Improved Test Validation**: All tests now pass with corrected acceptable actions
+| Item | Path | Purpose |
+| :--- | :--- | :--- |
+| **Game State Logs** | `logs/` | Contains raw game state JSON files for analysis. |
+| **Game State Inspector**| `tools/GameStateInspector/` | C# tool to analyze a game state file and determine legal moves. |
+| **Create Test Script** | `create_test.ps1` | PowerShell script to create a new test via the API. |
+| **Test API Project** | `FunctionalTests/` | The ASP.NET project containing the test API and test logic. |
+| **Test Definitions** | `FunctionalTests/TestDefinitions/ConsolidatedTests.json` | The single source of truth for all JSON-driven tests. |
+| **Game States for Tests**| `FunctionalTests/GameStates/` | Directory where game state files used in tests must be stored. |
+| **Heuristic Weights** | `Bots/StaticHeuro/heuristic-weights.json` | Configuration file for the bot's decision weights. |
 
-## Workflow Steps
+## 3. The Workflow: Step-by-Step
 
-### 1. Select Random State Log File
-- Navigate to `logs/` directory (ignore `2024/` subdirectory)
-- Find `.json` files containing game states
-- Select a random file with tick > 10 for analysis
-- **Tip**: Use recent log directories for more interesting game states
-- Tools: `list_dir`, `file_search`, `read_file`
+### Step 1: Start the Test API
+The functional test project runs a web API that is essential for creating and running tests.
 
-### 2. Analyze Game State Context
-- Use **enhanced** `tools/GameStateInspector` (C# console app) for comprehensive analysis
-- Command: `dotnet run --project tools/GameStateInspector -- "path/to/state.json" "BotNickname"`
-- **NEW**: Inspector now includes legal move analysis using shared BotUtils logic
-- Extract key insights: animal position, legal moves, pellet availability, strategic context
-- **CRITICAL**: Pay attention to "Can Move [Direction]?" output - this shows legal moves
-- **IMPORTANT**: NEVER read the JSON file directly - always use GameStateInspector for analysis
-- Tools: `run_terminal_cmd` with GameStateInspector
+- **Action**: Run the `rv-run-visualizer.ps1` script. This starts the API.
+- **Command**:
+  ```powershell
+  # This script starts the API on http://localhost:5008
+  ./rv-run-visualizer.ps1
+  ```
+- **Note**: Keep this terminal window open. The API must be running for the entire workflow.
 
-```bash
-# Example output includes:
-# === LEGAL MOVE ANALYSIS ===
-# Can Move Up? No      <- Wall blocks this direction
-# Can Move Left? Yes   <- Legal move
-# Can Move Right? Yes  <- Legal move  
-# Can Move Down? No    <- Wall blocks this direction
-```
+### Step 2: Analyze a Game State
+Select a log file and use the `GameStateInspector` to understand the strategic context and, most importantly, determine the **legal moves**.
 
-### 3. Run StaticHeuro Bot Test
-- **IMPORTANT**: Use `rv-run-visualizer.ps1` to start the API (runs on port 5008)
-- Command: `powershell -ExecutionPolicy Bypass -File rv-run-visualizer.ps1`
-- Create test via POST `/api/test/create` with correct structure:
-  - `TestName`: "AutoGen_[timestamp]_[tick]"
-  - `GameStateFile`: "tick_[number].json" (copy to FunctionalTests/GameStates/)
-  - `CurrentGameState`: JSON from log file
-  - `Bots`: ["StaticHeuro"]
-  - `TestType`: "SingleBot"
-- Run test via POST `/api/test/run/[testName]`
-- **REQUIREMENT**: Test must initially fail (bot chooses suboptimal action)
-- Tools: `run_terminal_cmd` with PowerShell Invoke-RestMethod
+- **Action**: Run the inspector tool, pointing it to a specific game state JSON file and the bot you want to analyze.
+- **Command**:
+  ```powershell
+  # Replace the path and bot name as needed
+  dotnet run --project tools/GameStateInspector -- "logs/20250715-064223/100_100_3.json" "ClingyHeuroBot"
+  ```
+- **CRITICAL**: Note the **"LEGAL MOVE ANALYSIS"** section in the output. This is the source of truth for a bot's available actions.
 
-### 4. Analyze StaticHeuro Decision Quality
-- Compare StaticHeuro's chosen action against GameStateInspector's legal move analysis
-- **CRITICAL**: Verify chosen action is actually legal using inspector output
-- **NEW INSIGHT**: Focus on scenarios where bot has limited legal options (2-3 moves)
-- If bot's decision is reasonable, return to step 1 for new state
-- **Key Heuristics to Analyze**:
-  - `LineOfSightPellets`: Pellet visibility in each direction
-  - `ResourceClustering`: Pellet grouping and accessibility
-  - `TimeToCapture`: Immediate reward timing
-  - `WallCollisionRisk`: Movement constraints (now accurately detected)
+### Step 3: Create a New Test
+Use the `create_test.ps1` script to send a request to the running API. This will create the test definition and save the associated game state.
 
-### 5. Update Weights Iteratively
-- **Target File**: `Bots/StaticHeuro/heuristic-weights.json`
-- **Proven Effective Changes**:
-  - Increase `LineOfSightPellets`: 85.0 → 100.0 (for pellet visibility)
-  - Increase `ResourceClustering`: 500.0 → 520.0 (for pellet grouping)
-- **Strategy**: Increment weights by 10-20 points for meaningful impact
-- **Focus Areas**:
-  - Pellet-based decisions: `LineOfSightPellets`, `ResourceClustering`
-  - Safety decisions: `WallCollisionRisk`, `ZookeeperAvoidance`
-  - Immediate rewards: `TimeToCapture`, `ImmediatePelletReward`
-- Tools: `read_file`, `search_replace` for weight updates
+- **Prerequisite**: First, copy the game state JSON file from its `logs` directory to the `FunctionalTests/GameStates/` directory. The script needs the file to be in this location.
+  ```powershell
+  # Example:
+  cp logs/20250715_064223/500.json FunctionalTests/GameStates/
+  ```
 
-### 6. Validate Weight Changes
-- Re-run the created test to verify improved performance
-- **IMPORTANT**: Copy game state file to `FunctionalTests/GameStates/` directory
-- Run consolidated tests: `dotnet test FunctionalTests/FunctionalTests.csproj --filter "FullyQualifiedName~JsonDrivenTests"`
-- All 32 tests must pass (loaded from `ConsolidatedTests.json`)
-- **Success Indicators**:
-  - Log: `"Using static weights from heuristic-weights.json (evolution disabled)"`
-  - Test: `"Test Summary: 32 passed, 0 failed"`
-- Tools: `run_terminal_cmd` with dotnet test
+- **Action**: Run the `create_test.ps1` script with the required parameters.
+- **Command**:
+  ```powershell
+  # Note the format for AcceptableActions is a comma-separated string of integers.
+  ./create_test.ps1 \
+    -TestName "ClingyHeuroBot_Scenario_1" \
+    -GameStateFile "500.json" \
+    -BotNicknameInState "ClingyHeuroBot" \
+    -AcceptableActions "3,4" # 1:Up, 2:Down, 3:Left, 4:Right
+  ```
+- **Verification**: The script should report success. You can also check `FunctionalTests/TestDefinitions/ConsolidatedTests.json` to see your new test definition.
 
-### 7. Cleanup and Documentation
-- **CRITICAL**: Update test definition with correct acceptable actions
-- **NEW**: Use GameStateInspector legal move analysis to set acceptable actions
-- Add new test to `ConsolidatedTests.json`:
-  - Set `acceptableActions` to legal moves only (from inspector analysis)
-  - Ensure description reflects actual game constraints
-- Copy game state file to `FunctionalTests/GameStates/` if not already there
-- Remove unused tick files to keep directory clean
-- Document successful weight adjustments
+### Step 4: Run Your Specific Test
+Run the newly created test by calling the dedicated API endpoint. **Do not use `dotnet test` with a filter.**
 
-## Enhanced Tools & Commands
+- **Action**: Use `Invoke-RestMethod` to call the `/api/Test/run/{testName}` endpoint.
+- **Command**:
+  ```powershell
+  # Replace the test name with the one you just created
+  Invoke-RestMethod -Uri "http://localhost:5008/api/Test/run/ClingyHeuroBot_Scenario_1" -Method Post
+  ```
+- **Result**: The output will show if the test passed (`success: True`) and which action the bot took.
 
-### GameStateInspector (Enhanced)
-```bash
-# C# console app with shared BotUtils logic
-dotnet run --project tools/GameStateInspector -- "logs/game123/tick_045.json" "StaticHeuro"
+### Step 5: Iteratively Improve Heuristics (If Needed)
+If the test fails, or if the bot's choice was suboptimal, adjust the weights in `Bots/StaticHeuro/heuristic-weights.json` and re-run the test until it passes.
 
-# Key output sections:
-# - LEGAL MOVE ANALYSIS: Shows which moves are blocked by walls
-# - PELLET ANALYSIS: Shows pellet availability in each direction
-# - STRATEGIC CONTEXT: Position, threats, opportunities
-```
+## Troubleshooting Common Issues
 
-### Test API Commands (Updated)
-```powershell
-# Start test API using visualizer script (port 5008)
-powershell -ExecutionPolicy Bypass -File rv-run-visualizer.ps1
-
-# Create test with correct structure
-$gameStateJson = Get-Content 'logs/path/to/file.json' -Raw
-$testName = "AutoGen_$(Get-Date -Format 'yyyyMMdd_HHmm')_$tick"
-$gameState = $gameStateJson | ConvertFrom-Json
-
-$body = @{
-    TestName = $testName
-    GameStateFile = "tick_$tick.json"  # Must match copied file name
-    CurrentGameState = $gameState
-    TestType = "SingleBot"
-    Bots = @("StaticHeuro")
-    Description = "Automated test for tick $tick - strategic context description"
-    TickOverride = $false
-} | ConvertTo-Json -Depth 10
-
-# Create and run test
-Invoke-RestMethod -Uri "http://localhost:5008/api/test/create" -Method POST -Body $body -ContentType "application/json"
-Invoke-RestMethod -Uri "http://localhost:5008/api/test/run/$testName" -Method POST
-```
-
-### Weight Update Strategy
-```json
-// Effective weight changes from implementation:
-{
-  "LineOfSightPellets": 100.0,     // Increased from 85.0 for pellet visibility
-  "ResourceClustering": 520.0,     // Increased from 500.0 for pellet grouping
-  "TimeToCapture": -1.2,           // Penalty for delayed capture
-  "WallCollisionRisk": -50.0,      // Penalty for wall collisions
-  "ZookeeperAvoidance": 200.0      // Threat management
-}
-```
-
-### Test Validation (Updated)
-```bash
-# Run all 32 consolidated tests with minimal output
-dotnet test FunctionalTests/FunctionalTests.csproj --filter "FullyQualifiedName~JsonDrivenTests" --logger "console;verbosity=minimal"
-
-# Alternative: Run with quiet verbosity (less output)
-dotnet test FunctionalTests/FunctionalTests.csproj --filter "FullyQualifiedName~JsonDrivenTests" --verbosity quiet
-
-# Success output should show:
-# - "Test Summary: 32 passed, 0 failed"
-# - "Using static weights from heuristic-weights.json (evolution disabled)"
-# - All test names including your new "AutoGen_" test
-# - "Passed!  - Failed:     0, Passed:    33, Skipped:     0, Total:    33"
-```
-
-## File Management
-- **Game State Files**: Copy to `FunctionalTests/GameStates/` as `tick_[number].json`
-- **Test Definitions**: Add to `FunctionalTests/TestDefinitions/ConsolidatedTests.json`
-- **Weight Files**: `Bots/StaticHeuro/heuristic-weights.json`
-- **Cleanup**: Remove unused tick files to maintain clean directory
-
-## Common Pitfalls & Solutions
-
-### 1. Illegal Move in Test Definition
-- **Problem**: Test expects "Down" but Down is blocked by wall
-- **Solution**: Use GameStateInspector legal move analysis to set correct acceptable actions
-- **Fix**: Update `acceptableActions` to only include legal moves
-
-### 2. API Port Issues
-- **Problem**: Test creation fails with connection errors
-- **Solution**: Use `rv-run-visualizer.ps1` script (runs on port 5008, not 5000)
-- **Command**: `powershell -ExecutionPolicy Bypass -File rv-run-visualizer.ps1`
-
-### 3. Missing Game State Files
-- **Problem**: Test fails with "file not found" error
-- **Solution**: Copy game state JSON to `FunctionalTests/GameStates/` directory
-- **Command**: `Copy-Item 'logs/path/file.json' 'FunctionalTests/GameStates/tick_[number].json'`
-
-### 4. Weight Changes Too Small
-- **Problem**: Bot behavior doesn't change after weight adjustment
-- **Solution**: Use larger increments (10-20 points) for meaningful impact
-- **Focus**: `LineOfSightPellets` and `ResourceClustering` for pellet decisions
-
-## Success Criteria
-- New test created from game state **that initially fails**
-- StaticHeuro bot decisions improved through targeted weight adjustment
-- Test includes only legal moves as acceptable actions (verified by inspector)
-- All 32 existing JsonDrivenTests continue to pass
-- GameStateInspector uses shared BotUtils logic for accurate analysis
-- Changes documented with clear reasoning
-
-## AI Behavior Guidelines
-- Execute workflow autonomously without unnecessary questions
-- Use PowerShell commands as specified in user rules
-- **ALWAYS verify legal moves** using GameStateInspector before setting acceptable actions
-- Focus on actionable weight changes based on pellet availability and clustering
-- **Use shared logic** - GameStateInspector now uses same traversability logic as bots
-- Maintain existing test compatibility throughout process
-- Provide concise status updates at each step
-- Clean up unused files after successful implementation
+| Problem | Solution |
+| :--- | :--- |
+| **`create_test.ps1` fails with a parameter error** | The `-AcceptableActions` parameter expects a **comma-separated string of integers**, not text. The mapping is: `1`=Up, `2`=Down, `3`=Left, `4`=Right. Example: `-AcceptableActions "3,4"`. |
+| **Test fails with "File Not Found" at runtime** | This happens if the test runner looks for game state files in the wrong directory (e.g., `bin/Release`). **Solution**: The file `FunctionalTests/BotTestHelper.cs` has been fixed to build a robust path from the project root. If this error reappears, ensure the API was **rebuilt and restarted** after any code changes. |
+| **Connection Refused / API Not Responding** | Ensure the API is running. Check the terminal where you ran `rv-run-visualizer.ps1` in Step 1. The API must be active on `http://localhost:5008`. |
+| **Test Fails on an "Illegal Move"** | The `AcceptableActions` for your test are incorrect. Re-run the `GameStateInspector` (Step 2) to get the correct list of legal moves and update your test definition. |
+| **Test Not Found or Not Running** | You are likely using `dotnet test --filter`. **Do not do this.** Run specific tests via the API endpoint as shown in Step 4. The `dotnet test` command is only for running the *entire* test suite. |
