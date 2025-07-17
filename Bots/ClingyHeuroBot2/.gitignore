@@ -8,6 +8,8 @@ obj/
 # Evolution data (generated at runtime)
 evolution-data/
 !evolution-data/.gitkeep
+# Allow tracking specific JSON files within evolution-data
+!evolution-data/high-scores.json
 
 # Best individuals (preserved for git sharing)
 !best-individuals.json

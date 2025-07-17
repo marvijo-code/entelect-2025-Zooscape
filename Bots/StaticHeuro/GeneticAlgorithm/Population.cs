@@ -18,8 +18,8 @@ public class Population
     public Random Random { get; private set; }
 
     // Population statistics
-    public Individual BestIndividual => Individuals.OrderByDescending(i => i.Fitness).FirstOrDefault();
-    public Individual WorstIndividual => Individuals.OrderBy(i => i.Fitness).FirstOrDefault();
+    public Individual? BestIndividual => Individuals.OrderByDescending(i => i.Fitness).FirstOrDefault();
+    public Individual? WorstIndividual => Individuals.OrderBy(i => i.Fitness).FirstOrDefault();
     public double AverageFitness => Individuals.Count > 0 ? Individuals.Average(i => i.Fitness) : 0;
     public double BestFitness => Individuals.Count > 0 ? Individuals.Max(i => i.Fitness) : 0;
     public double WorstFitness => Individuals.Count > 0 ? Individuals.Min(i => i.Fitness) : 0;

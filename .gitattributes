@@ -1,3 +1,6 @@
 *    text=auto
 *.cs text eol=crlf
 *.sh text eol=lf
+
+# Preserve JSON files as-is (no line-ending conversion)
+*.json -text

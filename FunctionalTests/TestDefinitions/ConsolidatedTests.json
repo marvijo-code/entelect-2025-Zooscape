@@ -649,14 +649,31 @@
     ],
     "TestType": "SingleBot",
     "TickOverride": false,
-    "Bots": []
+    "Bots": [
+      "StaticHeuro"
+    ]
   },
   {
     "TestName": "AvoidCapture_Tick265",
     "GameStateFile": "AvoidCapture_Tick265_0.json",
-    "Description": "StaticHeuro should move left to avoid capture",
+    "Description": "StaticHeuro should move right to avoid nearby zookeeper and follow pellet line of sight.",
     "botNicknameInStateFile": "StaticHeuro",
-    "ExpectedAction": null,
+    "ExpectedAction": "Right",
+    "AcceptableActions": [
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_PelletCluster_Tick972",
+    "GameStateFile": "StaticHeuro_PelletCluster_972.json",
+    "Description": "StaticHeuro should move Left toward the immediate pellet and larger pellet cluster.",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": "Left",
     "AcceptableActions": [
       "Left"
     ],
@@ -665,5 +682,45 @@
     "Bots": [
       "StaticHeuro"
     ]
+  },
+  {
+    "TestName": "must-move-down-for-pellet-test-at6l7j50b-md6qk2ej",
+    "GameStateFile": "532_532.json",
+    "Description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250717_034622/532.json",
+    "botNicknameInStateFile": null,
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Down"
+    ],
+    "TestType": "MultiBotArray",
+    "TickOverride": false,
+    "Bots": []
+  },
+  {
+    "TestName": "must-move-right-towards-pellet-test-8y4yao0ox-md6qkzmu",
+    "GameStateFile": "547_547.json",
+    "Description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250717_034622/547.json",
+    "botNicknameInStateFile": null,
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Right"
+    ],
+    "TestType": "MultiBotArray",
+    "TickOverride": false,
+    "Bots": []
+  },
+  {
+    "TestName": "move-left-or-right-test-di32gsd7c-md6qm815",
+    "GameStateFile": "589_589.json",
+    "Description": "Test created from C:\\dev\\2025-Zooscape\\logs\\20250717_034622/589.json",
+    "botNicknameInStateFile": null,
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Left",
+      "Right"
+    ],
+    "TestType": "MultiBotArray",
+    "TickOverride": false,
+    "Bots": []
   }
 ]

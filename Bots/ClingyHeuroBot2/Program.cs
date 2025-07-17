@@ -1,4 +1,12 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Text.Json;
+
 using ClingyHeuroBot2;
+using ClingyHeuroBot2.Heuristics;
 using ClingyHeuroBot2.Services;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
@@ -6,13 +14,6 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
-using System.Net.Sockets;
-using System.Diagnostics;
-using System.Text.Json;
-using ClingyHeuroBot2.Heuristics;
-using System.Globalization;
-using System.Net;
-using System.Net.Http;
 
 namespace HeuroBot;
 
@@ -99,8 +100,7 @@ public class Program
             var botService = new HeuroBotService(Log.Logger);
             BotCommand? command = null;
 
-            // Timing variables for performance monitoring
-            Stopwatch? gameStateStopwatch = null;
+            // Timing variables for performance monitoring (per-tick stopwatch will be local)
             DateTime? gameStateReceivedTime = null;
             int currentTick = -1; // Track current game tick
 
@@ -151,7 +151,7 @@ public class Program
 
                 // Start timing when game state is received
                 gameStateReceivedTime = DateTime.UtcNow;
-                gameStateStopwatch = Stopwatch.StartNew();
+                var tickStopwatch = Stopwatch.StartNew();
                 currentTick = state.Tick; // Capture current tick
 
                 // Declare myAnimal outside try block so it can be used later
@@ -182,24 +182,23 @@ public class Program
                     Log.Error(ex, "Error processing GameState for tick {Tick}. BotId: {BotId}, Animals count: {AnimalsCount}, Cells count: {CellsCount}. Exception: {ExceptionType}: {ExceptionMessage}",
                         currentTick, botService?.BotId ?? Guid.Empty, state.Animals?.Count ?? -1, state.Cells?.Count ?? -1, ex.GetType().Name, ex.Message);
 
-                    // Log additional debugging info
+                    // Provide detailed context for NullReferenceExceptions in a single structured log entry
                     if (ex is NullReferenceException)
                     {
-                        Log.Error("NullReferenceException details - Stack trace: {StackTrace}", ex.StackTrace);
-
-                        // Log current state of critical objects
-                        Log.Error("Debug info - BotService: {BotServiceNull}, BotService.BotId: {BotId}, WeightManager.Instance: {WeightsNull}",
-                            botService == null ? "NULL" : "OK",
+                        Log.Error(ex,
+                            "NullReferenceException caught at tick {Tick}. BotServiceNull={BotServiceNull}, BotId={BotId}, WeightManagerNull={WeightManagerNull}",
+                            currentTick,
+                            botService is null,
                             botService?.BotId ?? Guid.Empty,
-                            WeightManager.Instance == null ? "NULL" : "OK");
+                            WeightManager.Instance is null);
                     }
 
                     command = new BotCommand { Action = BotAction.Up }; // Default fallback action
                 }
 
                 // Log processing time immediately after getting the command
-                gameStateStopwatch.Stop();
-                var processingTimeMs = gameStateStopwatch.ElapsedMilliseconds;
+                tickStopwatch.Stop();
+                var processingTimeMs = tickStopwatch.ElapsedMilliseconds;
 
                 // Get current position for logging (using existing myAnimal)
                 var position = myAnimal != null ? $"({myAnimal.X},{myAnimal.Y})" : "(?,?)";
@@ -430,7 +429,6 @@ public class Program
 
                     // Reset timing variables after sending
                     gameStateReceivedTime = null;
-                    gameStateStopwatch = null;
                 }
                 command = null;
                 await Task.Delay(100);

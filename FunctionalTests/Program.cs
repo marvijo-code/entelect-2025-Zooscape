@@ -36,6 +36,7 @@ try
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
     builder.Services.AddSingleton<FunctionalTests.Services.CacheService>();
+builder.Services.AddHostedService<FunctionalTests.Services.LeaderboardStatsWorker>();
 
     var app = builder.Build();
 

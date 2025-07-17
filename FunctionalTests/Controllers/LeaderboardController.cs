@@ -157,6 +157,7 @@ public class LeaderboardController : ControllerBase
                             .ThenByDescending(b => b.SecondPlaces)
                             .ThenByDescending(b => b.GamesPlayed)
                             .ToList();
+            }, TimeSpan.FromMinutes(2));
 
 
         

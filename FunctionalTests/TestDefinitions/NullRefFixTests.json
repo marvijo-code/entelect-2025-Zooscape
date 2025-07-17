@@ -1,0 +1,35 @@
+[
+  {
+    "TestName": "StaticHeuro_NullRefFix_Tick157",
+    "GameStateFile": "20250717_031621_157.json",
+    "Description": "Ensure StaticHeuro processes GameState tick 157 without NullReferenceException.",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": ["Up", "Down", "Left", "Right"],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": ["StaticHeuro"]
+  },
+  {
+    "TestName": "StaticHeuro_NullRefFix_Tick223",
+    "GameStateFile": "20250717_031621_223.json",
+    "Description": "Ensure StaticHeuro processes GameState tick 223 without NullReferenceException.",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": ["Up", "Down", "Left", "Right"],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": ["StaticHeuro"]
+  },
+  {
+    "TestName": "StaticHeuro_NullRefFix_Tick224",
+    "GameStateFile": "20250717_031621_224.json",
+    "Description": "Ensure StaticHeuro processes GameState tick 224 without NullReferenceException.",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": ["Up", "Down", "Left", "Right"],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": ["StaticHeuro"]
+  }
+]

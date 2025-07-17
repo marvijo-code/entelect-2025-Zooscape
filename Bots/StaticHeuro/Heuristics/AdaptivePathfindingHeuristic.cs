@@ -15,8 +15,14 @@ public class AdaptivePathfindingHeuristic : IHeuristic
 
     public decimal CalculateScore(IHeuristicContext context)
     {
-        // Skip if using item or state not valid
+        // Skip if using item or invalid game state
         if (context.CurrentMove == BotAction.UseItem || context.CurrentGameState.Cells == null)
+        {
+            return 0m;
+        }
+
+        // Defer heavy pathfinding until after tick 10 to avoid early-game performance spikes
+        if (context.CurrentGameState.Tick < 10)
         {
             return 0m;
         }
@@ -27,9 +33,9 @@ public class AdaptivePathfindingHeuristic : IHeuristic
 
         // BFS search to find best pellet value reachable within maxDepth
         // Value metric: pelletsCollected / stepsNeeded (efficiency)
-        var visited = new HashSet<(int x,int y)> { start };
-        var queue = new Queue<(int x,int y,int dist,int pellets)>();
-        queue.Enqueue((start.x, start.y, 0, 0));
+        var visited = new HashSet<(int X, int Y)> { start };
+        var queue = new Queue<(int X, int Y, int Dist, int Pellets)>();
+        queue.Enqueue((start.X, start.Y, 0, 0));
 
         decimal bestEfficiency = 0m;
 

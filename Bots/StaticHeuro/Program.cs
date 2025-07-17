@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Marvijo.Zooscape.Bots.Common.Utils;
 using StaticHeuro.Services;
 using StaticHeuro.Heuristics;
 
@@ -96,6 +97,7 @@ public class Program
 
             var botService = new HeuroBotService(Log.Logger);
             BotCommand? command = null;
+            BotAction? lastSentAction = null;
 
             // Timing variables for performance monitoring
             Stopwatch? gameStateStopwatch = null;
@@ -181,6 +183,17 @@ public class Program
                         }
 
                         command = botService.ProcessState(state);
+
+                        // Skip sending redundant commands if we're already moving in that direction and the path is clear
+                        if (command != null && lastSentAction.HasValue && command.Action == lastSentAction.Value && myAnimal != null)
+                        {
+                            var (nextX, nextY) = BotUtils.ApplyMove(myAnimal.X, myAnimal.Y, command.Action);
+                            if (BotUtils.IsTraversable(state, nextX, nextY))
+                            {
+                                Log.Debug("Skipping redundant action {Action} at tick {Tick} - already moving and path clear.", command.Action, currentTick);
+                                command = null;
+                            }
+                        }
 
                         // Ensure command is not null
                         if (command == null)
@@ -541,6 +554,7 @@ public class Program
                         : -1;
 
                     await connection.SendAsync("BotCommand", command);
+                        lastSentAction = command.Action;
                     Log.Debug(
                         $"Sent BotCommand: {command.Action} at {DateTime.UtcNow:HH:mm:ss.fff} for tick {currentTick}"
                     );
