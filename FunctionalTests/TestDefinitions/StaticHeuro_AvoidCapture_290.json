@@ -1,0 +1,9 @@
+{
+  "TestName": "StaticHeuro_AvoidCapture_290",
+  "Description": "Bot at (18,31) with zookeeper 1 step away at (19,31) - must choose Left to avoid capture",
+  "GameStateFile": "290.json",
+  "TestType": "SingleBot",
+  "BotNickname": "StaticHeuro",
+  "AcceptableActions": [3],
+  "ExpectedAction": 3
+}

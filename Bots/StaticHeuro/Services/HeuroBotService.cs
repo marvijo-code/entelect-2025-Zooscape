@@ -174,7 +174,7 @@ public class HeuroBotService : IBot<HeuroBotService>
         }
 
         // Log current position and wall detection
-        _logger.Debug(
+        _logger?.Debug(
             "Bot {BotId} at position ({X}, {Y}) on tick {Tick}",
             BotId,
             me!.X,
@@ -329,9 +329,12 @@ public class HeuroBotService : IBot<HeuroBotService>
                 currentTick
             );
 
-            // Add all movement actions as fallback (the game engine should handle illegal moves)
-            legalActions.AddRange(
-                new[] { BotAction.Up, BotAction.Down, BotAction.Left, BotAction.Right }
+            // Use safe fallback action instead of adding all movement actions
+            var safeFallback = GetSafeFallbackAction(gameState, me);
+            legalActions.Add(safeFallback);
+            _logger.Warning(
+                "Using safe fallback action {Action} for bot {BotId} at ({X}, {Y}) on tick {Tick}",
+                safeFallback, BotId, me!.X, me.Y, currentTick
             );
         }
 
@@ -342,14 +345,7 @@ public class HeuroBotService : IBot<HeuroBotService>
             string.Join(", ", legalActions)
         );
 
-        // TEMPORARY DEBUG: Log legal actions for tick 71
-        if (currentTick == 71)
-        {
-            _logger.Information(
-                "TICK 71 LEGAL ACTIONS DEBUG: Bot {BotId} at ({X}, {Y}) has legal actions: [{Actions}]",
-                BotId, me!.X, me.Y, string.Join(", ", legalActions)
-            );
-        }
+
 
         BotAction bestAction = BotAction.Up;
         decimal bestScore = decimal.MinValue;
@@ -563,7 +559,7 @@ public class HeuroBotService : IBot<HeuroBotService>
         var totalTimeMs = totalStopwatch.ElapsedMilliseconds;
 
         // Concise heuristic processing log
-        _logger.Debug(
+        _logger?.Debug(
             "Heuristics T{Tick} {Action} {Duration}ms",
             currentTick,
             bestAction,

@@ -2,6 +2,40 @@
 
 This folder contains logically organized documentation files extracted from the original `.github/chatmodes/AutomatedLogAnalysisTestCreation.chatmode.md` workflow.  Each file focuses on a specific aspect of bot analysis, debugging, or test-creation so you can jump directly to the topic you need without scrolling through a single monolithic document. Always improve the StaticHeuro bot!!!
 
+## 🚨 CRITICAL WORKFLOW RULES 🚨
+
+### Test Creation Rules
+- **NEVER manually create or edit test JSON files** - Always use `create_test.ps1` script
+- **NEVER manually edit `ConsolidatedTests.json`** - The `create_test.ps1` script handles this automatically
+- **Always use the proper script parameters** when creating tests via `create_test.ps1`
+
+### Heuristic Analysis Rules
+- **NEVER analyze or modify heuristic weights without first seeing the bot's actual output** after running against the scenario state JSON file
+- **Always run the bot against the specific game state** to see detailed heuristic scoring before making changes
+- **Use GameStateInspector or API endpoints** to get actual heuristic breakdowns, not assumptions
+
+### Test Execution Rules
+- **`dotnet test FunctionalTests --filter "StaticHeuro"`** runs ALL StaticHeuro tests (currently only "Game State 12: StaticHeuro Must Move Up")
+- **Use specific test names** or API endpoints to run individual tests: `Invoke-RestMethod -Method POST -Uri "http://localhost:5008/api/test/run/TestName"`
+- **Always restart the API** (`start-api.ps1 -Force`) after code changes before testing
+
+### create_test.ps1 Usage
+- **Purpose**: Automatically adds tests to `ConsolidatedTests.json` - never edit this file manually
+- **Required Parameters**: `-GameStateFile`, `-TestName`
+- **Example**: `./create_test.ps1 -GameStateFile "290.json" -TestName "StaticHeuro_AvoidCapture_290" -BotNicknameInState "StaticHeuro" -AcceptableActions "3" -Description "Bot must avoid capture by moving Left"`
+- **Action Codes**: 1=Up, 2=Down, 3=Left, 4=Right
+- **The script handles**: JSON formatting, API calls, and ConsolidatedTests.json updates automatically
+
+### Proper Bot Analysis Workflow
+1. **Copy game state to FunctionalTests/GameStates/**: `cp "logs/match/tick.json" "FunctionalTests/GameStates/tick.json"`
+2. **Analyze bot's actual decision**: Use GameStateInspector or API to see what the bot actually chooses and why
+3. **Get detailed heuristic breakdown**: `cd tools/GameStateInspector && dotnet run -- ../../FunctionalTests/GameStates/tick.json StaticHeuro`
+4. **Review heuristic scoring**: Look at the actual scores, not assumptions about what they should be
+5. **Create test via script**: `./create_test.ps1 -GameStateFile "tick.json" -TestName "TestName" -AcceptableActions "X"`
+6. **Make informed changes**: Only adjust heuristics/weights after seeing actual bot output
+7. **Restart API**: `./start-api.ps1 -Force`
+8. **Verify fix**: Run the specific test to confirm the change works
+
 ## File Index
 
 | File | Purpose |

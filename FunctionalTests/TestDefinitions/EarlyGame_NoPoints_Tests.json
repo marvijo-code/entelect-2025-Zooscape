@@ -1,0 +1,22 @@
+[
+  {
+    "testName": "StaticHeuro_EarlyGame_NoPoints_Tick6",
+    "description": "Test case for tick 6 where bot has immediate pellet to the left but didn't accumulate points",
+    "gameStateFile": "EarlyGame_Tick6.json",
+    "expectedBotActions": {
+      "StaticHeuro": "Left"
+    },
+    "acceptableActions": ["Left"],
+    "reasoning": "Bot should choose Left to collect immediate pellet and 33 linked pellets in line of sight"
+  },
+  {
+    "testName": "StaticHeuro_EarlyGame_NoPoints_Tick10", 
+    "description": "Test case for tick 10 where bot has immediate pellet to the left but didn't accumulate points",
+    "gameStateFile": "EarlyGame_Tick10.json",
+    "expectedBotActions": {
+      "StaticHeuro": "Left"
+    },
+    "acceptableActions": ["Left"],
+    "reasoning": "Bot should choose Left to collect immediate pellet and 16 linked pellets in line of sight"
+  }
+]

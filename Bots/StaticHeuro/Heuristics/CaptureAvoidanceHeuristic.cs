@@ -35,24 +35,28 @@ public class CaptureAvoidanceHeuristic : IHeuristic
                 return -10000m;
             }
 
-            // Immediate danger zone (≤2 tiles).
-            if (newDist <= 2)
-            {
-                decimal dangerFactor = 3 - newDist; // 2 when dist==1, 1 when dist==2
-                score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * dangerFactor;
-                continue; // no reward for the same zookeeper in this case
-            }
-
+            // Check if we're moving closer or away from this zookeeper
             if (newDist < currentDist)
             {
-                // Moving closer – penalise proportionally to how much closer we get and proximity.
+                // Moving closer – penalise heavily, especially in danger zone
+                decimal proximityMultiplier = newDist <= 2 ? (3 - newDist) : 1;
                 int delta = currentDist - newDist;
-                score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * delta / newDist;
+                score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * delta * proximityMultiplier;
             }
             else if (newDist > currentDist)
             {
-                // Moving away – reward inversely to original distance (closer escapes worth more).
-                score += heuristicContext.Weights.CaptureAvoidanceRewardFactor / currentDist;
+                // Moving away – always reward, even if still in danger zone
+                decimal escapeBonus = currentDist <= 2 ? heuristicContext.Weights.CaptureAvoidanceRewardFactor * 2 : heuristicContext.Weights.CaptureAvoidanceRewardFactor;
+                score += escapeBonus / Math.Max(currentDist, 1);
+            }
+            else
+            {
+                // Same distance – only penalize if in immediate danger zone
+                if (newDist <= 2)
+                {
+                    decimal dangerFactor = 3 - newDist; // 2 when dist==1, 1 when dist==2
+                    score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * dangerFactor * 0.5m; // Reduced penalty for staying same distance
+                }
             }
         }
 
