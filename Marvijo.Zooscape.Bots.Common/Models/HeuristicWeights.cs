@@ -138,4 +138,7 @@ public class HeuristicWeights
 
     // ZookeeperPredictionHeuristic
     public decimal ZookeeperPredictionPenalty { get; set; }
+
+    // Path Optimization Heuristics
+    public decimal PelletClusterPlanning { get; set; }
 }

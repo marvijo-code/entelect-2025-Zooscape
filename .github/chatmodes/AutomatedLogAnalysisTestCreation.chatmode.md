@@ -16,7 +16,91 @@ name: AutomatedLogAnalysisTestCreation
 .\start-api.ps1 -Force
 ```
 
-## 2. Scenario-Based Test Creation
+## 2. Automated Weight Adjustment & Path Decision Analysis
+
+### 2.1 Automated Heuristic Weight Optimization
+
+**Goal**: Automatically detect when heuristic weights need adjustment based on bot performance patterns and failed tests.
+
+#### Step 2.1.1: Performance Pattern Detection
+
+- **Action**: Use the enhanced `GameStateInspector` with performance profiling to identify heuristics consuming excessive time (>20ms each).
+- **Command**:
+  ```powershell
+  # Profile heuristic performance in a game state
+  .\inspect-game-state.ps1 -GameStateFile "<path_to_gamestate.json>" -BotNickname "StaticHeuro" -ProfilePerformance
+  ```
+- **Analysis**: Look for heuristics exceeding their performance budget. The 200ms total limit should be distributed as:
+  - Core movement heuristics: ~100ms
+  - Safety heuristics: ~50ms  
+  - Path planning heuristics: ~30ms
+  - Bonus/penalty heuristics: ~20ms
+
+#### Step 2.1.2: Weight Conflict Detection
+
+- **Action**: Run the `HeuristicConflictAnalyzer` tool to detect when heuristics are working against each other.
+- **Command**:
+  ```powershell
+  # Analyze weight conflicts in recent games
+  dotnet run --project tools\\HeuristicConflictAnalyzer -- "logs\\<log_directory>" "StaticHeuro" --analyze-conflicts
+  ```
+- **Output**: Reports conflicting heuristic pairs and suggests weight adjustments.
+
+#### Step 2.1.3: Automated Weight Tuning
+
+- **Action**: Use the `AutoWeightTuner` to suggest optimal weight adjustments based on performance data.
+- **Command**:
+  ```powershell
+  # Generate weight adjustment suggestions
+  dotnet run --project tools\\AutoWeightTuner -- "logs\\<log_directory>" "StaticHeuro" --suggest-weights
+  ```
+- **Integration**: Tool outputs JSON patches for `heuristic-weights.json` that can be applied automatically.
+
+### 2.2 Long-Term Path Decision Error Detection
+
+**Goal**: Automatically identify cases where StaticHeuro made suboptimal long-term path decisions, particularly around pellet clusters.
+
+#### Step 2.2.1: Path Efficiency Analysis
+
+- **Action**: Run the `PathEfficiencyAnalyzer` to detect inefficient movement patterns.
+- **Command**:
+  ```powershell
+  # Analyze path efficiency over game sequences
+  dotnet run --project tools\\PathEfficiencyAnalyzer -- "logs\\<log_directory>" "StaticHeuro" --detect-inefficiencies
+  ```
+- **Detection Criteria**:
+  - Circling behavior (returning to same positions repeatedly)
+  - Ignoring large pellet clusters in favor of scattered pellets
+  - Taking longer paths when shorter ones were available
+  - Missing opportunities to collect multiple pellets in sequence
+
+#### Step 2.2.2: Cluster Targeting Analysis
+
+- **Action**: Use the `ClusterTargetingAnalyzer` to evaluate pellet cluster decision-making.
+- **Command**:
+  ```powershell
+  # Analyze cluster targeting decisions
+  dotnet run --project tools\\ClusterTargetingAnalyzer -- "logs\\<log_directory>" "StaticHeuro" --analyze-clusters
+  ```
+- **Metrics**:
+  - Cluster completion rate (% of targeted clusters fully collected)
+  - Cluster abandonment patterns (switching targets mid-collection)
+  - Optimal vs actual cluster selection (value-based ranking)
+
+#### Step 2.2.3: Automated Test Generation for Path Errors
+
+- **Action**: Automatically generate functional tests for detected path decision errors.
+- **Command**:
+  ```powershell
+  # Generate tests for path decision errors
+  .\generate-path-error-tests.ps1 -LogDirectory "logs\\<log_directory>" -BotNickname "StaticHeuro" -ErrorType "cluster_abandonment"
+  ```
+- **Test Types**:
+  - `cluster_abandonment`: Tests for premature cluster switching
+  - `inefficient_pathing`: Tests for suboptimal route selection
+  - `pellet_prioritization`: Tests for incorrect pellet value assessment
+
+## 3. Scenario-Based Test Creation
 
 This section provides guides for creating tests based on specific, interesting in-game scenarios.
 

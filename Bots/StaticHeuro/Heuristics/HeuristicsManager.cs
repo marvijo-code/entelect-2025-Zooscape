@@ -80,6 +80,7 @@ public class HeuristicsManager
             new PelletAreaControlHeuristic(),
             new PelletEfficiencyHeuristic(),
             new PelletRaceHeuristic(),
+            new PelletClusterPlanningHeuristic(),
             new PelletRatioAwarenessHeuristic(),
             new PositionalDominanceHeuristic(),
             new QuadrantAwarenessHeuristic(),

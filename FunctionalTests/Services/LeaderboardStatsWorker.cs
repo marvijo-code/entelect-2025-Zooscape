@@ -39,17 +39,35 @@ public class LeaderboardStatsWorker : BackgroundService
     {
         _logger.Information("LeaderboardStatsWorker started. Scanning logs in {LogsDir}", _logsDir);
 
+        // Warm up cache on startup
+        await WarmupCacheAsync(stoppingToken);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                var stats = await CalculateStatsAsync();
+                var stats = await CalculateStatsAsync(stoppingToken);
+                
+                // Store both fresh and stale versions for better availability
                 _cache.Set("leaderboard-stats", stats, _cacheTtl);
+                _cache.Set("leaderboard-stats-stale", stats, TimeSpan.FromMinutes(10));
+                
                 _logger.Information("Leaderboard stats updated. Bots: {Count}", stats.Count);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Error computing leaderboard stats");
+                _logger.Error(ex, "Error computing leaderboard stats. Will retry in {Interval}", _refreshInterval);
+                
+                // On error, try to extend existing cache TTL to prevent total cache miss
+                if (_cache.TryGet<List<BotStats>>("leaderboard-stats", out var existingStats) && existingStats != null)
+                {
+                    _cache.Set("leaderboard-stats", existingStats, TimeSpan.FromMinutes(1));
+                    _logger.Information("Extended existing cache TTL due to calculation error");
+                }
             }
 
             try
@@ -59,11 +77,36 @@ public class LeaderboardStatsWorker : BackgroundService
             catch (TaskCanceledException)
             {
                 // shutting down
+                break;
             }
         }
     }
 
-    private async Task<List<BotStats>> CalculateStatsAsync()
+    private async Task WarmupCacheAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            _logger.Information("Warming up leaderboard cache on startup...");
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(30)); // Limit warmup time
+            
+            var stats = await CalculateStatsAsync(cts.Token);
+            _cache.Set("leaderboard-stats", stats, _cacheTtl);
+            _cache.Set("leaderboard-stats-stale", stats, TimeSpan.FromMinutes(10));
+            
+            _logger.Information("Cache warmup completed. Bots: {Count}", stats.Count);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Warning("Cache warmup was cancelled or timed out");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to warm up cache on startup");
+        }
+    }
+
+    private async Task<List<BotStats>> CalculateStatsAsync(CancellationToken cancellationToken = default)
     {
         var botStats = new Dictionary<string, BotStats>();
 
@@ -80,6 +123,8 @@ public class LeaderboardStatsWorker : BackgroundService
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                
                 var logFiles = Directory.GetFiles(runDir, "*.json")
                                          .Select(f => new { Path = f, Number = int.Parse(Path.GetFileNameWithoutExtension(f)) })
                                          .OrderBy(f => f.Number)
@@ -90,7 +135,8 @@ public class LeaderboardStatsWorker : BackgroundService
                 var perBotMaxCaptures = new Dictionary<string, int>();
                 foreach (var logFile in logFiles)
                 {
-                    var json = await File.ReadAllTextAsync(logFile.Path);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var json = await File.ReadAllTextAsync(logFile.Path, cancellationToken);
                     JsonDocument doc;
                     try
                     {
@@ -116,7 +162,7 @@ public class LeaderboardStatsWorker : BackgroundService
 
                 // Use final tick for finishing order (wins / second places)
                 var finalLogPath = logFiles.Last().Path;
-                var finalJson = await File.ReadAllTextAsync(finalLogPath);
+                var finalJson = await File.ReadAllTextAsync(finalLogPath, cancellationToken);
                 JsonDocument finalDoc;
                 try
                 {
