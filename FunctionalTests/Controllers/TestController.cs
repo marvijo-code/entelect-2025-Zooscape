@@ -505,10 +505,17 @@ public class TestController : ControllerBase
             var getActionMethod = bot.GetType().GetMethod("GetAction", new[] { typeof(GameState), typeof(string) });
             if (getActionMethod == null)
             {
-                throw new InvalidOperationException($"Bot of type {bot.GetType().Name} does not have a GetAction(GameState, string) method.");
+                // Fallback for bots that may not have the overload with animalId
+                getActionMethod = bot.GetType().GetMethod("GetAction", new[] { typeof(GameState) });
+                if (getActionMethod == null)
+                {
+                    throw new InvalidOperationException($"Bot of type {bot.GetType().Name} does not have a suitable GetAction method.");
+                }
             }
 
-            var actionObject = getActionMethod.Invoke(bot, new object[] { gameState, animal.Id });
+            var actionObject = getActionMethod.GetParameters().Length == 2
+                ? getActionMethod.Invoke(bot, new object[] { gameState, animal.Id })
+                : getActionMethod.Invoke(bot, new object[] { gameState });
             if (actionObject is not BotAction action)
             {
                 throw new InvalidOperationException("GetAction method did not return a BotAction.");

@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Threading;
 using StaticHeuro;
 using StaticHeuro.GeneticAlgorithm;
 using Marvijo.Zooscape.Bots.Common.Enums;
@@ -98,6 +99,7 @@ public class Program
             var botService = new HeuroBotService(Log.Logger);
             BotCommand? command = null;
             BotAction? lastSentAction = null;
+            bool shouldSendCommand = true;
 
             // Timing variables for performance monitoring
             Stopwatch? gameStateStopwatch = null;
@@ -119,6 +121,9 @@ public class Program
                 "GameState",
                 async state =>
                 {
+                    // Reset shouldSendCommand for each game state
+                    shouldSendCommand = true;
+                    
                     // Add comprehensive null checks for GameState
                     if (state == null)
                     {
@@ -184,25 +189,26 @@ public class Program
 
                         command = botService.ProcessState(state);
 
-                        // Skip sending redundant commands if we're already moving in that direction and the path is clear
+                        // Check if we should skip sending redundant commands
                         if (command != null && lastSentAction.HasValue && command.Action == lastSentAction.Value && myAnimal != null)
                         {
                             var (nextX, nextY) = BotUtils.ApplyMove(myAnimal.X, myAnimal.Y, command.Action);
                             if (BotUtils.IsTraversable(state, nextX, nextY))
                             {
                                 Log.Debug("Skipping redundant action {Action} at tick {Tick} - already moving and path clear.", command.Action, currentTick);
-                                command = null;
+                                shouldSendCommand = false;
                             }
                         }
 
-                        // Ensure command is not null
+                        // Ensure command is not null (this should never happen with proper ProcessState implementation)
                         if (command == null)
                         {
-                            Log.Warning(
-                                "BotService.ProcessState returned null command for tick {Tick}. Using fallback.",
+                            Log.Error(
+                                "BotService.ProcessState returned null command for tick {Tick}. This indicates a serious bug in ProcessState method.",
                                 currentTick
                             );
                             command = new BotCommand { Action = BotAction.Up };
+                            shouldSendCommand = true; // Always send fallback commands
                         }
                     }
                     catch (Exception ex)
@@ -239,8 +245,9 @@ public class Program
                     }
 
                     // Log processing time immediately after getting the command
-                    var localStopwatch = gameStateStopwatch; // capture reference to avoid concurrency issues
+                    // Use thread-safe approach to avoid null reference exceptions
                     long processingTimeMs;
+                    var localStopwatch = Interlocked.Exchange(ref gameStateStopwatch, null);
                     if (localStopwatch != null)
                     {
                         localStopwatch.Stop();
@@ -249,7 +256,7 @@ public class Program
                     else
                     {
                         processingTimeMs = -1; // Indicates stopwatch was unexpectedly null
-                        Log.Warning("gameStateStopwatch was null when attempting to stop at tick {Tick}.", currentTick);
+                        Log.Warning("gameStateStopwatch was null when attempting to stop at tick {Tick}. This may indicate a concurrency issue.", currentTick);
                     }
 
                     // Get current position for logging (using existing myAnimal)
@@ -383,7 +390,7 @@ public class Program
             // Handler for game completion
             connection.On<int, int>(
                 "EndGame",
-                async (seed, totalTicks) =>
+                (seed, totalTicks) =>
                 {
                     Log.Information($"EndGame received: Seed={seed}, TotalTicks={totalTicks}");
 
@@ -546,6 +553,7 @@ public class Program
                     command != null
                     && command.Action >= BotAction.Up
                     && command.Action <= BotAction.Right
+                    && shouldSendCommand
                 )
                 {
                     // Calculate total time from game state received to action sent
@@ -554,7 +562,7 @@ public class Program
                         : -1;
 
                     await connection.SendAsync("BotCommand", command);
-                        lastSentAction = command.Action;
+                    lastSentAction = command.Action;
                     Log.Debug(
                         $"Sent BotCommand: {command.Action} at {DateTime.UtcNow:HH:mm:ss.fff} for tick {currentTick}"
                     );

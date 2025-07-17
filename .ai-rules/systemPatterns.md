@@ -1,5 +1,22 @@
 # System Patterns & Debugging Methodologies
 
+## 🚨 CRITICAL WORKFLOW REQUIREMENT 🚨
+
+**BEFORE ANY DEBUGGING, TESTING, OR LOG ANALYSIS WORK:**
+
+**YOU MUST FIRST READ THE ENTIRE FILE:** `.github/chatmodes/AutomatedLogAnalysisTestCreation.chatmode.md`
+
+This file contains the complete workflow for:
+- Log analysis using CaptureAnalysis tool
+- Game state inspection using GameStateInspector
+- Proper test creation methodology
+- Debugging loop for resolving test failures
+- API usage patterns and troubleshooting
+
+**Following this workflow is MANDATORY for all bot debugging and testing tasks.**
+
+---
+
 ## System Build
 
 - The system consists of a central game engine and multiple bot processes.

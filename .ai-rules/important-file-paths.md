@@ -1,5 +1,14 @@
 # Important File Paths
 
+## 🚨 CRITICAL WORKFLOW FILE 🚨
+
+**MOST IMPORTANT FILE FOR DEBUGGING/TESTING:**
+- `AutomatedLogAnalysisTestCreation_Workflow`: .github/chatmodes/AutomatedLogAnalysisTestCreation.chatmode.md
+
+**YOU MUST READ THIS FILE FIRST before any debugging, testing, or log analysis work!**
+
+---
+
 This file tracks important and frequently accessed file paths within the project.
 
 ## AdvancedMCTSBot (C++)

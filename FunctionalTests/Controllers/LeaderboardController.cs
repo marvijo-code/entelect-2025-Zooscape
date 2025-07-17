@@ -304,7 +304,7 @@ public class LeaderboardController : ControllerBase
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 
-                var content = await File.ReadAllTextAsync(logFile.Path, cancellationToken);
+                var content = await System.IO.File.ReadAllTextAsync(logFile.Path, cancellationToken);
                 if (string.IsNullOrEmpty(content)) continue;
                 
                 try
@@ -332,7 +332,7 @@ public class LeaderboardController : ControllerBase
             }
 
             // Get final ranking from last file
-            var fileContent = await File.ReadAllTextAsync(finalLogPath, cancellationToken);
+            var fileContent = await System.IO.File.ReadAllTextAsync(finalLogPath, cancellationToken);
             var gameState = JsonSerializer.Deserialize<JsonElement>(fileContent);
 
             if (!gameState.TryGetProperty("Animals", out var animalsElement))

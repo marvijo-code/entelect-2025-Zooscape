@@ -1,0 +1,9 @@
+{
+  "TestName": "StaticHeuro_AvoidCapture_274",
+  "Description": "Test capture avoidance at tick 274 - bot at (5,28) with zookeeper at (5,27), should move Up away from danger instead of Down toward it",
+  "GameStateFile": "274.json",
+  "TestType": "SingleBot",
+  "BotNickname": "StaticHeuro",
+  "AcceptableActions": [1, 3],
+  "ExpectedAction": 1
+}

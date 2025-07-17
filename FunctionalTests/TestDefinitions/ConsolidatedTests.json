@@ -724,5 +724,36 @@
     "TestType": "MultiBotArray",
     "TickOverride": false,
     "Bots": []
+  },
+  {
+    "TestName": "StaticHeuro_AdjacentPellet_953",
+    "GameStateFile": "953.json",
+    "Description": "Test StaticHeuro bot at position (5,43) with adjacent pellet to the RIGHT. Bot should collect the pellet by moving Right. This verifies the bot doesn\u0027t miss pellet collection opportunities.",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": "Right",
+    "AcceptableActions": [
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_AvoidCapture_274",
+    "GameStateFile": "274_0.json",
+    "Description": "Test capture avoidance at tick 274 - bot should move Up away from zookeeper at (5,27)",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Up",
+      "Down"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
   }
 ]

@@ -1,5 +1,22 @@
 # Generalized Test Creation System
 
+## CRITICAL REQUIREMENT
+
+**BEFORE STARTING ANY DEBUGGING, TESTING, OR LOG ANALYSIS WORK:**
+
+**YOU MUST FIRST READ THE ENTIRE FILE:** `.github/chatmodes/AutomatedLogAnalysisTestCreation.chatmode.md`
+
+This file contains the complete workflow for:
+- Log analysis using CaptureAnalysis tool
+- Game state inspection using GameStateInspector
+- Proper test creation methodology
+- Debugging loop for resolving test failures
+- API usage patterns and troubleshooting
+
+**Failure to follow this workflow will result in inefficient debugging and missed critical steps.**
+
+---
+
 This system provides a flexible way to create automated tests for bot behavior analysis using PowerShell scripts.
 
 ## Files

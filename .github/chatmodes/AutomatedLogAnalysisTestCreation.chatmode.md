@@ -5,6 +5,17 @@ name: AutomatedLogAnalysisTestCreation
 
 # Automated Log Analysis & Test Creation Workflow
 
+## 🚨 CRITICAL: READ THIS ENTIRE FILE FIRST 🚨
+
+> [!IMPORTANT]
+> **BEFORE STARTING ANY DEBUGGING, TESTING, OR LOG ANALYSIS WORK:**
+> 
+> **YOU MUST READ THIS ENTIRE FILE FROM START TO FINISH**
+> 
+> This workflow has been battle-tested through real debugging scenarios like the StaticHeuro bot capture avoidance fix. Following this complete workflow prevents inefficient debugging, missed critical steps, and interface compatibility issues.
+> 
+> **This is not optional - it's mandatory for all bot debugging and testing tasks.**
+
 ## 1. The Golden Rule: Always Restart the API
 
 > [!IMPORTANT]
@@ -16,7 +27,77 @@ name: AutomatedLogAnalysisTestCreation
 .\start-api.ps1 -Force
 ```
 
-## 2. Automated Weight Adjustment & Path Decision Analysis
+## 2. Lessons Learned: StaticHeuro Pellet Collection Debug (2025-07-17)
+
+### Key File Paths for Bot Debugging
+
+**Critical Files for StaticHeuro Bot:**
+- **Main Bot Logic**: `c:\dev\2025-Zooscape\Bots\StaticHeuroBot\Program.cs`
+- **Heuristic Weights**: `c:\dev\2025-Zooscape\Bots\StaticHeuroBot\heuristic-weights.json`
+- **Bot Service**: `c:\dev\2025-Zooscape\Bots\StaticHeuroBot\Services\HeuroBotService.cs`
+- **Functional Tests**: `c:\dev\2025-Zooscape\FunctionalTests\TestDefinitions\ConsolidatedTests.json`
+- **Game States**: `c:\dev\2025-Zooscape\FunctionalTests\GameStates\*.json`
+- **Test Framework**: `c:\dev\2025-Zooscape\FunctionalTests\JsonDrivenTests.cs`
+- **Test Loader**: `c:\dev\2025-Zooscape\FunctionalTests\Services\TestDefinitionLoader.cs`
+
+**Heuristic Implementation Files:**
+- **Base Directory**: `c:\dev\2025-Zooscape\Marvijo.Zooscape.Bots.Common\Heuristics\`
+- **Key Heuristics**: `PelletEfficiencyHeuristic.cs`, `WallCollisionRiskHeuristic.cs`, `CaptureAvoidanceHeuristic.cs`
+
+### Debugging Workflow for Adjacent Pellet Issues
+
+**Step 1: Identify the Problem**
+```powershell
+# Run functional tests to see current failures
+cd c:\dev\2025-Zooscape\FunctionalTests
+dotnet test --filter "FullyQualifiedName~StaticHeuro"
+```
+
+**Step 2: Analyze Specific Game State**
+```powershell
+# Use GameStateInspector to understand bot's decision-making
+cd c:\dev\2025-Zooscape\tools\GameStateInspector
+dotnet run -- "..\..\FunctionalTests\GameStates\953.json" "StaticHeuro"
+```
+
+**Step 3: Check Heuristic Balance**
+- Look for **WallCollisionRisk** penalties outweighing **PelletEfficiency** rewards
+- **ImmediatePelletBonus** should be high enough (500+) to override other penalties
+- **PelletEfficiencyHeuristic** should return immediate bonus when landing on pellets
+
+**Step 4: Create Targeted Test**
+- Add test definition to `ConsolidatedTests.json`
+- Use specific game state where bot has adjacent pellet
+- Verify expected action matches actual bot decision
+
+**Step 5: Common Fixes**
+- **Scope Issues**: Move variable declarations to broader scope in `Program.cs`
+- **Bot ID Issues**: Remove duplicate `SetBotId` methods in bot services
+- **Heuristic Balance**: Increase pellet rewards, decrease wall collision penalties
+- **Compilation**: Fix ambiguous references (e.g., `System.IO.File` vs `File`)
+
+### Performance Tips
+
+**Fast Test Execution:**
+```powershell
+# Run only StaticHeuro tests
+dotnet test --filter "FullyQualifiedName~StaticHeuro" --logger "console;verbosity=minimal"
+
+# Run specific test by name (if framework supports it)
+dotnet test --filter "TestName~StaticHeuro_AdjacentPellet_953"
+```
+
+**Quick Heuristic Weight Changes:**
+- Edit `heuristic-weights.json` directly
+- **Always restart API** after changes: `.\.\start-api.ps1 -Force`
+- Test changes immediately with targeted functional test
+
+**Debugging Compilation Issues:**
+- Check for duplicate method definitions
+- Verify `using` statements are complete
+- Look for variable scope issues in bot's main loop
+
+## 3. Automated Weight Adjustment & Path Decision Analysis
 
 ### 2.1 Automated Heuristic Weight Optimization
 
@@ -234,6 +315,28 @@ If a test fails, follow this exact sequence to debug and fix the issue:
 | **Code changes don't work** | You forgot to restart the API. Run `.\start-api.ps1 -Force`. |
 | **Parameter error on `create_test.ps1`** | You used the wrong parameter name or format. Refer to the template in Step 3. Common mistakes are `-AcceptableMoves` (wrong) vs. `-AcceptableActions` (correct) or `-TestDescription` (wrong) vs. `-Description` (correct). |
 | **Test fails on "Illegal Move"** | The `AcceptableActions` in your test are wrong. Re-run the `GameStateInspector` (Step 1.2) to get the correct legal moves. |
+| **"Bot does not have a GetAction(GameState, string) method"** | TestController missing fallback for single-parameter GetAction. Add same fallback logic from JsonDrivenTests.cs to TestController.cs (lines 505-515). Critical fix discovered during StaticHeuro debugging. |
 | **Connection Refused** | The API is not running. Run `.\start-api.ps1` from the project root to start it. |
 | **`command not found` error** | You are in the wrong directory. All `.ps1` scripts must be run from the project root. Use `cd ..` to navigate up. |
 | **`-File` parameter does not exist** | The path to the `.ps1` file was not quoted, causing backslashes to be misinterpreted. Wrap the full path in quotes. Example: `powershell -File '.\start-api.ps1'` |
+
+## 7. Key Lessons Learned from StaticHeuro Bot Debugging
+
+### Critical Success Factors
+1. **Follow the Complete Workflow** – The StaticHeuro capture-avoidance fix succeeded because we followed every step systematically.
+2. **CaptureAnalysis is Essential** – Revealed multiple avoidable captures that manual log review would have missed.
+3. **GameStateInspector Before Testing** – Understanding game context prevented creation of incorrect tests.
+4. **Debugging Loop Works** – The analyse → fix → restart API → re-run cycle resolved interface issues efficiently.
+5. **TestController Interface Fix** – Added fallback mechanism for `GetAction` method signatures – critical for API compatibility.
+
+### What Made This Workflow Effective
+- **Root-Cause Analysis**: CaptureAnalysis exposed heuristic weight imbalances, not logic errors.
+- **Targeted Testing**: Created a specific test for tick 274 failure point.
+- **Systematic Verification**: API-driven test execution confirmed fix effectiveness.
+- **Thorough Documentation**: All changes and findings recorded for future reference.
+
+### Time-Saving Insights
+- Always **restart the API** after ANY code changes (most common mistake).
+- Use **targeted functional tests** for rapid iteration.
+- GameStateInspector output maps directly to test-creation parameters.
+- TestController fallback mechanism prevents interface compatibility issues.

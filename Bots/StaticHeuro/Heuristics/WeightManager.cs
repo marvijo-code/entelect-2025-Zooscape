@@ -12,10 +12,6 @@ public static class WeightManager
     private static DateTime _lastWeightsUpdate = DateTime.MinValue;
     private static readonly TimeSpan _updateInterval = TimeSpan.FromSeconds(30); // Update weights every 30 seconds
 
-    // Cache to avoid querying coordinator on every tick (and spamming logs)
-    private static HeuristicWeights? _cachedWeights;
-    private static Guid? _cachedIndividualId;
-
     static WeightManager()
     {
         LoadStaticWeights();
@@ -41,7 +37,6 @@ public static class WeightManager
 
                 // Always return static weights - evolution system disabled
                 var staticWeights = _staticWeights ?? new HeuristicWeights();
-                Console.WriteLine("Using static weights from heuristic-weights.json (evolution disabled)");
                 return staticWeights;
             }
             catch (Exception ex)
@@ -98,7 +93,7 @@ public static class WeightManager
                 {
                     PropertyNameCaseInsensitive = true
                 }) ?? new HeuristicWeights();
-                Console.WriteLine("Static heuristic weights loaded successfully as fallback");
+                Console.WriteLine("Using static weights from heuristic-weights.json (evolution disabled)");
             }
             else
             {

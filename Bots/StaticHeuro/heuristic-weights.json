@@ -10,7 +10,7 @@
   "VisitPenalty": -100.0,
   "UnexploredQuadrantBonus": 2.0,
   "ZookeeperPrediction": -1.5,
-  "CaptureAvoidance": 2.5,
+  "CaptureAvoidance": 10.0,
   "CaptureAvoidancePenaltyFactor": 1500.0,
   "CaptureAvoidanceRewardFactor": 150.0,
   "SpawnProximity": -0.6,

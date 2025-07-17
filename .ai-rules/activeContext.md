@@ -1,8 +1,25 @@
-# Active Context: GameState 13 Analysis & Testing - COMPLETED ✅
+# Active Context: StaticHeuro Bot Capture Avoidance Fix - COMPLETED ✅
+
+## 🚨 CRITICAL WORKFLOW REQUIREMENT 🚨
+
+**BEFORE ANY DEBUGGING, TESTING, OR LOG ANALYSIS WORK:**
+
+**YOU MUST FIRST READ THE ENTIRE FILE:** `.github/chatmodes/AutomatedLogAnalysisTestCreation.chatmode.md`
+
+This file contains the complete workflow for:
+- Log analysis using CaptureAnalysis tool
+- Game state inspection using GameStateInspector
+- Proper test creation methodology
+- Debugging loop for resolving test failures
+- API usage patterns and troubleshooting
+
+**Following this workflow is MANDATORY for all bot debugging and testing tasks.**
+
+---
 
 ## Task Status: SUCCESSFULLY COMPLETED ✅
 
-**ENHANCEMENT COMPLETED:** Added comprehensive GameState 13 analysis with `--analyze-move` functionality and created functional tests.
+**ENHANCEMENT COMPLETED:** Fixed StaticHeuro bot capture avoidance issue using proper AutomatedLogAnalysisTestCreation.chatmode.md workflow.
 
 ## GameState 13 Analysis Results ✅
 

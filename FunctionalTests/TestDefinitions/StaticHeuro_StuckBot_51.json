@@ -1,0 +1,17 @@
+{
+  "TestName": "StaticHeuro_StuckBot_51",
+  "GameStateFile": "StaticHeuro_StuckBot_51.json",
+  "Description": "Test StaticHeuro bot stuck at position (11,11) on tick 51. Bot should move in any direction as legal moves are available (Up, Right, Down) with pellets within 3 steps in multiple directions. This test reproduces the root cause failure where the bot was not moving despite having legal moves and nearby pellets.",
+  "BotNickname": "StaticHeuro",
+  "ExpectedAction": null,
+  "AcceptableActions": [
+    "Up",
+    "Right", 
+    "Down"
+  ],
+  "TestType": "SingleBot",
+  "TickOverride": false,
+  "Bots": [
+    "StaticHeuro"
+  ]
+}
