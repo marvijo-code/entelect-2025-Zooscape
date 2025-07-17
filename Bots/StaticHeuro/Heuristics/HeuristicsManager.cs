@@ -30,7 +30,9 @@ public class HeuristicsManager
 {
     private readonly ILogger _logger;
     private readonly List<IHeuristic> _heuristics;
+    private readonly List<IHeuristic> _essentialHeuristics;
     private readonly HeuristicWeights _weights;
+    private const int EARLY_TICK_THRESHOLD = 5; // Use essential heuristics only for first 5 ticks
 
     public HeuristicsManager(ILogger logger, HeuristicWeights weights)
     {
@@ -107,6 +109,19 @@ public class HeuristicsManager
             new UseItemHeuristic(),
         ];
 
+        // Essential heuristics for early tick performance optimization
+        _essentialHeuristics =
+        [
+            new CaptureAvoidanceHeuristic(),
+            new WallCollisionRiskHeuristic(),
+            new PelletEfficiencyHeuristic(),
+            new LineOfSightPelletsHeuristic(),
+            new MoveIfIdleHeuristic(),
+            new ReverseMovePenaltyHeuristic(),
+            new EarlyGameZookeeperAvoidanceHeuristic(),
+            new EmptyCellAvoidanceHeuristic()
+        ];
+
         _logger.Information("Heuristics instance created with {HeuristicCount} heuristics.", _heuristics.Count);
     }
 
@@ -136,7 +151,16 @@ public class HeuristicsManager
         decimal totalScore = 0m;
         var detailedScoreEntries = new List<HeuristicScoreDetail>();
 
-        foreach (var heuristic in _heuristics)
+        // Use essential heuristics only for early ticks to improve performance
+        var heuristicsToUse = state.Tick <= EARLY_TICK_THRESHOLD ? _essentialHeuristics : _heuristics;
+        
+        if (logHeuristicScores && state.Tick <= EARLY_TICK_THRESHOLD)
+        {
+            _logger.Information("Early tick optimization: Using {EssentialCount} essential heuristics instead of {TotalCount} for tick {Tick}", 
+                _essentialHeuristics.Count, _heuristics.Count, state.Tick);
+        }
+
+        foreach (var heuristic in heuristicsToUse)
         {
             try
             {

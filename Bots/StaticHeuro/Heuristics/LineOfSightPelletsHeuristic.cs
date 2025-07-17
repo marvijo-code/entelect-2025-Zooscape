@@ -1,5 +1,6 @@
 #pragma warning disable SKEXP0110
 using System.Linq;
+using System.Collections.Generic;
 using Marvijo.Zooscape.Bots.Common;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
@@ -13,20 +14,30 @@ public class LineOfSightPelletsHeuristic : IHeuristic
 
     public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
-        // Get current position from context
+        // Determine the direction we are moving in based on current vs next position.
         var currentPos = (heuristicContext.CurrentAnimal.X, heuristicContext.CurrentAnimal.Y);
         var action = GetActionFromPositions(currentPos, heuristicContext.MyNewPosition);
-        
+
         if (action == BotAction.UseItem)
         {
-            return 0; // No pellets to count for item usage
+            return 0m; // Not a movement action – nothing to evaluate.
         }
 
-        // Count pellets in the direction of movement from new position
+        // Build a hash-set of pellet coordinates for O(1) look-ups.
+        var pelletPositions = heuristicContext.CurrentGameState.Cells
+            .Where(c => c.Content == CellContent.Pellet)
+            .Select(c => (c.X, c.Y))
+            .ToHashSet();
+
+        if (pelletPositions.Count == 0)
+        {
+            return 0m; // No pellets on the board.
+        }
+
         int pelletsInDirection = CountPelletsInDirection(
-            heuristicContext.CurrentGameState, 
-            heuristicContext.MyNewPosition, 
-            action
+            heuristicContext.MyNewPosition,
+            action,
+            pelletPositions
         );
 
         return pelletsInDirection * heuristicContext.Weights.LineOfSightPellets;
@@ -47,7 +58,7 @@ public class LineOfSightPelletsHeuristic : IHeuristic
         };
     }
 
-    private int CountPelletsInDirection(GameState gameState, (int x, int y) startPos, BotAction direction)
+    private static int CountPelletsInDirection((int x, int y) startPos, BotAction direction, HashSet<(int X, int Y)> pelletPositions)
     {
         int dx = 0, dy = 0;
         
@@ -73,19 +84,10 @@ public class LineOfSightPelletsHeuristic : IHeuristic
         int currentX = startPos.x + dx;
         int currentY = startPos.y + dy;
 
-        // Count consecutive pellets in the direction until we hit a non-pellet
-        while (true)
+        // Continue stepping along the ray until we hit a cell that is not a pellet
+        while (pelletPositions.Contains((currentX, currentY)))
         {
-            var cell = gameState.Cells.FirstOrDefault(c => c.X == currentX && c.Y == currentY);
-            
-            // Stop if we hit a boundary (null cell) or any non-pellet content
-            if (cell == null || cell.Content != CellContent.Pellet)
-                break;
-                
-            // Count this pellet
             pelletsFound++;
-
-            // Move to next position in the same direction
             currentX += dx;
             currentY += dy;
         }

@@ -99,6 +99,9 @@ public class Program
             var botService = new HeuroBotService(Log.Logger);
             BotCommand? command = null;
             BotAction? lastSentAction = null;
+            // Track the last known position of my animal to verify actual movement
+            int lastAnimalX = -1;
+            int lastAnimalY = -1;
             bool shouldSendCommand = true;
 
             // Timing variables for performance monitoring
@@ -189,13 +192,27 @@ public class Program
 
                         command = botService.ProcessState(state);
 
-                        // Check if we should skip sending redundant commands
-                        if (command != null && lastSentAction.HasValue && command.Action == lastSentAction.Value && myAnimal != null)
+                        // Skip sending redundant commands only if the animal **has already moved** in the same
+                        // direction and the path ahead remains clear.  This prevents the bot from getting stuck
+                        // when the first command was not executed (e.g. due to latency) but we still detect the
+                        // same best action on the following tick.
+                        if (
+                            command != null &&
+                            lastSentAction.HasValue &&
+                            command.Action == lastSentAction.Value &&
+                            myAnimal != null &&
+                            // Verify that the animal has physically moved since the last tick
+                            !(myAnimal.X == lastAnimalX && myAnimal.Y == lastAnimalY)
+                        )
                         {
                             var (nextX, nextY) = BotUtils.ApplyMove(myAnimal.X, myAnimal.Y, command.Action);
                             if (BotUtils.IsTraversable(state, nextX, nextY))
                             {
-                                Log.Debug("Skipping redundant action {Action} at tick {Tick} - already moving and path clear.", command.Action, currentTick);
+                                Log.Debug(
+                                    "Skipping redundant action {Action} at tick {Tick} - already moving and path clear.",
+                                    command.Action,
+                                    currentTick
+                                );
                                 shouldSendCommand = false;
                             }
                         }
@@ -209,6 +226,13 @@ public class Program
                             );
                             command = new BotCommand { Action = BotAction.Up };
                             shouldSendCommand = true; // Always send fallback commands
+                        }
+
+                        // Update last known position after we have processed this tick
+                        if (myAnimal != null)
+                        {
+                            lastAnimalX = myAnimal.X;
+                            lastAnimalY = myAnimal.Y;
                         }
                     }
                     catch (Exception ex)
@@ -247,10 +271,15 @@ public class Program
                     // Log processing time immediately after getting the command
                     // Use thread-safe approach to avoid null reference exceptions
                     long processingTimeMs;
-                    var localStopwatch = Interlocked.Exchange(ref gameStateStopwatch, null);
-                    if (localStopwatch != null)
+                    var localStopwatch = gameStateStopwatch;
+                    if (localStopwatch != null && localStopwatch.IsRunning)
                     {
                         localStopwatch.Stop();
+                        processingTimeMs = localStopwatch.ElapsedMilliseconds;
+                    }
+                    else if (localStopwatch != null)
+                    {
+                        // Stopwatch exists but was already stopped
                         processingTimeMs = localStopwatch.ElapsedMilliseconds;
                     }
                     else
@@ -273,8 +302,8 @@ public class Program
                         score
                     );
 
-                    // Warn if processing took longer than expected (170ms threshold)
-                    if (processingTimeMs > 170)
+                    // Warn if processing took longer than expected (180ms threshold)
+                    if (processingTimeMs > 180)
                     {
                         Log.Warning(
                             "SLOW T{Tick} {Position} {Action} {Duration}ms - Performance issue!",
@@ -575,11 +604,11 @@ public class Program
                             currentTick
                         );
 
-                        // Warn about potentially problematic response times (170ms threshold)
-                        if (totalTimeMs > 170)
+                        // Warn about potentially problematic response times (180ms threshold)
+                        if (totalTimeMs > 180)
                         {
                             Log.Warning(
-                                "TIMEOUT RISK: Total response time {TotalTime}ms exceeds 170ms threshold for tick {Tick}, action: {Action}",
+                                "TIMEOUT RISK: Total response time {TotalTime}ms exceeds 180ms threshold for tick {Tick}, action: {Action}",
                                 totalTimeMs,
                                 currentTick,
                                 command.Action
@@ -596,9 +625,12 @@ public class Program
                         }
                     }
 
+                    // Update last known position after we have processed this tick
+                    // Note: Position tracking moved inside try block where state is accessible
+
                     // Reset timing variables after sending
                     gameStateReceivedTime = null;
-                    gameStateStopwatch = null;
+                    // Note: gameStateStopwatch is not reset to null to avoid race conditions
                 }
                 command = null;
                 await Task.Delay(100);

@@ -453,12 +453,12 @@ public class HeuroBotService : IBot<HeuroBotService>
             currentTick
         );
 
-        if (heuristicTimeMs > 170)
+        if (heuristicTimeMs > 180)
         {
             _logger.Warning(
                 "Heuristic evaluation took {ElapsedTime}ms (>{Threshold}ms) for {ActionCount} actions on tick {Tick}, chosen action: {Action} - performance issue detected",
                 heuristicTimeMs,
-                170,
+                180,
                 legalActions.Count,
                 currentTick,
                 bestAction
@@ -556,7 +556,7 @@ public class HeuroBotService : IBot<HeuroBotService>
             totalTimeMs
         );
 
-        if (totalTimeMs > 170)
+        if (totalTimeMs > 180)
         {
             _logger.Warning(
                 "SLOW Heuristics T{Tick} {Action} {Duration}ms - stuck behavior detected",
@@ -621,7 +621,7 @@ public class HeuroBotService : IBot<HeuroBotService>
             );
         }
 
-        if (elapsedMs > 170)
+        if (elapsedMs > 180)
         {
             _logger.Warning(
                 "SLOW ProcessState T{Tick} {Action} {Duration}ms - performance issue",

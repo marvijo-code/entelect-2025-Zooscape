@@ -755,5 +755,35 @@
     "Bots": [
       "StaticHeuro"
     ]
+  },
+  {
+    "TestName": "StaticHeuro_PelletIgnore_Tick8",
+    "GameStateFile": "8_pellet_ignore.json",
+    "Description": "Test StaticHeuro at tick 8 - bot at (3,43) should choose Up to collect immediate pellet instead of ignoring it",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": "Up",
+    "AcceptableActions": [
+      "Up"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_PelletIgnore_Tick16",
+    "GameStateFile": "16_pellet_ignore.json",
+    "Description": "Test StaticHeuro at tick 16 - bot at (1,39) should choose Right to collect immediate pellet instead of ignoring it",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": "Right",
+    "AcceptableActions": [
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
   }
 ]
