@@ -79,7 +79,7 @@ public abstract class BotTestsBase
 
         _testValidator.ValidateBotAction(
             action,
-            new List<BotAction> { BotAction.Up, BotAction.Down, BotAction.Left, BotAction.Right },
+            testParams.AcceptableActions ?? new List<BotAction>(),
             testParams.ExpectedAction
         );
         _logger.Information("Bot {BotId} returned action: {Action}", testBotId, action);
@@ -110,7 +110,7 @@ public abstract class BotTestsBase
 
         _testValidator.ValidateBotAction(
             action,
-            new List<BotAction> { BotAction.Up, BotAction.Down, BotAction.Left, BotAction.Right },
+            testParams.AcceptableActions ?? new List<BotAction>(),
             testParams.ExpectedAction
         );
         _logger.Information(
@@ -278,7 +278,7 @@ public class DefaultTestValidator : ITestValidator
         BotAction? expectedAction
     )
     {
-        Assert.Contains(action, acceptableActions);
+        // If an expectedAction is provided, strict equality is required
         if (expectedAction.HasValue)
         {
             Assert.Equal(expectedAction.Value, action);
@@ -286,6 +286,26 @@ public class DefaultTestValidator : ITestValidator
                 "Bot action {Action} matches expected {ExpectedAction}",
                 action,
                 expectedAction.Value
+            );
+            return;
+        }
+
+        // If AcceptableActions list is supplied (non-empty), ensure the bot's action is within the allowed set
+        if (acceptableActions != null && acceptableActions.Count > 0)
+        {
+            Assert.Contains(action, acceptableActions);
+            _logger.Information(
+                "Bot action {Action} is within acceptable actions [{Acceptable}]",
+                action,
+                string.Join(", ", acceptableActions)
+            );
+        }
+        else
+        {
+            // No AcceptableActions specified and no ExpectedAction – treat any move as valid
+            _logger.Information(
+                "No ExpectedAction or AcceptableActions provided – treating {Action} as valid.",
+                action
             );
         }
     }

@@ -221,12 +221,13 @@ public class Program
                     ticksPlayed++; // Count total ticks played
 
                     // Only track performance if bot is registered and has valid ID
-                    if (botService.BotId != Guid.Empty && state.Animals != null)
+                    var botId = botService?.BotId ?? Guid.Empty;
+                    if (botId != Guid.Empty && state.Animals != null)
                     {
                         // Reuse existing myAnimal instead of re-querying
                         if (myAnimal == null)
                         {
-                            myAnimal = state.Animals.FirstOrDefault(a => a.Id == botService.BotId);
+                            myAnimal = state.Animals.FirstOrDefault(a => a.Id == botId);
                         }
 
                         if (myAnimal != null)

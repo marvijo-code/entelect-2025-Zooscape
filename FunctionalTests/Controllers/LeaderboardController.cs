@@ -28,23 +28,18 @@ public class LeaderboardController : ControllerBase
     }
 
     [HttpGet("stats")]
-    public IActionResult GetLeaderboardStats()
+    public async Task<IActionResult> GetLeaderboardStats()
     {
-        // Return cached leaderboard if available; otherwise quick empty array to keep endpoint snappy.
-
-        if (!Directory.Exists(_logsDir))
-        {
-            _logger.Warning("Logs directory not found at {LogsDir}", _logsDir);
-            return Ok(new List<BotStats>());
-        }
-
+        // Fast-path: serve cached value when available
         if (_cache.TryGet("leaderboard-stats", out List<BotStats>? leaderboard) && leaderboard is not null)
         {
             return Ok(leaderboard);
         }
 
-        // If cache not ready yet, return empty list quickly.
-        return Ok(new List<BotStats>());
+        // When the cache is not ready yet we calculate on-demand by delegating to the
+        // same aggregation routine used by the "stats-full" endpoint. This guarantees
+        // that the frontend never receives an empty array after a fresh API start.
+        return await GetLeaderboardStatsFull();
     }
 
     [HttpGet("stats-full")]

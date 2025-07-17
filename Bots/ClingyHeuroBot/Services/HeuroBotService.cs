@@ -25,8 +25,10 @@ public class HeuroBotService : IBot<HeuroBotService>
 
     public BotCommand ProcessState(GameState state)
     {
-        // Identify this bot's animal
-        var me = state.Animals.First(a => a.Id == BotId);
+        // Identify this bot's animal; if BotId not present, default to first animal in list
+        var me = state.Animals.FirstOrDefault(a => a.Id == BotId) ?? state.Animals.First();
+        if (BotId == Guid.Empty)
+            BotId = me.Id;
 
         // Update visit count for current cell
         var currentPos = (me.X, me.Y);

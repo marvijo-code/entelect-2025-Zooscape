@@ -204,7 +204,7 @@ public class Individual
                 File.WriteAllText(filePath, json);
                 return; // Success, exit retry loop
             }
-            catch (IOException ex) when (retry < maxRetries - 1)
+            catch (IOException) when (retry < maxRetries - 1)
             {
                 // File is locked, wait and retry
                 Thread.Sleep(100 * (retry + 1)); // Increasing delay: 100ms, 200ms, 300ms

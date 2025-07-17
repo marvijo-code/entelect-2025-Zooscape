@@ -13,15 +13,12 @@ A C# console application for analyzing JSON game state files to understand bot d
 **Quick Start:**
 ```bash
 cd tools/GameStateInspector
-.\inspect-game-state.ps1 -ShowHelp
+dotnet run -- --help
 ```
 
 **Common Usage:**
 ```bash
 # Analyze a specific game state
-.\inspect-game-state.ps1 -GameStateFile "FunctionalTests/GameStates/12.json" -BotNickname "ClingyHeuroBot2"
-
-# Direct usage without wrapper
 dotnet run -- ../../FunctionalTests/GameStates/12.json ClingyHeuroBot2
 ```
 
@@ -36,7 +33,7 @@ dotnet run -- ../../FunctionalTests/GameStates/12.json ClingyHeuroBot2
 - Bot position and score tracking
 - Pellet availability and distribution analysis
 - Quadrant-based spatial analysis
-- PowerShell wrapper with help system
+
 - Full documentation and examples
 
 See `tools/GameStateInspector/README.md` for detailed documentation.
@@ -50,7 +47,7 @@ When creating new development tools:
 3. **Integration:** Update `.ai-rules/important-file-paths.md` with tool paths
 4. **Consistency:** Follow existing naming and structure patterns
 5. **Testing:** Ensure tools work from their intended directories
-6. **Scripts:** Provide PowerShell wrappers for complex tools where helpful
+6. **Scripts:** Provide additional helper scripts if necessary
 
 ## Integration with Development Workflow
 

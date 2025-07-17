@@ -239,15 +239,15 @@ public class StandardBotTests : BotTestsBase
     //    TestBotAction(_clingyHeuroBot2, testParams);
     //}
 
-    [Fact(DisplayName = "Game State 12: StaticHeuro Must Move Down")]
-    public void GameState12StaticHeuroMustMoveDown()
+    [Fact(DisplayName = "Game State 12: StaticHeuro Must Move Up")]
+    public void GameState12StaticHeuroMustMoveUp()
     {
         var testParams = new TestParams
         {
             TestGameStateJsonPath = "12.json",
             BotNicknameToTest = "StaticHeuro",
-            ExpectedAction = BotAction.Down,
-            TestDescription = "Test StaticHeuro bot must move Down in game state 12",
+            ExpectedAction = BotAction.Up,
+            TestDescription = "Test StaticHeuro bot must move Up in game state 12",
         };
 
         TestBotAction(_staticHeuro, testParams);

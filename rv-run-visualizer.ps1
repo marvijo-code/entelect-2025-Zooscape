@@ -149,9 +149,9 @@ Read-Host
 
     # Build arguments for all tabs
     $allWtArgs = @(
-        "--window", "0", # Force a new window instance
+        "--window", "new", # Start in a fresh Windows Terminal window
         # First Tab: API Server
-        "new-tab", 
+        "new-tab",
         "--title", "APIServer", 
         "--tabColor", "#0078d4", 
         "--suppressApplicationTitle",

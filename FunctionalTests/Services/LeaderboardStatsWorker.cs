@@ -20,7 +20,7 @@ public class LeaderboardStatsWorker : BackgroundService
 {
     private readonly string _logsDir;
     private readonly CacheService _cache;
-    private readonly ILogger _logger;
+    private readonly Serilog.ILogger _logger;
 
     // How often to refresh the stats. Tweaked to balance freshness and performance.
     private readonly TimeSpan _refreshInterval = TimeSpan.FromSeconds(30);
@@ -91,7 +91,15 @@ public class LeaderboardStatsWorker : BackgroundService
                 foreach (var logFile in logFiles)
                 {
                     var json = await File.ReadAllTextAsync(logFile.Path);
-                    if (!JsonDocument.TryParse(json, out var doc)) continue;
+                    JsonDocument doc;
+                    try
+                    {
+                        doc = JsonDocument.Parse(json);
+                    }
+                    catch (JsonException)
+                    {
+                        continue;
+                    }
                     if (!doc.RootElement.TryGetProperty("Animals", out var animalsEl)) continue;
 
                     foreach (var animal in animalsEl.EnumerateArray())
@@ -109,7 +117,15 @@ public class LeaderboardStatsWorker : BackgroundService
                 // Use final tick for finishing order (wins / second places)
                 var finalLogPath = logFiles.Last().Path;
                 var finalJson = await File.ReadAllTextAsync(finalLogPath);
-                if (!JsonDocument.TryParse(finalJson, out var finalDoc)) continue;
+                JsonDocument finalDoc;
+                try
+                {
+                    finalDoc = JsonDocument.Parse(finalJson);
+                }
+                catch (JsonException)
+                {
+                    continue;
+                }
                 if (!finalDoc.RootElement.TryGetProperty("Animals", out var finalAnimalsEl)) continue;
 
                 var animals = finalAnimalsEl.EnumerateArray()
@@ -122,8 +138,9 @@ public class LeaderboardStatsWorker : BackgroundService
                                             .OrderByDescending(a => a.Score)
                                             .ToList();
 
-                foreach (var (animal, index) in animals.Select((val, idx) => (val, idx)))
+                for (int index = 0; index < animals.Count; index++)
                 {
+                    var animal = animals[index];
                     if (string.IsNullOrEmpty(animal.Nickname)) continue;
                     if (!botStats.TryGetValue(animal.Nickname, out var stat))
                     {
@@ -159,5 +176,19 @@ public class LeaderboardStatsWorker : BackgroundService
                      .ThenByDescending(b => b.SecondPlaces)
                      .ThenByDescending(b => b.GamesPlayed)
                      .ToList();
+    }
+
+    private static bool TryParseJson(string json, out JsonDocument document)
+    {
+        try
+        {
+            document = JsonDocument.Parse(json);
+            return true;
+        }
+        catch (JsonException)
+        {
+            document = null!; // will be ignored by caller when false returned
+            return false;
+        }
     }
 }

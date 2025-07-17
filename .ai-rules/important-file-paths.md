@@ -32,7 +32,7 @@ This file tracks important and frequently accessed file paths within the project
 - `GameInspector_Project`: tools/GameStateInspector/GameStateInspector.csproj
 - `GameInspector_Program`: tools/GameStateInspector/Program.cs ✅ **ENHANCED with --analyze-move**
 - `GameInspector_README`: tools/GameStateInspector/README.md
-- `GameInspector_Script`: tools/GameStateInspector/inspect-game-state.ps1
+
 - `GameInspector_Directory`: tools/GameStateInspector/
 
 ## Scripts
@@ -81,7 +81,7 @@ This file tracks important and frequently accessed file paths within the project
 - `tools/GameStateInspector/` - **ENHANCED DEBUG TOOL** for game state analysis
 - `tools/GameStateInspector/Program.cs` - Main inspector implementation ✅ **WITH --analyze-move**
 - `tools/GameStateInspector/README.md` - Tool documentation
-- `tools/GameStateInspector/inspect-game-state.ps1` - PowerShell wrapper
+
 
 ### Game Inspector Usage Examples:
 ```bash

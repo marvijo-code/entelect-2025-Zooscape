@@ -538,7 +538,9 @@
     "Description": "When a bot is adjacent to a zookeeper and a pellet, it should prioritize moving to a safe square over collecting the pellet.",
     "botNicknameInStateFile": "StaticHeuro",
     "ExpectedAction": "Down",
-    "AcceptableActions": [],
+    "AcceptableActions": [
+      "Down"
+    ],
     "TestType": "SingleBot",
     "TickOverride": false,
     "Bots": [

@@ -40,9 +40,9 @@
   cd tools/GameStateInspector
   dotnet run -- <path-to-json-file> <bot-nickname>
   
-  # PowerShell wrapper (recommended)
-  .\inspect-game-state.ps1 -GameStateFile <file> -BotNickname <bot>
-  .\inspect-game-state.ps1 -ShowHelp  # Lists available files and bots
+
+
+
   ```
 - **Enhanced Output Analysis:**
   - Bot position and current score
@@ -54,7 +54,7 @@
   - Nearest zookeeper position and distance
 - **Integration Features:**
   - Comprehensive README documentation
-  - PowerShell wrapper with help system and file validation
+
   - Error handling for missing files and invalid bot names
   - Automatic path resolution for game state files
 - **Debugging Workflow:**
