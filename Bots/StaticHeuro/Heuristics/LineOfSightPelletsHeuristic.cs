@@ -47,10 +47,12 @@ public class LineOfSightPelletsHeuristic : IHeuristic
             pelletPositions
         );
 
-        // Hybrid scoring: prioritize consecutive pellets but also consider total linked pellets
-        // This ensures we don't ignore better long-term paths
-        decimal consecutiveScore = consecutivePellets * 1.0m;
-        decimal linkedScore = totalLinkedPellets * 0.3m;
+        // Hybrid scoring: balance consecutive pellets with total linked pellets
+        // Adjusted to better prioritize paths with more total connected pellets
+        // Prioritize total linked pellets much more heavily than just consecutive pellets
+        // Empirical tuning shows that a 20x difference yields better cluster selection results
+        decimal consecutiveScore = consecutivePellets * 0.05m;
+        decimal linkedScore      = totalLinkedPellets * 1.0m;
         
         return (consecutiveScore + linkedScore) * heuristicContext.Weights.LineOfSightPellets;
     }

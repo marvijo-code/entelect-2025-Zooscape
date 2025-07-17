@@ -36,6 +36,10 @@ This folder contains logically organized documentation files extracted from the 
 7. **Restart API**: `./start-api.ps1 -Force`
 8. **Verify fix**: Run the specific test to confirm the change works
 
+- after analysis don't ask questions like, "Would you like me to proceed with implementing these fixes?", always proceed to implement weight fixes to make the bot better
+
+- ALWAYS RUN ALL tests after adding tests to make sure that all tests still pass
+
 ## File Index
 
 | File | Purpose |

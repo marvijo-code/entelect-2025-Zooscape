@@ -2,7 +2,6 @@ using Marvijo.Zooscape.Bots.Common;
 using Serilog;
 using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -80,6 +79,7 @@ public class HeuristicsManager
             new OpponentTrailChasingHeuristic(),
             new PathSafetyHeuristic(),
             new PelletAreaControlHeuristic(),
+            new PelletEfficiencyHeuristic(),
             new PelletRaceHeuristic(),
             new PelletClusterPlanningHeuristic(),
             new PelletRatioAwarenessHeuristic(),
@@ -113,7 +113,9 @@ public class HeuristicsManager
         [
             new CaptureAvoidanceHeuristic(),
             new WallCollisionRiskHeuristic(),
+            new PelletEfficiencyHeuristic(),
             new LineOfSightPelletsHeuristic(),
+            new PelletClusterPlanningHeuristic(),
             new MoveIfIdleHeuristic(),
             new ReverseMovePenaltyHeuristic(),
             new EarlyGameZookeeperAvoidanceHeuristic(),

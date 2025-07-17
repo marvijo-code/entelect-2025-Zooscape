@@ -596,6 +596,8 @@ public class Program
 
                     await connection.SendAsync("BotCommand", command);
                     lastSentAction = command.Action;
+                    // Prevent multiple commands for the same tick
+                    shouldSendCommand = false;
                     Log.Debug(
                         $"Sent BotCommand: {command.Action} at {DateTime.UtcNow:HH:mm:ss.fff} for tick {currentTick}"
                     );
