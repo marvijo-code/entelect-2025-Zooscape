@@ -77,8 +77,19 @@ public static class WeightManager
     {
         try
         {
-            string solutionDir = AppContext.BaseDirectory.Substring(0, AppContext.BaseDirectory.IndexOf("Bots"));
-            string weightsPath = Path.Combine(solutionDir, "Bots", "StaticHeuro", "heuristic-weights.json");
+            // Traverse up to find the solution root directory (where the .sln file is)
+            var currentDir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (currentDir != null && !currentDir.GetFiles("*.sln").Any())
+            {
+                currentDir = currentDir.Parent;
+            }
+
+            if (currentDir == null)
+            {
+                throw new DirectoryNotFoundException("Could not find the solution root directory.");
+            }
+
+            string weightsPath = Path.Combine(currentDir.FullName, "Bots", "StaticHeuro", "heuristic-weights.json");
 
             if (File.Exists(weightsPath))
             {

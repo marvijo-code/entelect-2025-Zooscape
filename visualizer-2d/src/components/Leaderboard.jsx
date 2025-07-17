@@ -14,6 +14,7 @@ const Leaderboard = React.memo(({ data = [], loading = false, statusMessage = ''
         <td className="nickname-cell">{bot.nickname || `Bot-${bot.id}`}</td>
         <td className="wins-cell">{bot.wins || 0}</td>
         <td className="second-places-cell">{bot.secondPlaces || 0}</td>
+        <td className="avg-captures-cell">{bot.averageCaptures !== undefined ? bot.averageCaptures.toFixed(2) : '0.00'}</td>
         <td className="games-played-cell">{bot.gamesPlayed || 0}</td>
         <td className="win-rate-cell">
           {bot.gamesPlayed > 0 ? `${((bot.wins / bot.gamesPlayed) * 100).toFixed(1)}%` : '0%'}
@@ -56,6 +57,7 @@ const Leaderboard = React.memo(({ data = [], loading = false, statusMessage = ''
                 <th>Bot Name</th>
                 <th>Wins</th>
                 <th>2nd Places</th>
+                <th>Avg Captures</th>
                 <th>Games Played</th>
                 <th>Win Rate</th>
               </tr>

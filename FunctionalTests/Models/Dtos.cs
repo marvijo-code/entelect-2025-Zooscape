@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace FunctionalTests.Models;
 
 /// <summary>
@@ -8,7 +10,8 @@ public class TestDefinitionDto
     public required string TestName { get; set; }
     public required string GameStateFile { get; set; }
     public string? Description { get; set; }
-    public string? BotNickname { get; set; }
+    [JsonPropertyName("botNickname")]
+    public string? BotNicknameInStateFile { get; set; }
     public string? ExpectedAction { get; set; }
     public List<string> AcceptableActions { get; set; } = [];
     public required string TestType { get; set; }
@@ -35,6 +38,7 @@ public class TestResultDto
 /// </summary>
 public class BotResultDto
 {
+    public long ExecutionTimeMs { get; set; }
     public required string BotType { get; set; }
     public string? Action { get; set; }
     public bool Success { get; set; }

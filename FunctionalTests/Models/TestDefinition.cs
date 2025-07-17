@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Marvijo.Zooscape.Bots.Common.Enums;
 
 namespace FunctionalTests.Models;
@@ -10,7 +11,13 @@ public class TestDefinition
     public required string TestName { get; set; }
     public required string GameStateFile { get; set; }
     public string? Description { get; set; }
-    public string? BotNickname { get; set; }
+    /// <summary>
+    /// The nickname of the bot to test, as it appears in the game state file.
+    /// This is used to identify which bot's perspective to use for the test.
+    /// This property was previously named 'BotNickname'.
+    /// </summary>
+    [JsonPropertyName("botNicknameInStateFile")]
+    public string? BotNicknameInStateFile { get; set; }
     public BotAction? ExpectedAction { get; set; }
     public List<BotAction> AcceptableActions { get; set; } = [];
     public required TestType TestType { get; set; }

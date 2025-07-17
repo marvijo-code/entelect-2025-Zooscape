@@ -87,4 +87,6 @@ Bots/**/*.sln
 
 .venv/
 __pycache__/
-FunctionalTests/evolution-data/
+
+# Functional Test Data
+FunctionalTests/evolution-data/

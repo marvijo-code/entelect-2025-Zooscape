@@ -119,13 +119,20 @@ public class JsonDrivenTests : BotTestsBase
             botIdProperty.SetValue(bot, animal.Id);
         }
 
-        var getActionMethod = botType.GetMethod("GetAction");
+        var getActionMethod = botType.GetMethod("GetAction", new[] { typeof(GameState), typeof(string) });
         if (getActionMethod == null)
         {
-            throw new InvalidOperationException($"The bot of type {botType.Name} does not have a GetAction method.");
+            // Fallback for bots that may not have the overload with animalId
+            getActionMethod = botType.GetMethod("GetAction", new[] { typeof(GameState) });
+            if (getActionMethod == null)
+            {
+                throw new InvalidOperationException($"The bot of type {botType.Name} does not have a suitable GetAction method.");
+            }
         }
 
-        var action = (BotAction)getActionMethod.Invoke(bot, new object[] { gameState });
+        var action = (BotAction)(getActionMethod.GetParameters().Length == 2
+            ? getActionMethod.Invoke(bot, new object[] { gameState, animal.Id })
+            : getActionMethod.Invoke(bot, new object[] { gameState }));
 
         _testValidator.ValidateBotAction(
             action,
@@ -155,11 +162,15 @@ public class JsonDrivenTests : BotTestsBase
                 break;
 
             case TestType.SingleBot:
-                if (string.IsNullOrEmpty(definition.BotNickname))
+                if (string.IsNullOrEmpty(definition.BotNicknameInStateFile))
                 {
                     throw new InvalidOperationException($"Test {definition.TestName} is of type SingleBot but has no BotNickname specified.");
                 }
-                var bot = _botFactory.CreateBot(definition.BotNickname);
+                if (definition.Bots.Count == 0)
+                {
+                    throw new InvalidOperationException($"Test {definition.TestName} is of type SingleBot but has no bot types specified in the 'Bots' array.");
+                }
+                var bot = _botFactory.CreateBot(definition.Bots[0]);
 
                 // Enable heuristic logging for supported bots
                 if (bot is StaticHeuro.Services.HeuroBotService staticHeuroBot)

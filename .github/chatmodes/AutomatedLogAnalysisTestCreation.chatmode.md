@@ -55,6 +55,35 @@ This section provides guides for creating tests based on specific, interesting i
 
 ### Scenario 2: Bot is Stuck or Inefficient
 
+### Scenario 3: Capture Avoidance Analysis
+
+**Goal**: Identify where a bot was captured and determine whether the capture could have been avoided.
+
+#### Step 3.1: Run the CaptureAnalysis tool
+
+- **Action**: Execute the `CaptureAnalysis` console app on a folder containing sequential JSON log files (one per tick).
+- **Command**:
+  ```powershell
+  # Defaults to StaticHeuro if no nickname is provided
+  dotnet run --project tools\CaptureAnalysis -- "logs\<your_log_directory>" "StaticHeuro"
+  ```
+
+#### Step 3.2: Interpret the output
+
+- The tool prints lines such as:
+  ```
+  Capture detected at tick 5123: AVOIDABLE
+  Capture detected at tick 9876: UNAVOIDABLE
+  ```
+- *AVOIDABLE* indicates at least one safe legal move existed on the tick before capture.
+
+#### Step 3.3: Create a functional test (optional)
+
+- If the capture appears avoidable, copy the corresponding game-state JSON (the tick **before** the capture) to `FunctionalTests/GameStates/`.
+- Use `GameStateInspector` to fetch the legal moves for that state.
+- Create a test with `create_test.ps1`, setting `-AcceptableActions` to the safe moves reported by `GameStateInspector`.
+
+
 > [!NOTE]
 > This section is a placeholder for future scripts and workflows designed to identify and test loops or inefficient pellet collection.
 

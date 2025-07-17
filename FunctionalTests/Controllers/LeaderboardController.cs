@@ -74,7 +74,8 @@ public class LeaderboardController : ControllerBase
                         {
                             Id = animal.TryGetProperty("Id", out var id) ? id.GetString() : null,
                             Nickname = animal.TryGetProperty("Nickname", out var nick) ? nick.GetString() : null,
-                            Score = animal.TryGetProperty("Score", out var s) && s.TryGetInt32(out var score) ? score : 0
+                            Score = animal.TryGetProperty("Score", out var s) && s.TryGetInt32(out var score) ? score : 0,
+                            Captures = animal.TryGetProperty("CapturedCounter", out var cc) && cc.TryGetInt32(out var captures) ? captures : 0
                         })
                         .OrderByDescending(a => a.Score)
                         .ToList();
@@ -92,12 +93,14 @@ public class LeaderboardController : ControllerBase
                                 Id = animal.Id,
                                 Wins = 0,
                                 SecondPlaces = 0,
-                                GamesPlayed = 0
+                                GamesPlayed = 0,
+                                TotalCaptures = 0
                             };
                             botStats[animal.Nickname] = stats;
                         }
 
                         stats.GamesPlayed++;
+                        stats.TotalCaptures += animal.Captures;
                         if (index == 0) stats.Wins++;
                         if (index == 1) stats.SecondPlaces++;
                     }
@@ -108,7 +111,13 @@ public class LeaderboardController : ControllerBase
                 }
             }
 
-            return botStats.Values
+            // Calculate average captures for serialization
+                foreach (var bs in botStats.Values)
+                {
+                    bs.AverageCaptures = bs.GamesPlayed > 0 ? (double)bs.TotalCaptures / bs.GamesPlayed : 0;
+                }
+
+                return botStats.Values
                             .OrderByDescending(b => b.Wins)
                             .ThenByDescending(b => b.SecondPlaces)
                             .ThenByDescending(b => b.GamesPlayed)

@@ -21,7 +21,7 @@
   "TiebreakersAwareness": 0.7,
   "ZookeeperCooldown": 0.9,
   "PelletEfficiency": 1.1,
-  "LongTermPelletSeekingFactor": 450.0,
+  "LongTermPelletSeekingFactor": 0.1,
   "ImmediatePelletBonus": 500,
   "EscapeRoutes": 0.8,
   "AnimalCongestion": -0.6,

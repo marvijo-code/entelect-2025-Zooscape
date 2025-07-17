@@ -74,6 +74,10 @@ This file tracks important and frequently accessed file paths within the project
 - `FunctionalTests/bin/Debug/net8.0/GameStates/` - Test game state JSON files
 
 ## Analysis Tools
+- `tools/CaptureAnalysis/` - **NEW TOOL** for capture event detection & avoidability analysis
+- `tools/CaptureAnalysis/Program.cs` - Main implementation
+- `tools/CaptureAnalysis/CaptureAnalysis.csproj` - Project file
+
 - `tools/GameStateInspector/` - **ENHANCED DEBUG TOOL** for game state analysis
 - `tools/GameStateInspector/Program.cs` - Main inspector implementation ✅ **WITH --analyze-move**
 - `tools/GameStateInspector/README.md` - Tool documentation
