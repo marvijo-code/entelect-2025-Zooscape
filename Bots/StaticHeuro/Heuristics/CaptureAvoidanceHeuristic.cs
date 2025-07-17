@@ -15,58 +15,50 @@ public class CaptureAvoidanceHeuristic : IHeuristic
     public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
-        bool amITarget = false;
-        Zookeeper? targetingZookeeper = null;
 
-        foreach (var zookeeper in heuristicContext.CurrentGameState.Zookeepers)
+        // Bail out early if there are no zookeepers in the game state.
+        if (!heuristicContext.CurrentGameState.Zookeepers.Any())
         {
-            var animalsByDistance = heuristicContext
-                .CurrentGameState.Animals.Where(a => a.IsViable)
-                .OrderBy(a => BotUtils.ManhattanDistance(zookeeper.X, zookeeper.Y, a.X, a.Y));
-
-            if (animalsByDistance.FirstOrDefault()?.Id == heuristicContext.CurrentAnimal.Id)
-            {
-                amITarget = true;
-                targetingZookeeper = zookeeper;
-                break;
-            }
+            return 0m;
         }
 
-        if (amITarget && targetingZookeeper != null)
-        {
-            int currentDist = BotUtils.ManhattanDistance(
-                targetingZookeeper.X,
-                targetingZookeeper.Y,
-                heuristicContext.CurrentAnimal.X,
-                heuristicContext.CurrentAnimal.Y
-            );
-            int newDist = BotUtils.ManhattanDistance(
-                targetingZookeeper.X,
-                targetingZookeeper.Y,
-                nx,
-                ny
-            );
+        decimal score = 0m;
 
-            // If the new distance is less than the current one, we are moving towards danger.
+        foreach (var zk in heuristicContext.CurrentGameState.Zookeepers)
+        {
+            int currentDist = BotUtils.ManhattanDistance(zk.X, zk.Y, heuristicContext.CurrentAnimal.X, heuristicContext.CurrentAnimal.Y);
+            int newDist = BotUtils.ManhattanDistance(zk.X, zk.Y, nx, ny);
+
+            // Fatal move – standing on the same tile.
+            if (newDist == 0)
+            {
+                return -10000m;
+            }
+
+            // Immediate danger zone (≤2 tiles).
+            if (newDist <= 2)
+            {
+                decimal dangerFactor = 3 - newDist; // 2 when dist==1, 1 when dist==2
+                score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * dangerFactor;
+                continue; // no reward for the same zookeeper in this case
+            }
+
             if (newDist < currentDist)
             {
-                // The penalty should be inversely proportional to the distance. Closer zookeepers are a bigger threat.
-                // Avoid division by zero.
-                if (newDist == 0) return -10000m; 
-                
-                // As newDist approaches 1, the penalty approaches its maximum.
-                var dangerProximityFactor = 1.0m / newDist;
-                return -heuristicContext.Weights.CaptureAvoidancePenaltyFactor * dangerProximityFactor;
+                // Moving closer – penalise proportionally to how much closer we get and proximity.
+                int delta = currentDist - newDist;
+                score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * delta / newDist;
             }
-            // If the new distance is greater, we are moving away from danger.
             else if (newDist > currentDist)
             {
-                // Reward moving away, but scale the reward by the distance.
-                // The further away the zookeeper, the less important it is to move away.
-                if (currentDist == 0) return heuristicContext.Weights.CaptureAvoidanceRewardFactor; // Should not happen if newDist > currentDist
-                return heuristicContext.Weights.CaptureAvoidanceRewardFactor / currentDist;
+                // Moving away – reward inversely to original distance (closer escapes worth more).
+                score += heuristicContext.Weights.CaptureAvoidanceRewardFactor / currentDist;
             }
         }
-        return 0m;
+
+        // Clamp small magnitude near zero to exactly zero to avoid noise.
+        if (score > -0.01m && score < 0.01m) return 0m;
+
+        return score;
     }
 }

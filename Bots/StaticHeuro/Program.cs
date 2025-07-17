@@ -226,8 +226,18 @@ public class Program
                     }
 
                     // Log processing time immediately after getting the command
-                    gameStateStopwatch.Stop();
-                    var processingTimeMs = gameStateStopwatch.ElapsedMilliseconds;
+                    var localStopwatch = gameStateStopwatch; // capture reference to avoid concurrency issues
+                    long processingTimeMs;
+                    if (localStopwatch != null)
+                    {
+                        localStopwatch.Stop();
+                        processingTimeMs = localStopwatch.ElapsedMilliseconds;
+                    }
+                    else
+                    {
+                        processingTimeMs = -1; // Indicates stopwatch was unexpectedly null
+                        Log.Warning("gameStateStopwatch was null when attempting to stop at tick {Tick}.", currentTick);
+                    }
 
                     // Get current position for logging (using existing myAnimal)
                     var position = myAnimal != null ? $"({myAnimal.X},{myAnimal.Y})" : "(?,?)";

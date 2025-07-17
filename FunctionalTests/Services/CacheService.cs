@@ -20,6 +20,22 @@ public class CacheService
         return value;
     }
 
+    public bool TryGet<T>(string key, out T? value)
+    {
+        value = default;
+        if (_cache.TryGetValue(key, out var entry) && entry != null && !entry.IsExpired())
+        {
+            value = (T)entry.Value;
+            return true;
+        }
+        return false;
+    }
+
+    public void Set<T>(string key, T value, TimeSpan ttl)
+    {
+        _cache[key] = new CacheEntry(value, ttl);
+    }
+
     public void Clear()
     {
         _cache.Clear();

@@ -28,9 +28,9 @@ public class LeaderboardController : ControllerBase
     }
 
     [HttpGet("stats")]
-    public async Task<IActionResult> GetLeaderboardStats()
+    public IActionResult GetLeaderboardStats()
     {
-        _logger.Information("API: Calculating leaderboard stats from logs {LogsDir}", _logsDir);
+        // Return cached leaderboard if available; otherwise quick empty array to keep endpoint snappy.
 
         if (!Directory.Exists(_logsDir))
         {
@@ -38,7 +38,18 @@ public class LeaderboardController : ControllerBase
             return Ok(new List<BotStats>());
         }
 
+        if (_cache.TryGet("leaderboard-stats", out List<BotStats>? leaderboard) && leaderboard is not null)
+        {
+            return Ok(leaderboard);
+        }
 
+        // If cache not ready yet, return empty list quickly.
+        return Ok(new List<BotStats>());
+    }
+
+    [HttpGet("stats-full")]
+    public async Task<IActionResult> GetLeaderboardStatsFull()
+    {
         var leaderboard = await _cache.GetOrCreateAsync("leaderboard-stats", async () =>
         {
             _logger.Information("Cache miss for leaderboard-stats. Recalculating...");
@@ -60,6 +71,29 @@ public class LeaderboardController : ControllerBase
 
                     if (!logFiles.Any()) continue;
 
+                    // Determine max capture count per bot across all ticks in this run
+                    var perBotMaxCaptures = new Dictionary<string, int>();
+
+                    foreach (var log in logFiles)
+                    {
+                        var content = await System.IO.File.ReadAllTextAsync(log.Path);
+                        var gs = JsonSerializer.Deserialize<JsonElement>(content);
+                        if (!gs.TryGetProperty("Animals", out var animalsEl)) continue;
+
+                        foreach (var animalJson in animalsEl.EnumerateArray())
+                        {
+                            var nickname = animalJson.TryGetProperty("Nickname", out var nNick) ? nNick.GetString() : null;
+                            if (nickname is null) continue;
+                            var captures = animalJson.TryGetProperty("CapturedCounter", out var ccEl) && ccEl.TryGetInt32(out var ccVal) ? ccVal : 0;
+
+                            if (!perBotMaxCaptures.TryGetValue(nickname, out var existing) || captures > existing)
+                            {
+                                perBotMaxCaptures[nickname] = captures;
+                            }
+                        }
+                    }
+
+                    // We still need score / ranking info – get it from final tick for podium positions
                     var finalLogPath = logFiles.Last().Path;
                     var fileContent = await System.IO.File.ReadAllTextAsync(finalLogPath);
                     var gameState = JsonSerializer.Deserialize<JsonElement>(fileContent);
@@ -100,7 +134,8 @@ public class LeaderboardController : ControllerBase
                         }
 
                         stats.GamesPlayed++;
-                        stats.TotalCaptures += animal.Captures;
+                        var maxCaptures = perBotMaxCaptures.TryGetValue(animal.Nickname, out var mc) ? mc : 0;
+                        stats.TotalCaptures += maxCaptures;
                         if (index == 0) stats.Wins++;
                         if (index == 1) stats.SecondPlaces++;
                     }
@@ -122,9 +157,9 @@ public class LeaderboardController : ControllerBase
                             .ThenByDescending(b => b.SecondPlaces)
                             .ThenByDescending(b => b.GamesPlayed)
                             .ToList();
-        }, TimeSpan.FromSeconds(5));
 
-        _logger.Information("Returning leaderboard with {BotCount} bots", leaderboard?.Count ?? 0);
+
+        
         return Ok(leaderboard);
     }
 }

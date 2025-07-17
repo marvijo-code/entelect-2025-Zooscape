@@ -85,7 +85,15 @@ This section provides guides for creating tests based on specific, interesting i
 
 
 > [!NOTE]
-> This section is a placeholder for future scripts and workflows designed to identify and test loops or inefficient pellet collection.
+> The `CaptureAvoidanceHeuristic` was updated on **2025-07-17** to aggregate risk from *all* Zookeepers rather than just the nearest one. If you create a test that exercises capture scenarios, remember that:
+> 1. Moves within **2 tiles** of *any* Zookeeper now incur strong penalties.
+> 2. Rewards for moving away scale with the original proximity.
+> 3. Stepping onto a Zookeeper tile scores **−10 000**.
+>
+> When introducing new tests you may need to tune `CaptureAvoidancePenaltyFactor` and `CaptureAvoidanceRewardFactor` in `heuristic-weights.json` if the meta changes.
+>
+> Future sections will cover automated identification of loops or inefficient pellet collection.
+
 
 ### Step 3: Create the Test
 
