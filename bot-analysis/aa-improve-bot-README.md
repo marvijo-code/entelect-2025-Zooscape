@@ -38,7 +38,7 @@ You can execute an individual test case in **two** ways:
 
 1. **Via the API** (preferred for quick loops):
    ```powershell
-   Invoke-RestMethod -Method POST -Uri "http://localhost:5000/api/test/run/StaticHeuro_AdjacentPellet_953"
+   Invoke-RestMethod -Method POST -Uri "http://localhost:5008/api/test/run/StaticHeuro_AdjacentPellet_953"
    ```
 
 2. **Via dotnet test filter:**
@@ -47,3 +47,73 @@ You can execute an individual test case in **two** ways:
    ```
 
 Remember to **restart the API** (`start-api.ps1 -Force`) after any code or weight change before rerunning the test.
+
+### 🎯 Enhanced Test Endpoint with Heuristic Scores
+
+The test endpoint now returns **detailed heuristic scores** for supported bots (StaticHeuro, ClingyHeuroBot2). This provides comprehensive insight into bot decision-making:
+
+#### Response Structure
+```json
+{
+  "testName": "StaticHeuro_StuckBot_51",
+  "success": true,
+  "botResults": [
+    {
+      "botType": "StaticHeuro",
+      "action": "Right",
+      "success": true,
+      "performanceMetrics": {
+        "ActionScores": {
+          "Up": 245.67,
+          "Down": -78.95,
+          "Left": 156.23,
+          "Right": 318.20
+        },
+        "DetailedScores": [
+          {
+            "Move": "Right",
+            "TotalScore": 318.20,
+            "DetailedLogLines": [
+              "    CaptureAvoidanceHeuristic        : Raw=  2.5000, Weight= 10.0000, Contribution= 25.0000, NewScore= 25.0000",
+              "    LineOfSightPelletsHeuristic     : Raw=  9.0000, Weight= 50.0000, Contribution=450.0000, NewScore=475.0000",
+              "    WallCollisionRiskHeuristic      : Raw= -0.2000, Weight=  1.0000, Contribution= -0.2000, NewScore=474.8000"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+#### Key Features
+- **ActionScores**: Shows the final score for each possible move (Up, Down, Left, Right)
+- **DetailedScores**: Provides complete heuristic breakdown for each move including:
+  - Individual heuristic contributions
+  - Raw values, weights, and calculated contributions
+  - Running total scores
+- **Automatic Detection**: Uses `GetActionWithDetailedScores` when available, falls back to `GetAction` for unsupported bots
+- **LogHeuristicScores**: Automatically enabled for test runs to capture detailed scoring
+
+#### Debugging Workflow
+1. **Run Test**: `POST http://localhost:5008/api/test/run/<testname>`
+2. **Analyze Scores**: Review `ActionScores` to see why bot chose specific action
+3. **Deep Dive**: Examine `DetailedScores` to understand individual heuristic contributions
+4. **Adjust Weights**: Modify `heuristic-weights.json` based on analysis
+5. **Restart API**: `start-api.ps1 -Force` to apply changes
+6. **Re-test**: Verify improved behavior
+
+#### Example Usage
+```powershell
+# Get detailed scores for a specific test
+$result = Invoke-RestMethod -Method POST -Uri "http://localhost:5008/api/test/run/StaticHeuro_StuckBot_51"
+
+# Extract action scores
+$actionScores = $result.botResults[0].performanceMetrics.ActionScores
+Write-Host "Bot chose: $($result.botResults[0].action) with score: $($actionScores[$result.botResults[0].action])"
+
+# Show all action alternatives
+$actionScores | Format-Table
+```
+
+This enhancement makes it significantly easier to debug bot decision-making and optimize heuristic weights without needing to parse console logs.

@@ -502,23 +502,90 @@ public class TestController : ControllerBase
                 throw new InvalidOperationException($"No animal found with nickname '{testParams.BotNicknameToTest}' in the provided game state.");
             }
 
-            var getActionMethod = bot.GetType().GetMethod("GetAction", new[] { typeof(GameState), typeof(string) });
-            if (getActionMethod == null)
+            BotAction action;
+            var performanceMetrics = new Dictionary<string, object>();
+
+            // Try to get detailed scores for supported bots
+            var getActionWithDetailedScoresMethod = bot.GetType().GetMethod("GetActionWithDetailedScores", new[] { typeof(GameState), typeof(string) });
+            if (getActionWithDetailedScoresMethod != null)
             {
-                // Fallback for bots that may not have the overload with animalId
-                getActionMethod = bot.GetType().GetMethod("GetAction", new[] { typeof(GameState) });
-                if (getActionMethod == null)
+                // Bot supports detailed scoring
+                var result = getActionWithDetailedScoresMethod.Invoke(bot, new object[] { gameState, animal.Id });
+                
+                // Extract action and scores from the tuple result
+                var resultType = result?.GetType();
+                if (resultType != null && resultType.IsGenericType && resultType.GetGenericTypeDefinition() == typeof(ValueTuple<,,>))
                 {
-                    throw new InvalidOperationException($"Bot of type {bot.GetType().Name} does not have a suitable GetAction method.");
+                    var actionProperty = resultType.GetField("Item1");
+                    var actionScoresProperty = resultType.GetField("Item2");
+                    var scoreLogsProperty = resultType.GetField("Item3");
+                    
+                    action = (BotAction)actionProperty!.GetValue(result)!;
+                    var actionScores = (Dictionary<BotAction, decimal>)actionScoresProperty!.GetValue(result)!;
+                    var scoreLogs = scoreLogsProperty!.GetValue(result);
+                    
+                    // Add heuristic scores to performance metrics
+                    performanceMetrics["ActionScores"] = actionScores.ToDictionary(kvp => kvp.Key.ToString(), kvp => (object)kvp.Value);
+                    
+                    // Add detailed score logs if available
+                    if (scoreLogs != null)
+                    {
+                        var scoreLogsList = (System.Collections.IEnumerable)scoreLogs;
+                        var detailedScores = new List<object>();
+                        
+                        foreach (var scoreLog in scoreLogsList)
+                        {
+                            var scoreLogType = scoreLog.GetType();
+                            var moveProperty = scoreLogType.GetProperty("Move");
+                            var totalScoreProperty = scoreLogType.GetProperty("TotalScore");
+                            var detailedLogLinesProperty = scoreLogType.GetProperty("DetailedLogLines");
+                            
+                            if (moveProperty != null && totalScoreProperty != null && detailedLogLinesProperty != null)
+                            {
+                                var move = moveProperty.GetValue(scoreLog);
+                                var totalScore = totalScoreProperty.GetValue(scoreLog);
+                                var detailedLogLines = detailedLogLinesProperty.GetValue(scoreLog);
+                                
+                                detailedScores.Add(new
+                                {
+                                    Move = move?.ToString(),
+                                    TotalScore = totalScore,
+                                    DetailedLogLines = detailedLogLines
+                                });
+                            }
+                        }
+                        
+                        performanceMetrics["DetailedScores"] = detailedScores;
+                    }
+                }
+                else
+                {
+                    // Fallback if tuple structure is unexpected
+                    action = BotAction.Up;
                 }
             }
-
-            var actionObject = getActionMethod.GetParameters().Length == 2
-                ? getActionMethod.Invoke(bot, new object[] { gameState, animal.Id })
-                : getActionMethod.Invoke(bot, new object[] { gameState });
-            if (actionObject is not BotAction action)
+            else
             {
-                throw new InvalidOperationException("GetAction method did not return a BotAction.");
+                // Fallback to regular GetAction method
+                var getActionMethod = bot.GetType().GetMethod("GetAction", new[] { typeof(GameState), typeof(string) });
+                if (getActionMethod == null)
+                {
+                    // Fallback for bots that may not have the overload with animalId
+                    getActionMethod = bot.GetType().GetMethod("GetAction", new[] { typeof(GameState) });
+                    if (getActionMethod == null)
+                    {
+                        throw new InvalidOperationException($"Bot of type {bot.GetType().Name} does not have a suitable GetAction method.");
+                    }
+                }
+
+                var actionObject = getActionMethod.GetParameters().Length == 2
+                    ? getActionMethod.Invoke(bot, new object[] { gameState, animal.Id })
+                    : getActionMethod.Invoke(bot, new object[] { gameState });
+                if (actionObject is not BotAction actionResult)
+                {
+                    throw new InvalidOperationException("GetAction method did not return a BotAction.");
+                }
+                action = actionResult;
             }
 
             bool success = false;
@@ -539,6 +606,7 @@ public class TestController : ControllerBase
                 Success = success,
                 ErrorMessage = success ? null : $"Expected { (testParams.ExpectedAction.HasValue ? testParams.ExpectedAction.Value.ToString() : string.Join(" or ", testParams.AcceptableActions))} but got {action}",
                 ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
+                PerformanceMetrics = performanceMetrics,
             };
         }
         catch (Exception ex)
@@ -551,6 +619,7 @@ public class TestController : ControllerBase
                 Success = false,
                 ErrorMessage = ex.Message,
                 ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
+                PerformanceMetrics = new Dictionary<string, object>(),
             };
         }
     }

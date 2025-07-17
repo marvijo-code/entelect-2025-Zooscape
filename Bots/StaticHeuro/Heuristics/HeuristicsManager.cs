@@ -80,7 +80,6 @@ public class HeuristicsManager
             new OpponentTrailChasingHeuristic(),
             new PathSafetyHeuristic(),
             new PelletAreaControlHeuristic(),
-            new PelletEfficiencyHeuristic(),
             new PelletRaceHeuristic(),
             new PelletClusterPlanningHeuristic(),
             new PelletRatioAwarenessHeuristic(),
@@ -114,7 +113,6 @@ public class HeuristicsManager
         [
             new CaptureAvoidanceHeuristic(),
             new WallCollisionRiskHeuristic(),
-            new PelletEfficiencyHeuristic(),
             new LineOfSightPelletsHeuristic(),
             new MoveIfIdleHeuristic(),
             new ReverseMovePenaltyHeuristic(),

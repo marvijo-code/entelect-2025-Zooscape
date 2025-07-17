@@ -6,7 +6,7 @@ obj/
 *.pdb
 
 # Evolution data (generated at runtime)
-evolution-data/
+evolution-data/**/*.json
 !evolution-data/.gitkeep
 # Allow tracking specific JSON files within evolution-data
 !evolution-data/high-scores.json

@@ -28,7 +28,7 @@ public class ZookeeperCooldownHeuristic : IHeuristic
         // Guard against misconfigured weight that could cause divide-by-zero
         if (recalculateInterval == 0)
         {
-            heuristicContext.Logger?.Warning("{HeuristicName}: ZookeeperCooldownRecalcInterval is zero. Skipping cooldown bonus calculation to avoid division by zero.", Name);
+            // heuristicContext.Logger?.Warning("{HeuristicName}: ZookeeperCooldownRecalcInterval is zero. Skipping cooldown bonus calculation to avoid division by zero.", Name);
             return 0m;
         }
 

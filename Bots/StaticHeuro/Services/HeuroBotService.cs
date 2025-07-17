@@ -146,7 +146,7 @@ public class HeuroBotService : IBot<HeuroBotService>
             return (BotAction.Up, new Dictionary<BotAction, decimal>(), new List<ScoreLog>());
         }
 
-        if (_logger != null && LogHeuristicScores)
+        if (_logger != null && this.LogHeuristicScores)
         {
             _logger.Information(
                 "\n===== Evaluating Potential Moves for Bot {BotId} on tick {Tick} ====",
@@ -342,6 +342,15 @@ public class HeuroBotService : IBot<HeuroBotService>
             string.Join(", ", legalActions)
         );
 
+        // TEMPORARY DEBUG: Log legal actions for tick 71
+        if (currentTick == 71)
+        {
+            _logger.Information(
+                "TICK 71 LEGAL ACTIONS DEBUG: Bot {BotId} at ({X}, {Y}) has legal actions: [{Actions}]",
+                BotId, me!.X, me.Y, string.Join(", ", legalActions)
+            );
+        }
+
         BotAction bestAction = BotAction.Up;
         decimal bestScore = decimal.MinValue;
         var actionScores = new Dictionary<BotAction, decimal>();
@@ -468,7 +477,9 @@ public class HeuroBotService : IBot<HeuroBotService>
             );
         }
 
-        if (_logger != null && LogHeuristicScores)
+
+
+        if (_logger != null && this.LogHeuristicScores)
         {
             _logger.Information(
                 "\n=============== Move Scores Summary (Bot: {BotId}) ==============",

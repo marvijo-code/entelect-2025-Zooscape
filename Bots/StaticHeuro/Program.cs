@@ -120,6 +120,10 @@ public class Program
             DateTime lastPerformanceRecord = DateTime.UtcNow;
 
             connection.On<Guid>("Registered", id => botService.SetBotId(id));
+            connection.On<string>("Connect", message => 
+            {
+                Log.Information($"Connect received: {message}");
+            });
             connection.On<GameState>(
                 "GameState",
                 async state =>
@@ -291,8 +295,8 @@ public class Program
                     // Get current position for logging (using existing myAnimal)
                     var position = myAnimal != null ? $"({myAnimal.X},{myAnimal.Y})" : "(?,?)";
                     var score = myAnimal?.Score ?? 0;
-
-                    // Concise tick logging: Tick, Position, Action, Duration
+                    
+                    // Concise tick logging: Tick, Position, Action, Duration, Score
                     Log.Information(
                         "T{Tick} {Position} {Action} {Duration}ms {Score}pts",
                         currentTick,

@@ -22,7 +22,7 @@
   "ZookeeperCooldown": 0.9,
   "PelletEfficiency": 1.1,
   "LongTermPelletSeekingFactor": 0.15,
-  "ImmediatePelletBonus": 500,
+  "ImmediatePelletBonus": 1000,
   "EscapeRoutes": 1.5,
   "AnimalCongestion": -0.6,
   "CaptureRecoveryStrategy": 1.3,
