@@ -34,13 +34,25 @@ public class LineOfSightPelletsHeuristic : IHeuristic
             return 0m; // No pellets on the board.
         }
 
-        int pelletsInDirection = CountPelletsInDirection(
+        // Calculate both consecutive and total linked pellets
+        int consecutivePellets = CountPelletsInDirection(
             heuristicContext.MyNewPosition,
             action,
             pelletPositions
         );
 
-        return pelletsInDirection * heuristicContext.Weights.LineOfSightPellets;
+        int totalLinkedPellets = CountTotalLinkedPellets(
+            heuristicContext.MyNewPosition,
+            action,
+            pelletPositions
+        );
+
+        // Hybrid scoring: prioritize consecutive pellets but also consider total linked pellets
+        // This ensures we don't ignore better long-term paths
+        decimal consecutiveScore = consecutivePellets * 1.0m;
+        decimal linkedScore = totalLinkedPellets * 0.3m;
+        
+        return (consecutiveScore + linkedScore) * heuristicContext.Weights.LineOfSightPellets;
     }
 
     private BotAction GetActionFromPositions((int x, int y) current, (int x, int y) next)
@@ -93,5 +105,83 @@ public class LineOfSightPelletsHeuristic : IHeuristic
         }
 
         return pelletsFound;
+    }
+
+    private static int CountTotalLinkedPellets((int x, int y) startPos, BotAction direction, HashSet<(int X, int Y)> pelletPositions)
+    {
+        int dx = 0, dy = 0;
+        
+        switch (direction)
+        {
+            case BotAction.Up:
+                dy = -1;
+                break;
+            case BotAction.Down:
+                dy = 1;
+                break;
+            case BotAction.Left:
+                dx = -1;
+                break;
+            case BotAction.Right:
+                dx = 1;
+                break;
+            default:
+                return 0;
+        }
+
+        var visited = new HashSet<(int, int)>();
+        var queue = new Queue<(int x, int y)>();
+        
+        // Start from the first step in the direction
+        int startX = startPos.x + dx;
+        int startY = startPos.y + dy;
+        
+        if (pelletPositions.Contains((startX, startY)))
+        {
+            queue.Enqueue((startX, startY));
+            visited.Add((startX, startY));
+        }
+        
+        int totalPellets = 0;
+        
+        // BFS to find all connected pellets in this general direction
+        while (queue.Count > 0)
+        {
+            var (currentX, currentY) = queue.Dequeue();
+            totalPellets++;
+            
+            // Check all 4 directions for connected pellets
+            var neighbors = new[]
+            {
+                (currentX, currentY - 1), // Up
+                (currentX, currentY + 1), // Down
+                (currentX - 1, currentY), // Left
+                (currentX + 1, currentY)  // Right
+            };
+            
+            foreach (var (nx, ny) in neighbors)
+            {
+                if (!visited.Contains((nx, ny)) && pelletPositions.Contains((nx, ny)))
+                {
+                    // Prioritize pellets that are generally in the same direction
+                    bool isInSameDirection = direction switch
+                    {
+                        BotAction.Up => ny <= startPos.y,
+                        BotAction.Down => ny >= startPos.y,
+                        BotAction.Left => nx <= startPos.x,
+                        BotAction.Right => nx >= startPos.x,
+                        _ => true
+                    };
+                    
+                    if (isInSameDirection)
+                    {
+                        queue.Enqueue((nx, ny));
+                        visited.Add((nx, ny));
+                    }
+                }
+            }
+        }
+        
+        return totalPellets;
     }
 }

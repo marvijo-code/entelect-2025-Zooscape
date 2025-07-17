@@ -785,5 +785,20 @@
     "Bots": [
       "StaticHeuro"
     ]
+  },
+  {
+    "TestName": "StaticHeuro_Tick71_PelletIgnore_Right",
+    "GameStateFile": "71_tick71_pellet_ignore.json",
+    "Description": "Test StaticHeuro at tick 71 - bot at (18,1) should move Right to collect immediate pellet with 9 pellets in line-of-sight, not ignore it",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": "Right",
+    "AcceptableActions": [
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
   }
 ]

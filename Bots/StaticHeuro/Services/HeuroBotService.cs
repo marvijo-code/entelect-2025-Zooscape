@@ -166,8 +166,11 @@ public class HeuroBotService : IBot<HeuroBotService>
                 currentTick,
                 string.Join(", ", gameState.Animals.Select(a => a.Id.ToString()))
             );
-            // Return a default action, perhaps 'None' or the safest option.
-            return (BotAction.Up, new Dictionary<BotAction, decimal>(), new List<ScoreLog>()); // Defaulting to Up as BotAction.None is not available
+            // Try to find any animal as fallback to determine a safe action
+            var fallbackAnimal = gameState.Animals.FirstOrDefault();
+            var safeFallback = fallbackAnimal != null ? GetSafeFallbackAction(gameState, fallbackAnimal) : BotAction.Up;
+            _logger.Warning("Using safe fallback action: {Action}", safeFallback);
+            return (safeFallback, new Dictionary<BotAction, decimal>(), new List<ScoreLog>());
         }
 
         // Log current position and wall detection
@@ -639,6 +642,40 @@ public class HeuroBotService : IBot<HeuroBotService>
         || (a == BotAction.Right && b == BotAction.Left)
         || (a == BotAction.Up && b == BotAction.Down)
         || (a == BotAction.Down && b == BotAction.Up);
+
+    /// <summary>
+    /// Gets a safe fallback action that is guaranteed to be legal based on the current game state.
+    /// This prevents the bot from returning illegal moves as fallbacks.
+    /// </summary>
+    private BotAction GetSafeFallbackAction(GameState gameState, Animal me)
+    {
+        if (gameState?.Cells == null || me == null)
+            return BotAction.Up; // Last resort if we can't analyze the game state
+
+        // Try each direction in order of preference and return the first legal one
+        var actionsToTry = new[] { BotAction.Right, BotAction.Down, BotAction.Left, BotAction.Up };
+        
+        foreach (var action in actionsToTry)
+        {
+            int nx = me.X, ny = me.Y;
+            switch (action)
+            {
+                case BotAction.Up: ny--; break;
+                case BotAction.Down: ny++; break;
+                case BotAction.Left: nx--; break;
+                case BotAction.Right: nx++; break;
+            }
+            
+            var targetCell = gameState.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
+            if (targetCell != null && targetCell.Content != CellContent.Wall)
+            {
+                return action;
+            }
+        }
+        
+        // If somehow no direction is legal, return Up as absolute last resort
+        return BotAction.Up;
+    }
 
     // Determine quadrant based on map midpoints
     private static int GetQuadrant(int x, int y, GameState state)

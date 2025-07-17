@@ -52,6 +52,7 @@ riderModule.iml
 *.nuget.targets
 .vite
 publish/
+publish*/
 logs.bak-*/
 logs.bak/
 backups/
@@ -89,4 +90,5 @@ Bots/**/*.sln
 __pycache__/
 
 # Functional Test Data
-FunctionalTests/evolution-data/
+FunctionalTests/evolution-data/
+!Bots/ClingyHeuroBot2/evolution-data/high-scores.json
