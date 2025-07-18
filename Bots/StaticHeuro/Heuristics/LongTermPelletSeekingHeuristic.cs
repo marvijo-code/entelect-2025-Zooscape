@@ -47,12 +47,22 @@ namespace StaticHeuro.Heuristics
         private void FindAndCachePelletClusters(GameState gameState)
         {
             _pelletClusters.Clear();
-            _boardWidth = gameState.Cells.Max(c => c.X) + 1;
-            _boardHeight = gameState.Cells.Max(c => c.Y) + 1;
-
-            var pelletCells = new HashSet<(int x, int y)>(
-                gameState.Cells.Where(c => c.Content == CellContent.Pellet).Select(c => (c.X, c.Y))
-            );
+            // Calculate board dimensions and collect pellets efficiently
+            int maxX = int.MinValue, maxY = int.MinValue;
+            var pelletCells = new HashSet<(int x, int y)>();
+            
+            foreach (var cell in gameState.Cells)
+            {
+                if (cell.X > maxX) maxX = cell.X;
+                if (cell.Y > maxY) maxY = cell.Y;
+                if (cell.Content == CellContent.Pellet)
+                {
+                    pelletCells.Add((cell.X, cell.Y));
+                }
+            }
+            
+            _boardWidth = maxX + 1;
+            _boardHeight = maxY + 1;
 
             var visited = new HashSet<(int x, int y)>();
 

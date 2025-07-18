@@ -950,5 +950,41 @@
     "Bots": [
       "StaticHeuro"
     ]
+  },
+  {
+    "TestName": "StaticHeuro_AvoidCapture_105",
+    "GameStateFile": "105_0.json",
+    "Description": "Bot must avoid capture at tick 105",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Up",
+      "Down",
+      "Left",
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_AvoidCapture_239",
+    "GameStateFile": "239_0.json",
+    "Description": "Bot must avoid capture by choosing safer moves",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Up",
+      "Down",
+      "Left",
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
   }
 ]

@@ -20,10 +20,16 @@ public class EdgeSafetyHeuristic : IHeuristic
         if (!heuristicContext.CurrentGameState.Cells.Any())
             return 0m; // Should not happen in a valid game state
 
-        int minX = heuristicContext.CurrentGameState.Cells.Min(c => c.X);
-        int maxX = heuristicContext.CurrentGameState.Cells.Max(c => c.X);
-        int minY = heuristicContext.CurrentGameState.Cells.Min(c => c.Y);
-        int maxY = heuristicContext.CurrentGameState.Cells.Max(c => c.Y);
+        // Cache board bounds to avoid repeated LINQ operations
+        var cells = heuristicContext.CurrentGameState.Cells;
+        int minX = int.MaxValue, maxX = int.MinValue, minY = int.MaxValue, maxY = int.MinValue;
+        foreach (var cell in cells)
+        {
+            if (cell.X < minX) minX = cell.X;
+            if (cell.X > maxX) maxX = cell.X;
+            if (cell.Y < minY) minY = cell.Y;
+            if (cell.Y > maxY) maxY = cell.Y;
+        }
 
         // Calculate distance to the closest edge
         int distToClosestEdge = Math.Min(

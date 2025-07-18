@@ -24,40 +24,75 @@ public class CaptureAvoidanceHeuristic : IHeuristic
 
         decimal score = 0m;
 
+        // Track the closest zookeeper for enhanced danger assessment
+        int closestCurrentDist = int.MaxValue;
+        int closestNewDist = int.MaxValue;
+        
         foreach (var zk in heuristicContext.CurrentGameState.Zookeepers)
         {
             int currentDist = BotUtils.ManhattanDistance(zk.X, zk.Y, heuristicContext.CurrentAnimal.X, heuristicContext.CurrentAnimal.Y);
             int newDist = BotUtils.ManhattanDistance(zk.X, zk.Y, nx, ny);
+            
+            // Track closest distances
+            closestCurrentDist = Math.Min(closestCurrentDist, currentDist);
+            closestNewDist = Math.Min(closestNewDist, newDist);
 
-            // Fatal move – standing on the same tile.
+            // Fatal move – standing on the same tile or adjacent (high risk)
             if (newDist == 0)
             {
-                return -10000m;
+                return -20000m; // Increased penalty for fatal moves
+            }
+            else if (newDist == 1)
+            {
+                // Extremely dangerous - adjacent to zookeeper
+                score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * 5;
             }
 
             // Check if we're moving closer or away from this zookeeper
             if (newDist < currentDist)
             {
                 // Moving closer – penalise heavily, especially in danger zone
-                decimal proximityMultiplier = newDist <= 2 ? (3 - newDist) : 1;
+                decimal proximityMultiplier = 1;
+                
+                // Enhanced danger zone logic - more aggressive scaling
+                if (newDist <= 3) 
+                {
+                    proximityMultiplier = (4 - newDist) * 2; // 6 when dist==1, 4 when dist==2, 2 when dist==3
+                }
+                
                 int delta = currentDist - newDist;
                 score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * delta * proximityMultiplier;
             }
             else if (newDist > currentDist)
             {
-                // Moving away – always reward, even if still in danger zone
-                decimal escapeBonus = currentDist <= 2 ? heuristicContext.Weights.CaptureAvoidanceRewardFactor * 2 : heuristicContext.Weights.CaptureAvoidanceRewardFactor;
+                // Moving away – always reward, especially from danger zone
+                decimal escapeBonus = heuristicContext.Weights.CaptureAvoidanceRewardFactor;
+                
+                // Enhanced escape bonus when in danger
+                if (currentDist <= 3) 
+                {
+                    escapeBonus = heuristicContext.Weights.CaptureAvoidanceRewardFactor * (4 - currentDist);
+                }
+                
                 score += escapeBonus / Math.Max(currentDist, 1);
             }
             else
             {
-                // Same distance – only penalize if in immediate danger zone
-                if (newDist <= 2)
+                // Same distance – penalize more aggressively in danger zone
+                if (newDist <= 3)
                 {
-                    decimal dangerFactor = 3 - newDist; // 2 when dist==1, 1 when dist==2
-                    score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * dangerFactor * 0.5m; // Reduced penalty for staying same distance
+                    decimal dangerFactor = 4 - newDist; // 3 when dist==1, 2 when dist==2, 1 when dist==3
+                    score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * dangerFactor * 0.75m; // Increased penalty
                 }
             }
+        }
+
+        // Apply additional penalty if we're moving toward the closest zookeeper
+        if (closestNewDist < closestCurrentDist && closestNewDist <= 5)
+        {
+            // Extra penalty for moving toward the closest zookeeper
+            decimal extraPenalty = (6 - closestNewDist) * heuristicContext.Weights.CaptureAvoidancePenaltyFactor * 0.5m;
+            score -= extraPenalty;
         }
 
         // Clamp small magnitude near zero to exactly zero to avoid noise.

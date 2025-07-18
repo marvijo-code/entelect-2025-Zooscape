@@ -77,11 +77,16 @@ public class PelletClusterPlanningHeuristic : IHeuristic
         }
 
         // Early exit if too many pellets to process efficiently
-        var pellets = gameState.Cells
-            .Where(c => c.Content == CellContent.Pellet)
-            .Take(MAX_PELLETS_TO_PROCESS) // Limit for performance
-            .Select(c => (c.X, c.Y))
-            .ToList();
+        var pellets = new List<(int X, int Y)>();
+        int pelletCount = 0;
+        foreach (var cell in gameState.Cells)
+        {
+            if (cell.Content == CellContent.Pellet)
+            {
+                pellets.Add((cell.X, cell.Y));
+                if (++pelletCount >= MAX_PELLETS_TO_PROCESS) break; // Limit for performance
+            }
+        }
         
         // Early exit if no pellets or too few to form clusters
         if (pellets.Count < MIN_CLUSTER_SIZE)

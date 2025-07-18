@@ -18,10 +18,16 @@ public class QuadrantAwarenessHeuristic : IHeuristic
         if (!heuristicContext.CurrentGameState.Cells.Any())
             return 0m; // Should not happen
 
-        int minX = heuristicContext.CurrentGameState.Cells.Min(c => c.X);
-        int maxX = heuristicContext.CurrentGameState.Cells.Max(c => c.X);
-        int minY = heuristicContext.CurrentGameState.Cells.Min(c => c.Y);
-        int maxY = heuristicContext.CurrentGameState.Cells.Max(c => c.Y);
+        // Cache board bounds to avoid repeated LINQ operations
+        var cells = heuristicContext.CurrentGameState.Cells;
+        int minX = int.MaxValue, maxX = int.MinValue, minY = int.MaxValue, maxY = int.MinValue;
+        foreach (var cell in cells)
+        {
+            if (cell.X < minX) minX = cell.X;
+            if (cell.X > maxX) maxX = cell.X;
+            if (cell.Y < minY) minY = cell.Y;
+            if (cell.Y > maxY) maxY = cell.Y;
+        }
 
         // Integer division is fine for determining center for quadrant logic
         int centerX = (minX + maxX) / 2;
@@ -36,23 +42,17 @@ public class QuadrantAwarenessHeuristic : IHeuristic
         int targetQuadrant = (nx >= centerX ? 1 : 0) + (ny >= centerY ? 2 : 0);
 
         int[] pelletsByQuadrant = new int[4];
-        foreach (
-            var cell in heuristicContext.CurrentGameState.Cells.Where(c =>
-                c.Content == CellContent.Pellet
-            )
-        )
+        foreach (var cell in cells)
         {
+            if (cell.Content != CellContent.Pellet) continue;
             int q = (cell.X >= centerX ? 1 : 0) + (cell.Y >= centerY ? 2 : 0);
             pelletsByQuadrant[q]++;
         }
 
         int[] animalsByQuadrant = new int[4];
-        foreach (
-            var animal in heuristicContext.CurrentGameState.Animals.Where(a =>
-                a.Id != heuristicContext.CurrentAnimal.Id && a.IsViable
-            )
-        )
+        foreach (var animal in heuristicContext.CurrentGameState.Animals)
         {
+            if (animal.Id == heuristicContext.CurrentAnimal.Id || !animal.IsViable) continue;
             int q = (animal.X >= centerX ? 1 : 0) + (animal.Y >= centerY ? 2 : 0);
             animalsByQuadrant[q]++;
         }

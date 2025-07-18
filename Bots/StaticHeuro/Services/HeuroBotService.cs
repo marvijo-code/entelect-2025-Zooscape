@@ -27,6 +27,23 @@ public class HeuroBotService : IBot<HeuroBotService>
     // Late tick tracking for robustness
     private int _lateTickCount = 0;
     private bool _forceEssentialHeuristicsOnly = false;
+// Back-off timer to keep the bot in essential-only mode for a few ticks
+private const int ESSENTIAL_BACKOFF_DURATION = 10;
+private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once engaged
+    
+    // State synchronization recovery tracking
+    private int _consecutiveDiscrepancies = 0;
+    private int _lastDiscrepancyTick = -1;
+    private const int MAX_CONSECUTIVE_DISCREPANCIES = 3;
+    
+    // Action repetition prevention
+    private readonly Queue<BotAction> _recentActions = new();
+    private const int ACTION_HISTORY_SIZE = 5;
+    
+    // Emergency fallback mode
+    private bool _emergencyFallbackMode = false;
+    private int _emergencyFallbackStartTick = -1;
+    private const int EMERGENCY_FALLBACK_DURATION = 10;
 
     public HeuroBotService(ILogger? logger = null)
     {
@@ -46,6 +63,7 @@ public class HeuroBotService : IBot<HeuroBotService>
     }
 
     public Guid BotId { get; set; }
+    private string ShortBotId => BotId.ToString().Substring(0, 3);
     private BotAction? _previousAction = null;
 
     // Track visit counts per cell to discourage repeat visits
@@ -83,12 +101,7 @@ public class HeuroBotService : IBot<HeuroBotService>
         _animalRecentPositionsHistory.TryRemove(botKey, out _);
         _animalLastDirectionsHistory.TryRemove(botKey, out _);
         
-        _logger.Information(
-            "[PositionSync] RECOVERY_COMPLETE: Cleared visit counts ({VisitCountsCleared}), quadrants ({QuadrantsCleared}), and position history for bot {BotId}",
-            _visitCounts.Count,
-            _visitedQuadrants.Count,
-            BotId
-        );
+        // Position data cleared for sync recovery (logging suppressed for performance)
     }
 
     public void SetBotId(Guid botId)
@@ -96,10 +109,10 @@ public class HeuroBotService : IBot<HeuroBotService>
         _logger.Information(
             "SetBotId called. Received BotId: {ReceivedBotId}. Current BotId before set: {CurrentBotId}",
             botId,
-            BotId
+            ShortBotId
         );
         BotId = botId;
-        _logger.Information("BotId after set: {UpdatedBotId}", BotId);
+        _logger.Information("BotId after set: {UpdatedBotId}", ShortBotId);
     }
 
     public BotAction GetAction(GameState gameState)
@@ -109,27 +122,6 @@ public class HeuroBotService : IBot<HeuroBotService>
         
         try
         {
-            // Ultra-precise telemetry for state synchronization debugging
-            if (gameState != null)
-            {
-                var me = gameState.Animals?.FirstOrDefault(a => a.Id == BotId);
-                if (me != null)
-                {
-                    _logger.Information(
-                        "[PositionSync] BEFORE_ACTION T{Tick} Bot:{BotId} Pos:({X},{Y}) Spawn:({SpawnX},{SpawnY}) HeldPowerUp:{HeldPowerUp} ExpectedPos:{ExpectedPos} LastAction:{LastAction} LastTick:{LastTick}",
-                        gameState.Tick,
-                        BotId,
-                        me.X,
-                        me.Y,
-                        me.SpawnX,
-                        me.SpawnY,
-                        me.HeldPowerUp?.ToString() ?? "None",
-                        _expectedNextPosition?.ToString() ?? "None",
-                        _lastActionSent?.ToString() ?? "None",
-                        _lastActionTick
-                    );
-                }
-            }
 
             // Check if we need to verify the position from the last action
             if (gameState != null && _expectedNextPosition.HasValue && _lastActionSent.HasValue && _lastActionTick != -1)
@@ -144,25 +136,14 @@ public class HeuroBotService : IBot<HeuroBotService>
                         var currentPos = (me.X, me.Y);
                         var expectedPos = _expectedNextPosition.Value;
                         
-                        // Enhanced logging for position verification
-                        _logger.Information(
-                            "[PositionSync] VERIFY T{Tick} Bot:{BotId} Expected:({ExpectedX},{ExpectedY}) Actual:({ActualX},{ActualY}) Match:{Match} AtSpawn:{AtSpawn}",
-                            gameState.Tick,
-                            BotId,
-                            expectedPos.Item1,
-                            expectedPos.Item2,
-                            currentPos.Item1,
-                            currentPos.Item2,
-                            currentPos == expectedPos,
-                            me.X == me.SpawnX && me.Y == me.SpawnY
-                        );
+                        // Position verification (logging suppressed for performance)
                         
                         // If positions don't match and we weren't at spawn point (which could indicate a respawn)
                         if (currentPos != expectedPos && !(me.X == me.SpawnX && me.Y == me.SpawnY))
                         {
                             _logger.Warning(
-                                "[PositionSync] DISCREPANCY! Bot {BotId} sent {Action} on tick {LastTick} expecting to move to ({ExpectedX}, {ExpectedY}) but is actually at ({ActualX}, {ActualY}) on tick {CurrentTick}",
-                                BotId,
+                                "[PositionSync] DISCREPANCY! Bot {ShortBotId} sent {Action} on tick {LastTick} expecting to move to ({ExpectedX}, {ExpectedY}) but is actually at ({ActualX}, {ActualY}) on tick {CurrentTick}",
+                                ShortBotId,
                                 _lastActionSent,
                                 _lastActionTick,
                                 expectedPos.Item1,
@@ -174,11 +155,6 @@ public class HeuroBotService : IBot<HeuroBotService>
                             
                             // CRITICAL FIX: Force state recovery by clearing stale tracking data
                             // This ensures the bot uses the engine's authoritative position for future decisions
-                            _logger.Information(
-                                "[PositionSync] RECOVERY: Clearing stale position tracking data to resync with engine state"
-                            );
-                            
-                            // Clear any cached position-dependent data that might be stale
                             ClearStalePositionData();
                         }
                     }
@@ -186,10 +162,10 @@ public class HeuroBotService : IBot<HeuroBotService>
                 else if (gameState.Tick > _lastActionTick + 1)
                 {
                     _logger.Warning(
-                        "[PositionSync] TICK_SKIP! Expected tick {ExpectedTick} but got {ActualTick} for Bot {BotId}",
+                        "[PositionSync] TICK_SKIP! Expected tick {ExpectedTick} but got {ActualTick} for Bot {ShortBotId}",
                         _lastActionTick + 1,
                         gameState.Tick,
-                        BotId
+                        ShortBotId
                     );
                 }
                 
@@ -205,25 +181,115 @@ public class HeuroBotService : IBot<HeuroBotService>
             
             if (gameState == null)
             {
-                _logger.Error("GetAction received null GameState for Bot {BotId}. Returning default action.", BotId);
+                _logger.Error("GetAction received null GameState for Bot {ShortBotId}. Returning default action.", ShortBotId);
                 return BotAction.Up; // Safe default if gameState is null - no animal context available
+            }
+            
+            // Check if we're already running late before computing action
+            var preCheckElapsed = actionStopwatch.ElapsedMilliseconds;
+            if (preCheckElapsed >= HARD_DEADLINE_MS)
+            {
+                _logger.Warning(
+                    "[CRITICAL_TIMEOUT] T{Tick} Bot:{ShortBotId} already exceeded {Deadline}ms deadline with {Elapsed}ms before action computation - returning safe fallback",
+                    gameState.Tick,
+                    ShortBotId,
+                    HARD_DEADLINE_MS,
+                    preCheckElapsed
+                );
+                
+                // Clear expected position to prevent mismatch logs
+                _expectedNextPosition = null;
+                _lastActionSent = null;
+                _lastActionTick = -1;
+                
+                // Activate essential-heuristics-only mode for a back-off period
+                _essentialBackoffTicksRemaining = ESSENTIAL_BACKOFF_DURATION;
+                _forceEssentialHeuristicsOnly = true;
+                if (_lateTickCount >= 3)
+                {
+                    _logger.Warning(
+                        "[LATE_TICK_RECOVERY] Bot:{ShortBotId} had {LateCount} consecutive late ticks - switching to essential heuristics only",
+                        ShortBotId,
+                        _lateTickCount
+                    );
+                    _forceEssentialHeuristicsOnly = true; // will be disabled after back-off timer expires
+                }
+                
+                // Return safe fallback action without computing expensive heuristics
+                var me = gameState.Animals?.FirstOrDefault(a => a.Id == BotId);
+                if (me != null)
+                {
+                    return GetSafeFallbackAction(gameState, me);
+                }
+                return BotAction.Up;
             }
             
             var actionResult = GetActionWithScores(gameState);
             var chosenAction = actionResult.ChosenAction;
             
-            // Enhanced post-action telemetry
+            // Check if we exceeded the hard deadline AFTER computation
+            actionStopwatch.Stop();
+            var elapsedMs = actionStopwatch.ElapsedMilliseconds;
+            
+            if (elapsedMs >= HARD_DEADLINE_MS)
+            {
+                _logger.Warning(
+                    "[CRITICAL_TIMEOUT] T{Tick} Bot:{ShortBotId} exceeded {Deadline}ms deadline with {Elapsed}ms during action computation - suppressing computed action",
+                    gameState.Tick,
+                    ShortBotId,
+                    HARD_DEADLINE_MS,
+                    elapsedMs
+                );
+                
+                // Clear expected position to prevent mismatch logs
+                _expectedNextPosition = null;
+                _lastActionSent = null;
+                _lastActionTick = -1;
+                
+                // Activate essential-heuristics-only mode for a back-off period
+                _essentialBackoffTicksRemaining = ESSENTIAL_BACKOFF_DURATION;
+                _forceEssentialHeuristicsOnly = true;
+                if (_lateTickCount >= 3)
+                {
+                    _logger.Warning(
+                        "[LATE_TICK_RECOVERY] Bot:{ShortBotId} had {LateCount} consecutive late ticks - switching to essential heuristics only",
+                        ShortBotId,
+                        _lateTickCount
+                    );
+                    _forceEssentialHeuristicsOnly = true; // will be disabled after back-off timer expires
+                }
+                
+                // Return safe fallback action instead of the computed one
+                var meForFallback = gameState.Animals?.FirstOrDefault(a => a.Id == BotId);
+                if (meForFallback != null)
+                {
+                    return GetSafeFallbackAction(gameState, meForFallback);
+                }
+                return BotAction.Up;
+            }
+            else
+            {
+                // Successful timing – decrement essential back-off timer if active
+                if (_essentialBackoffTicksRemaining > 0)
+                {
+                    _essentialBackoffTicksRemaining--;
+                    if (_essentialBackoffTicksRemaining == 0)
+                    {
+                        _forceEssentialHeuristicsOnly = false;
+                        _logger.Information(
+                            "[TIMING_RECOVERY] Bot:{ShortBotId} back under deadline ({Elapsed}ms < {Deadline}ms); resuming full heuristics",
+                            ShortBotId,
+                            elapsedMs,
+                            HARD_DEADLINE_MS
+                        );
+                    }
+                }
+            }
+            
+            // Set position expectations for next tick
             var me2 = gameState.Animals?.FirstOrDefault(a => a.Id == BotId);
             if (me2 != null)
             {
-                _logger.Information(
-                    "[PositionSync] AFTER_ACTION T{Tick} Bot:{BotId} ChosenAction:{Action} CurrentPos:({X},{Y})",
-                    gameState.Tick,
-                    BotId,
-                    chosenAction,
-                    me2.X,
-                    me2.Y
-                );
                 
                 // Set expected position for next tick verification (only for movement actions)
                 if (IsMovementAction(chosenAction))
@@ -234,96 +300,41 @@ public class HeuroBotService : IBot<HeuroBotService>
                         _expectedNextPosition = expectedPos;
                         _lastActionSent = chosenAction;
                         _lastActionTick = gameState.Tick;
-                        
-                        _logger.Information(
-                            "[PositionSync] EXPECTATION_SET T{Tick} Bot:{BotId} Action:{Action} ExpectedNextPos:({ExpectedX},{ExpectedY})",
-                            gameState.Tick,
-                            BotId,
-                            chosenAction,
-                            expectedPos.Item1,
-                            expectedPos.Item2
-                        );
                     }
-                    else
-                    {
-                        _logger.Warning(
-                            "[PositionSync] ILLEGAL_MOVE! T{Tick} Bot:{BotId} attempted illegal action {Action} from ({X},{Y})",
-                            gameState.Tick,
-                            BotId,
-                            chosenAction,
-                            me2.X,
-                            me2.Y
-                        );
-                    }
+                    // Note: Illegal move detected (logging suppressed for performance)
                 }
             }
             
-            // Check if we exceeded the hard deadline and implement late-action handling
-            actionStopwatch.Stop();
-            var elapsedMs = actionStopwatch.ElapsedMilliseconds;
-            
-            if (elapsedMs >= HARD_DEADLINE_MS)
+            // Single consolidated log line per tick with all required information
+            if (me2 != null)
             {
-                _logger.Warning(
-                    "[CRITICAL_TIMEOUT] T{Tick} Bot:{BotId} exceeded {Deadline}ms deadline with {Elapsed}ms - suppressing action",
+                _logger.Information(
+                    "T{Tick} ({CurX},{CurY}) {Action} {Elapsed}ms {Score}pts",
                     gameState.Tick,
-                    BotId,
-                    HARD_DEADLINE_MS,
-                    elapsedMs
+                    me2.X,
+                    me2.Y,
+                    chosenAction,
+                    actionStopwatch.ElapsedMilliseconds,
+                    me2.Score
                 );
-                
-                // Clear expected position to prevent mismatch logs
-                _expectedNextPosition = null;
-                _lastActionSent = null;
-                _lastActionTick = -1;
-                
-                // Track late ticks for robustness
-                _lateTickCount++;
-                if (_lateTickCount >= 3)
-                {
-                    _logger.Warning(
-                        "[LATE_TICK_RECOVERY] Bot:{BotId} had {LateCount} consecutive late ticks - switching to essential heuristics only",
-                        BotId,
-                        _lateTickCount
-                    );
-                    _forceEssentialHeuristicsOnly = true;
-                }
-                
-                // Return safe fallback action instead of the computed one
-                if (me2 != null)
-                {
-                    return GetSafeFallbackAction(gameState, me2);
-                }
-                return BotAction.Up;
             }
-            else
-            {
-                // Reset late tick count on successful timing
-                if (_lateTickCount > 0)
-                {
-                    _lateTickCount = 0;
-                    _forceEssentialHeuristicsOnly = false;
-                    _logger.Information(
-                        "[TIMING_RECOVERY] Bot:{BotId} back under deadline ({Elapsed}ms < {Deadline}ms) - resuming normal heuristics",
-                        BotId,
-                        elapsedMs,
-                        HARD_DEADLINE_MS
-                    );
-                }
-            }
-            
             return chosenAction;
         }
         catch (Exception ex)
         {
             _logger.Error(
                 ex,
-                "Error in GetAction for Bot {BotId} on tick {Tick}. Exception: {ExceptionType}: {ExceptionMessage}",
-                BotId,
+                "Error in GetAction for Bot {ShortBotId} on tick {Tick}. Exception: {ExceptionType}: {ExceptionMessage}",
+                ShortBotId,
                 gameState?.Tick ?? -1,
                 ex.GetType().Name,
                 ex.Message
             );
+
+            // Clear tracking on exception to prevent cascading issues
+            _expectedNextPosition = null;
+            _lastActionSent = null;
+            _lastActionTick = -1;
 
             // Return a safe fallback action
             if (gameState?.Animals != null)
@@ -393,8 +404,8 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (gameState == null)
         {
             _logger.Error(
-                "GetActionWithScores received null GameState for Bot {BotId}. Returning default action.",
-                BotId
+                "GetActionWithScores received null GameState for Bot {ShortBotId}. Returning default action.",
+                ShortBotId
             );
             return (BotAction.Up, new Dictionary<BotAction, decimal>(), new List<ScoreLog>());
         }
@@ -402,8 +413,8 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (gameState.Animals == null)
         {
             _logger.Error(
-                "GameState.Animals is null for Bot {BotId} on tick {Tick}. Returning default action.",
-                BotId,
+                "GameState.Animals is null for Bot {ShortBotId} on tick {Tick}. Returning default action.",
+                ShortBotId,
                 currentTick
             );
             return (BotAction.Up, new Dictionary<BotAction, decimal>(), new List<ScoreLog>());
@@ -412,8 +423,8 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (gameState.Cells == null)
         {
             _logger.Error(
-                "GameState.Cells is null for Bot {BotId} on tick {Tick}. Returning default action.",
-                BotId,
+                "GameState.Cells is null for Bot {ShortBotId} on tick {Tick}. Returning default action.",
+                ShortBotId,
                 currentTick
             );
             return (BotAction.Up, new Dictionary<BotAction, decimal>(), new List<ScoreLog>());
@@ -423,8 +434,8 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (_heuristics == null)
         {
             _logger.Error(
-                "HeuristicsManager is null for Bot {BotId} on tick {Tick}. This should never happen! Returning default action.",
-                BotId,
+                "HeuristicsManager is null for Bot {ShortBotId} on tick {Tick}. This should never happen! Returning default action.",
+                ShortBotId,
                 currentTick
             );
             return (BotAction.Up, new Dictionary<BotAction, decimal>(), new List<ScoreLog>());
@@ -433,8 +444,8 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (_logger != null && this.LogHeuristicScores)
         {
             _logger.Information(
-                "\n===== Evaluating Potential Moves for Bot {BotId} on tick {Tick} ====",
-                BotId,
+                "\n===== Evaluating Potential Moves for Bot {ShortBotId} on tick {Tick} ====",
+                ShortBotId,
                 currentTick
             );
         }
@@ -445,8 +456,8 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (me == null)
         {
             _logger.Error(
-                "Bot's animal with ID {BotId} not found in current game state on tick {Tick}. Available animals: [{AvailableAnimals}]",
-                BotId,
+                "Bot's animal with ID {ShortBotId} not found in current game state on tick {Tick}. Available animals: [{AvailableAnimals}]",
+                ShortBotId,
                 currentTick,
                 string.Join(", ", gameState.Animals.Select(a => a.Id.ToString()))
             );
@@ -459,8 +470,8 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         // Log current position and wall detection
         _logger?.Debug(
-            "Bot {BotId} at position ({X}, {Y}) on tick {Tick}",
-            BotId,
+            "Bot {ShortBotId} at position ({X}, {Y}) on tick {Tick}",
+            ShortBotId,
             me!.X,
             me.Y,
             currentTick
@@ -567,22 +578,22 @@ public class HeuroBotService : IBot<HeuroBotService>
                 if (targetCell == null)
                 {
                     _logger.Debug(
-                        "Action {Action} blocked: No cell found at ({X}, {Y}) for bot {BotId} on tick {Tick}",
+                        "Action {Action} blocked: No cell found at ({X}, {Y}) for bot {ShortBotId} on tick {Tick}",
                         actionType,
                         nx,
                         ny,
-                        BotId,
+                        ShortBotId,
                         currentTick
                     );
                 }
                 else if (targetCell.Content == CellContent.Wall)
                 {
                     _logger.Debug(
-                        "Action {Action} blocked: Wall detected at ({X}, {Y}) for bot {BotId} on tick {Tick}",
+                        "Action {Action} blocked: Wall detected at ({X}, {Y}) for bot {ShortBotId} on tick {Tick}",
                         actionType,
                         nx,
                         ny,
-                        BotId,
+                        ShortBotId,
                         currentTick
                     );
                 }
@@ -590,12 +601,12 @@ public class HeuroBotService : IBot<HeuroBotService>
                 {
                     legalActions.Add(actionType);
                     _logger.Debug(
-                        "Action {Action} is legal: Can move to ({X}, {Y}) with content {Content} for bot {BotId} on tick {Tick}",
+                        "Action {Action} is legal: Can move to ({X}, {Y}) with content {Content} for bot {ShortBotId} on tick {Tick}",
                         actionType,
                         nx,
                         ny,
                         targetCell!.Content,
-                        BotId,
+                        ShortBotId,
                         currentTick
                     );
                 }
@@ -606,8 +617,8 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (!legalActions.Any())
         {
             _logger.Warning(
-                "No legal actions found for bot {BotId} at ({X}, {Y}) on tick {Tick}! Adding fallback actions.",
-                BotId,
+                "No legal actions found for bot {ShortBotId} at ({X}, {Y}) on tick {Tick}! Adding fallback actions.",
+                ShortBotId,
                 me!.X,
                 me.Y,
                 currentTick
@@ -617,14 +628,14 @@ public class HeuroBotService : IBot<HeuroBotService>
             var safeFallback = GetSafeFallbackAction(gameState, me);
             legalActions.Add(safeFallback);
             _logger.Warning(
-                "Using safe fallback action {Action} for bot {BotId} at ({X}, {Y}) on tick {Tick}",
-                safeFallback, BotId, me!.X, me.Y, currentTick
+                "Using safe fallback action {Action} for bot {ShortBotId} at ({X}, {Y}) on tick {Tick}",
+                safeFallback, ShortBotId, me!.X, me.Y, currentTick
             );
         }
 
         _logger.Debug(
-            "Legal actions for bot {BotId} on tick {Tick}: [{Actions}]",
-            BotId,
+            "Legal actions for bot {ShortBotId} on tick {Tick}: [{Actions}]",
+            ShortBotId,
             currentTick,
             string.Join(", ", legalActions)
         );
@@ -741,12 +752,7 @@ public class HeuroBotService : IBot<HeuroBotService>
 
         heuristicStopwatch.Stop();
         var heuristicTimeMs = heuristicStopwatch.ElapsedMilliseconds;
-        _logger.Debug(
-            "Heuristic evaluation completed in {ElapsedTime}ms for {ActionCount} actions on tick {Tick}",
-            heuristicTimeMs,
-            legalActions.Count,
-            currentTick
-        );
+        // Heuristic evaluation completed (logging suppressed for performance)
 
         if (heuristicTimeMs > 180)
         {
@@ -762,54 +768,7 @@ public class HeuroBotService : IBot<HeuroBotService>
 
 
 
-        if (_logger != null && this.LogHeuristicScores)
-        {
-            _logger.Information(
-                "\n=============== Move Scores Summary (Bot: {BotId}) ==============",
-                BotId
-            );
-            foreach (var log in moveScoreLogs.OrderByDescending(l => l.TotalScore))
-            {
-                _logger.Information(
-                    "  Move \"{Move}\": {Score}",
-                    log.Move,
-                    Math.Round(log.TotalScore, 4)
-                );
-            }
-            _logger.Information("==================== End Summary ====================\n");
-
-            _logger.Information(
-                "\n============== Detailed Heuristic Scores (Bot: {BotId}) ==============",
-                BotId
-            );
-            foreach (var log in moveScoreLogs) // Or order as preferred, e.g., by action enum order
-            {
-                foreach (var line in log.DetailedLogLines)
-                {
-                    _logger.Information(line);
-                }
-            }
-            _logger.Information("================== End Detailed Scores ==================\n");
-
-            // Original final choice log
-            _logger.Debug(
-                "===== Bot {BotId} Chose Action: {ChosenAction} with Final Score: {BestScore} on tick {Tick} =====\n",
-                BotId,
-                bestAction,
-                Math.Round(bestScore, 4),
-                currentTick
-            );
-        }
-        else if (_logger != null) // Log only the chosen action if detailed scores are off
-        {
-            _logger.Debug(
-                "===== Bot {BotId} Chose Action: {ChosenAction} with Final Score: {BestScore} on tick {Tick} =====\n",
-                BotId,
-                bestAction,
-                Math.Round(bestScore, 4),
-                currentTick
-            );
-        }
+        // Verbose heuristic logging suppressed for performance (enable LogHeuristicScores if needed for debugging)
 
         // Store chosen action and mark new position to discourage oscillation and encourage exploration
         _previousAction = bestAction;
@@ -874,8 +833,8 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (state == null)
         {
             _logger.Error(
-                "ProcessState received null GameState for Bot {BotId}. Returning default action.",
-                BotId
+                "ProcessState received null GameState for Bot {ShortBotId}. Returning default action.",
+                ShortBotId
             );
             return new BotCommand { Action = BotAction.Up };
         }
@@ -883,8 +842,8 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (state.Animals == null)
         {
             _logger.Error(
-                "ProcessState received GameState with null Animals collection for Bot {BotId} on tick {Tick}. Returning default action.",
-                BotId,
+                "ProcessState received GameState with null Animals collection for Bot {ShortBotId} on tick {Tick}. Returning default action.",
+                ShortBotId,
                 state.Tick
             );
             return new BotCommand { Action = BotAction.Up };
@@ -893,8 +852,8 @@ public class HeuroBotService : IBot<HeuroBotService>
         if (state.Cells == null)
         {
             _logger.Error(
-                "ProcessState received GameState with null Cells collection for Bot {BotId} on tick {Tick}. Returning default action.",
-                BotId,
+                "ProcessState received GameState with null Cells collection for Bot {ShortBotId} on tick {Tick}. Returning default action.",
+                ShortBotId,
                 state.Tick
             );
             return new BotCommand { Action = BotAction.Up };
@@ -929,36 +888,15 @@ public class HeuroBotService : IBot<HeuroBotService>
             }
             
             // Store the action and expected position for verification in the next tick
-            _lastActionSent = action;
-            _expectedNextPosition = (expectedX, expectedY);
-            _lastActionTick = currentTick;
+            // Expectation tracking is handled in GetAction; no assignments here.
             
-            _logger.Debug(
-                "Bot {BotId} sending action {Action} on tick {Tick}, expecting to move from ({CurrentX}, {CurrentY}) to ({ExpectedX}, {ExpectedY})",
-                BotId,
-                action,
-                currentTick,
-                me.X,
-                me.Y,
-                expectedX,
-                expectedY
-            );
+            // Position expectation tracking (logging suppressed for performance)
         }
 
         stopwatch.Stop();
         var elapsedMs = stopwatch.ElapsedMilliseconds;
 
-        // Only log if processing took notable time (>10ms) or if there's a performance issue
-        if (elapsedMs > 10)
-        {
-            _logger.Debug(
-                "ProcessState T{Tick} {Action} {Duration}ms",
-                currentTick,
-                action,
-                elapsedMs
-            );
-        }
-
+        // Performance monitoring (logging consolidated in GetAction for single line per tick)
         if (elapsedMs > 180)
         {
             _logger.Warning(

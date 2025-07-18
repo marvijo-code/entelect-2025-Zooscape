@@ -4,6 +4,7 @@ using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -87,6 +88,7 @@ public class HeuristicsManager
             new QuadrantAwarenessHeuristic(),
             new RecalcWindowSafetyHeuristic(),
             new ReverseMovePenaltyHeuristic(),
+            new OscillationPenaltyHeuristic(),
             new ResourceClusteringHeuristic(),
             new ScoreLossMinimizerHeuristic(),
             new ShortestPathToGoalHeuristic(),
@@ -118,6 +120,7 @@ public class HeuristicsManager
             new PelletClusterPlanningHeuristic(),
             new MoveIfIdleHeuristic(),
             new ReverseMovePenaltyHeuristic(),
+            new OscillationPenaltyHeuristic(),
             new EarlyGameZookeeperAvoidanceHeuristic(),
             new EmptyCellAvoidanceHeuristic()
         ];
@@ -165,6 +168,8 @@ public class HeuristicsManager
                 _essentialHeuristics.Count, _heuristics.Count, state.Tick);
         }
 
+        var heuristicTimings = new List<(string Name, long DurationMs)>();
+        
         foreach (var heuristic in heuristicsToUse)
         {
             try
@@ -179,7 +184,13 @@ public class HeuristicsManager
                     break;
                 }
 
+                // Start timing this heuristic
+                var heuristicStopwatch = Stopwatch.StartNew();
                 decimal score = heuristic.CalculateScore(heuristicContext);
+                heuristicStopwatch.Stop();
+                
+                // Record timing data
+                heuristicTimings.Add((heuristic.Name, heuristicStopwatch.ElapsedMilliseconds));
 
                 if (score == 0m) continue;
 
@@ -215,6 +226,24 @@ public class HeuristicsManager
 
             logBuilder.AppendLine($"-------------------- Final Score: {totalScore:N4} --------------------");
             currentMoveLogLines.Add(logBuilder.ToString());
+        }
+        
+        // Log slow heuristics above threshold for performance analysis
+        if (heuristicTimings.Count > 0)
+        {
+            const long SLOW_HEURISTIC_THRESHOLD_MS = 5; // Log heuristics taking 5ms or more
+            var slowHeuristics = heuristicTimings.Where(h => h.DurationMs >= SLOW_HEURISTIC_THRESHOLD_MS)
+                                                .OrderByDescending(h => h.DurationMs)
+                                                .ToList();
+            
+            if (slowHeuristics.Count > 0)
+            {
+                var totalHeuristicTime = heuristicTimings.Sum(h => h.DurationMs);
+                var slowHeuristicsList = string.Join(", ", slowHeuristics.Select(h => $"{h.Name}:{h.DurationMs}ms"));
+                
+                _logger.Warning("[HeuristicPerf] T{Tick} {Move} Total:{TotalMs}ms - Slow: {SlowHeuristics}", 
+                    state.Tick, move, totalHeuristicTime, slowHeuristicsList);
+            }
         }
 
         return new ScoreLog(move, totalScore, currentMoveLogLines);

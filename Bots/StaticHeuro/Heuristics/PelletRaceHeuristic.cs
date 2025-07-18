@@ -15,20 +15,37 @@ public class PelletRaceHeuristic : IHeuristic
     public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
         var (nx, ny) = heuristicContext.MyNewPosition;
-        var pellets = heuristicContext.CurrentGameState.Cells.Where(c =>
-            c.Content == CellContent.Pellet
-        );
-        if (!pellets.Any())
-            return 0m;
-        var best = pellets.OrderBy(c => BotUtils.ManhattanDistance(nx, ny, c.X, c.Y)).First();
-        int myD = BotUtils.ManhattanDistance(nx, ny, best.X, best.Y);
-        int minOther = heuristicContext
-            .CurrentGameState.Animals.Where(a =>
-                a.Id != heuristicContext.CurrentAnimal.Id && a.IsViable
-            )
-            .Select(a => BotUtils.ManhattanDistance(a.X, a.Y, best.X, best.Y))
-            .DefaultIfEmpty(int.MaxValue)
-            .Min();
+        // Find closest pellet without expensive LINQ operations
+        Cell? bestPellet = null;
+        int bestDistance = int.MaxValue;
+        
+        foreach (var cell in heuristicContext.CurrentGameState.Cells)
+        {
+            if (cell.Content != CellContent.Pellet) continue;
+            
+            int distance = BotUtils.ManhattanDistance(nx, ny, cell.X, cell.Y);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestPellet = cell;
+            }
+        }
+        
+        if (bestPellet == null) return 0m;
+        int myD = BotUtils.ManhattanDistance(nx, ny, bestPellet.X, bestPellet.Y);
+        
+        // Find minimum opponent distance without LINQ
+        int minOther = int.MaxValue;
+        foreach (var animal in heuristicContext.CurrentGameState.Animals)
+        {
+            if (animal.Id == heuristicContext.CurrentAnimal.Id || !animal.IsViable) continue;
+            
+            int distance = BotUtils.ManhattanDistance(animal.X, animal.Y, bestPellet.X, bestPellet.Y);
+            if (distance < minOther)
+            {
+                minOther = distance;
+            }
+        }
         return minOther - myD >= 2 ? heuristicContext.Weights.PelletRace : 0m;
     }
 }
