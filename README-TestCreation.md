@@ -28,7 +28,11 @@ This system provides a flexible way to create automated tests for bot behavior a
 ## Quick Start
 
 ### Basic Usage
-```powershell
+```bash
+# Use pwsh for cross-platform PowerShell
+pwsh
+# Then in pwsh:
+
 # Create a simple test
 .\create_test.ps1 -GameStateFile "tick_1100.json" -TestName "MyTest"
 
@@ -40,6 +44,41 @@ This system provides a flexible way to create automated tests for bot behavior a
     -BotsToTest @("StaticHeuro") `
     -Description "Test StaticHeuro decision making"
 ```
+
+### Enhanced API Debug Output
+
+The test API endpoint now returns detailed bot debug scores in a flattened, terminal-friendly format:
+
+```bash
+# Use pwsh for cross-platform PowerShell
+pwsh
+# Then in pwsh:
+
+# Run a test and get detailed debug information
+$result = Invoke-RestMethod -Uri 'http://localhost:5008/api/test/run/StaticHeuro_AdjacentPellet_953' -Method POST
+
+# Access bot decision and scores directly
+Write-Host "Bot chose: $($result.botResults[0].action)"
+Write-Host "Success: $($result.success)"
+
+# Get individual action scores (flattened structure)
+Write-Host "Action Scores:"
+Write-Host "  Right: $($result.botResults[0].performanceMetrics.ActionScore_Right)"
+Write-Host "  Left: $($result.botResults[0].performanceMetrics.ActionScore_Left)"
+Write-Host "  Up: $($result.botResults[0].performanceMetrics.ActionScore_Up)"
+Write-Host "  Down: $($result.botResults[0].performanceMetrics.ActionScore_Down)"
+
+# Get detailed heuristic breakdown for specific moves
+$rightDetails = $result.botResults[0].performanceMetrics.DetailedScore_Right_LogLines
+Write-Host "Right move heuristic details:"
+Write-Host $rightDetails
+```
+
+**Key Improvements:**
+- **No deep JSON serialization needed** - simple `ConvertTo-Json` works without `-Depth 10`
+- **Direct access to action scores** via `ActionScore_[Action]` properties
+- **Clean terminal output** - log lines normalized without `\r\n` characters
+- **Detailed heuristic breakdowns** available via `DetailedScore_[Action]_LogLines`
 
 ### Advanced Usage
 ```powershell

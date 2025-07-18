@@ -20,6 +20,26 @@ This folder contains logically organized documentation files extracted from the 
 - **Always stop the API first** (`./start-api.ps1 -Stop`) before any `dotnet build` or `dotnet test` command to prevent DLL file locks.
 - **Always restart the API** (`./start-api.ps1 -Force`) after code or weight changes and after tests complete
 
+### Enhanced Test API Debug Output
+- **The test API now returns detailed bot debug scores** in a flattened, terminal-friendly format
+- **No need for deep JSON serialization** - simple `ConvertTo-Json` works without `-Depth 10`
+- **Access action scores directly**: `$result.botResults[0].performanceMetrics.ActionScore_Right`
+- **Get detailed heuristic breakdowns**: `$result.botResults[0].performanceMetrics.DetailedScore_Right_LogLines`
+- **Clean terminal output**: Log lines are normalized without `\r\n` characters
+- **Example usage**:
+  ```bash
+  # Use pwsh for cross-platform PowerShell
+  pwsh -Command '$result = Invoke-RestMethod -Uri "http://localhost:5008/api/test/run/StaticHeuro_AdjacentPellet_953" -Method POST; Write-Host "Bot chose: $($result.botResults[0].action)"; Write-Host "Right score: $($result.botResults[0].performanceMetrics.ActionScore_Right)"; Write-Host "Left score: $($result.botResults[0].performanceMetrics.ActionScore_Left)"'
+  
+  # Or run pwsh interactively:
+  pwsh
+  # Then in pwsh:
+  $result = Invoke-RestMethod -Uri 'http://localhost:5008/api/test/run/StaticHeuro_AdjacentPellet_953' -Method POST
+  Write-Host "Bot chose: $($result.botResults[0].action)"
+  Write-Host "Right score: $($result.botResults[0].performanceMetrics.ActionScore_Right)"
+  Write-Host "Left score: $($result.botResults[0].performanceMetrics.ActionScore_Left)"
+  ```
+
 ### create_test.ps1 Usage
 - **Purpose**: Automatically adds tests to `ConsolidatedTests.json` - never edit this file manually
 - **Required Parameters**: `-GameStateFile`, `-TestName`
@@ -114,9 +134,7 @@ The test endpoint now returns **detailed heuristic scores** for supported bots (
             "Move": "Right",
             "TotalScore": 318.20,
             "DetailedLogLines": [
-              "    CaptureAvoidanceHeuristic        : Raw=  2.5000, Weight= 10.0000, Contribution= 25.0000, NewScore= 25.0000",
-              "    LineOfSightPelletsHeuristic     : Raw=  9.0000, Weight= 50.0000, Contribution=450.0000, NewScore=475.0000",
-              "    WallCollisionRiskHeuristic      : Raw= -0.2000, Weight=  1.0000, Contribution= -0.2000, NewScore=474.8000"
+              "    CaptureAvoidanceHeuristic        : Raw=  2.5000, Weight= 10.0000, 
             ]
           }
         ]

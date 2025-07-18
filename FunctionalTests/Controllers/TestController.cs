@@ -524,14 +524,17 @@ public class TestController : ControllerBase
                     var actionScores = (Dictionary<BotAction, decimal>)actionScoresProperty!.GetValue(result)!;
                     var scoreLogs = scoreLogsProperty!.GetValue(result);
                     
-                    // Add heuristic scores to performance metrics
-                    performanceMetrics["ActionScores"] = actionScores.ToDictionary(kvp => kvp.Key.ToString(), kvp => (object)kvp.Value);
+                    // Add flattened action scores to performance metrics
+                    foreach (var kvp in actionScores)
+                    {
+                        performanceMetrics[$"ActionScore_{kvp.Key}"] = Math.Round(kvp.Value, 4);
+                    }
                     
-                    // Add detailed score logs if available
+                    // Add detailed score logs if available (flattened structure)
                     if (scoreLogs != null)
                     {
                         var scoreLogsList = (System.Collections.IEnumerable)scoreLogs;
-                        var detailedScores = new List<object>();
+                        var moveIndex = 0;
                         
                         foreach (var scoreLog in scoreLogsList)
                         {
@@ -546,16 +549,24 @@ public class TestController : ControllerBase
                                 var totalScore = totalScoreProperty.GetValue(scoreLog);
                                 var detailedLogLines = detailedLogLinesProperty.GetValue(scoreLog);
                                 
-                                detailedScores.Add(new
+                                // Flatten the detailed scores structure
+                                var moveKey = move?.ToString() ?? $"Move{moveIndex}";
+                                performanceMetrics[$"DetailedScore_{moveKey}_TotalScore"] = Math.Round(Convert.ToDecimal(totalScore ?? 0), 4);
+                                
+                                // Store detailed log lines as a single concatenated string to avoid deep nesting
+                                if (detailedLogLines is System.Collections.IEnumerable logLines)
                                 {
-                                    Move = move?.ToString(),
-                                    TotalScore = totalScore,
-                                    DetailedLogLines = detailedLogLines
-                                });
+                                    var logText = string.Join("\n", logLines.Cast<object>().Select(x => x?.ToString() ?? ""))
+                                        .Replace("\r\n", "\n")  // Normalize line endings
+                                        .Replace("\r", "\n")    // Handle standalone carriage returns
+                                        .Replace("\n\n", "\n")  // Remove double line breaks
+                                        .Trim();               // Remove leading/trailing whitespace
+                                    performanceMetrics[$"DetailedScore_{moveKey}_LogLines"] = logText;
+                                }
+                                
+                                moveIndex++;
                             }
                         }
-                        
-                        performanceMetrics["DetailedScores"] = detailedScores;
                     }
                 }
                 else
