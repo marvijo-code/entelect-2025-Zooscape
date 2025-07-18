@@ -33,8 +33,8 @@ public class PelletEfficiencyHeuristic : IHeuristic
             return 0m;
         }
 
-        // Calculate pellet density in a 3x3 area around the new position
-        int pelletsInArea = 0;
+        // Calculate pellet density in a 3x3 area around the new position with weighted values
+        decimal pelletsScore = 0;
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
@@ -42,12 +42,22 @@ public class PelletEfficiencyHeuristic : IHeuristic
                 var checkPos = (heuristicContext.MyNewPosition.X + dx, heuristicContext.MyNewPosition.Y + dy);
                 if (pelletPositions.Contains(checkPos))
                 {
-                    pelletsInArea++;
+                    // Weight adjacent pellets higher than diagonal ones
+                    if (dx == 0 || dy == 0)
+                    {
+                        // Adjacent pellets (up, down, left, right) are weighted higher
+                        pelletsScore += 2.0m;
+                    }
+                    else
+                    {
+                        // Diagonal pellets are weighted normally
+                        pelletsScore += 1.0m;
+                    }
                 }
             }
         }
 
-        // Return efficiency score based on pellet density
-        return pelletsInArea * heuristicContext.Weights.PelletEfficiency;
+        // Return efficiency score based on weighted pellet density
+        return pelletsScore * heuristicContext.Weights.PelletEfficiency;
     }
 }

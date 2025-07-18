@@ -48,13 +48,31 @@ public class LineOfSightPelletsHeuristic : IHeuristic
         );
 
         // Hybrid scoring: balance consecutive pellets with total linked pellets
-        // Adjusted to better prioritize paths with more total connected pellets
-        // Prioritize total linked pellets much more heavily than just consecutive pellets
-        // Empirical tuning shows that a 20x difference yields better cluster selection results
-        decimal consecutiveScore = consecutivePellets * 0.05m;
-        decimal linkedScore      = totalLinkedPellets * 1.0m;
+        // Optimized based on game state analysis to better prioritize immediate pellet collection
+        // and long pellet chains
         
-        return (consecutiveScore + linkedScore) * heuristicContext.Weights.LineOfSightPellets;
+        // Consecutive pellets provide immediate value and clear path
+        decimal consecutiveScore = consecutivePellets * 0.2m;
+        
+        // Linked pellets provide long-term value for efficient collection
+        decimal linkedScore = totalLinkedPellets * 1.0m;
+        
+        // Apply diminishing returns to very large linked pellet groups to avoid overvaluing
+        // extremely large clusters that might lead the bot away from optimal paths
+        if (totalLinkedPellets > 20)
+        {
+            linkedScore = 20 + (totalLinkedPellets - 20) * 0.5m;
+        }
+        
+        // Immediate pellet bonus for the first step (if there's a pellet right in front)
+        decimal immediateBonus = 0m;
+        var firstStepPos = GetFirstStepPosition(heuristicContext.MyNewPosition, action);
+        if (pelletPositions.Contains(firstStepPos))
+        {
+            immediateBonus = 10.0m; // Stronger bonus for immediate pellet
+        }
+        
+        return (consecutiveScore + linkedScore + immediateBonus) * heuristicContext.Weights.LineOfSightPellets;
     }
 
     private BotAction GetActionFromPositions((int x, int y) current, (int x, int y) next)
@@ -107,6 +125,18 @@ public class LineOfSightPelletsHeuristic : IHeuristic
         }
 
         return pelletsFound;
+    }
+
+    private static (int x, int y) GetFirstStepPosition((int x, int y) startPos, BotAction direction)
+    {
+        return direction switch
+        {
+            BotAction.Up => (startPos.x, startPos.y - 1),
+            BotAction.Down => (startPos.x, startPos.y + 1),
+            BotAction.Left => (startPos.x - 1, startPos.y),
+            BotAction.Right => (startPos.x + 1, startPos.y),
+            _ => startPos // Default case, shouldn't happen with valid moves
+        };
     }
 
     private static int CountTotalLinkedPellets((int x, int y) startPos, BotAction direction, HashSet<(int X, int Y)> pelletPositions)

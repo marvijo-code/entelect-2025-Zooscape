@@ -26,9 +26,17 @@ public class EarlyGameZookeeperAvoidanceHeuristic : IHeuristic
 
         if (minDistance < 10)
         {
-            // Strong penalty for being close to a zookeeper in the early game.
-            // The penalty is higher the closer the zookeeper is.
-            return -heuristicContext.Weights.EarlyGameZookeeperAvoidancePenalty * (10 - minDistance);
+            // Apply graduated penalties based on distance
+            if (minDistance < 5)
+            {
+                // Very strong penalty for being very close to a zookeeper (< 5 tiles)
+                return -heuristicContext.Weights.EarlyGameZookeeperAvoidancePenalty * (10 - minDistance) * 1.5m;
+            }
+            else
+            {
+                // Reduced penalty for more distant zookeepers (5-9 tiles)
+                return -heuristicContext.Weights.EarlyGameZookeeperAvoidancePenalty * (10 - minDistance) * 0.7m;
+            }
         }
 
         return 0m;
