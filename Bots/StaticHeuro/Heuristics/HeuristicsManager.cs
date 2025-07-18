@@ -99,7 +99,7 @@ public class HeuristicsManager
             new TravelDistanceMaximizerHeuristic(),
             new TunnelNavigationHeuristic(),
             new UnoccupiedCellBonusHeuristic(),
-            new WallCollisionRiskHeuristic(),
+            
             new ZookeeperCooldownHeuristic(),
             new LongTermPelletSeekingHeuristic(),
             new ZookeeperPredictionHeuristic(),
@@ -112,7 +112,7 @@ public class HeuristicsManager
         _essentialHeuristics =
         [
             new CaptureAvoidanceHeuristic(),
-            new WallCollisionRiskHeuristic(),
+            
             new PelletEfficiencyHeuristic(),
             new LineOfSightPelletsHeuristic(),
             new PelletClusterPlanningHeuristic(),

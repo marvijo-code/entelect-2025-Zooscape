@@ -806,6 +806,21 @@
     "GameStateFile": "7_0.json",
     "Description": "Bot should choose Right to collect pellet with 47 total linked pellets instead of Up with 30 total linked pellets",
     "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": "Right",
+    "AcceptableActions": [
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_StateSynchronization_23",
+    "GameStateFile": "23_sync.json",
+    "Description": "Bot must maintain state synchronization - no action execution discrepancies allowed. Tests Phase 1 state sync telemetry.",
+    "botNicknameInStateFile": "StaticHeuro",
     "ExpectedAction": null,
     "AcceptableActions": [
       "Right"
@@ -813,7 +828,7 @@
     "TestType": "SingleBot",
     "TickOverride": false,
     "Bots": [
-      "ClingyHeuroBot2"
+      "StaticHeuro"
     ]
   },
   {
@@ -859,6 +874,81 @@
     "TickOverride": false,
     "Bots": [
       "ClingyHeuroBot2"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_ShouldMoveUp_Tick12_232531",
+    "GameStateFile": "12_232531_0.json",
+    "Description": "Bot at (11,30) should move Up to collect immediate pellet and access 16 linked pellets",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Up"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_ShouldMoveUp_Tick13_232531",
+    "GameStateFile": "13_232531_0.json",
+    "Description": "Bot at (11,30) should move Up to collect immediate pellet and access 16 linked pellets - still idle from tick 12",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Up"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_ShouldMoveLeft_Tick20_232531",
+    "GameStateFile": "20_232531_0.json",
+    "Description": "Bot should move Left at tick 20",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Left"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_ShouldMoveLeft_Tick27_232531",
+    "GameStateFile": "27_232531_0.json",
+    "Description": "Bot should move Left at tick 27",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Left"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_ShouldMoveRight_Tick15_232531",
+    "GameStateFile": "15_232531_0.json",
+    "Description": "Bot should move Right at tick 15",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "StaticHeuro"
     ]
   }
 ]

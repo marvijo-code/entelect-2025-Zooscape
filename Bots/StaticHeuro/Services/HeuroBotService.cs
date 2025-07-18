@@ -14,6 +14,11 @@ public class HeuroBotService : IBot<HeuroBotService>
     private readonly HeuristicsManager _heuristics;
     private readonly HeuristicWeights _weights;
     public bool LogHeuristicScores { get; set; } = false;
+    
+    // Track last action and expected position for position tracking
+    private BotAction? _lastActionSent = null;
+    private (int x, int y)? _expectedNextPosition = null;
+    private int _lastActionTick = -1;
 
     public HeuroBotService(ILogger? logger = null)
     {
@@ -68,8 +73,143 @@ public class HeuroBotService : IBot<HeuroBotService>
     {
         try
         {
+            // Ultra-precise telemetry for state synchronization debugging
+            if (gameState != null)
+            {
+                var me = gameState.Animals?.FirstOrDefault(a => a.Id == BotId);
+                if (me != null)
+                {
+                    _logger.Information(
+                        "[PositionSync] BEFORE_ACTION T{Tick} Bot:{BotId} Pos:({X},{Y}) Spawn:({SpawnX},{SpawnY}) HeldPowerUp:{HeldPowerUp} ExpectedPos:{ExpectedPos} LastAction:{LastAction} LastTick:{LastTick}",
+                        gameState.Tick,
+                        BotId,
+                        me.X,
+                        me.Y,
+                        me.SpawnX,
+                        me.SpawnY,
+                        me.HeldPowerUp?.ToString() ?? "None",
+                        _expectedNextPosition?.ToString() ?? "None",
+                        _lastActionSent?.ToString() ?? "None",
+                        _lastActionTick
+                    );
+                }
+            }
+
+            // Check if we need to verify the position from the last action
+            if (gameState != null && _expectedNextPosition.HasValue && _lastActionSent.HasValue && _lastActionTick != -1)
+            {
+                // Only check if this is the next tick after our last action
+                if (gameState.Tick == _lastActionTick + 1)
+                {
+                    // Find our animal
+                    var me = gameState.Animals?.FirstOrDefault(a => a.Id == BotId);
+                    if (me != null)
+                    {
+                        var currentPos = (me.X, me.Y);
+                        var expectedPos = _expectedNextPosition.Value;
+                        
+                        // Enhanced logging for position verification
+                        _logger.Information(
+                            "[PositionSync] VERIFY T{Tick} Bot:{BotId} Expected:({ExpectedX},{ExpectedY}) Actual:({ActualX},{ActualY}) Match:{Match} AtSpawn:{AtSpawn}",
+                            gameState.Tick,
+                            BotId,
+                            expectedPos.Item1,
+                            expectedPos.Item2,
+                            currentPos.Item1,
+                            currentPos.Item2,
+                            currentPos == expectedPos,
+                            me.X == me.SpawnX && me.Y == me.SpawnY
+                        );
+                        
+                        // If positions don't match and we weren't at spawn point (which could indicate a respawn)
+                        if (currentPos != expectedPos && !(me.X == me.SpawnX && me.Y == me.SpawnY))
+                        {
+                            _logger.Warning(
+                                "[PositionSync] DISCREPANCY! Bot {BotId} sent {Action} on tick {LastTick} expecting to move to ({ExpectedX}, {ExpectedY}) but is actually at ({ActualX}, {ActualY}) on tick {CurrentTick}",
+                                BotId,
+                                _lastActionSent,
+                                _lastActionTick,
+                                expectedPos.Item1,
+                                expectedPos.Item2,
+                                currentPos.Item1,
+                                currentPos.Item2,
+                                gameState.Tick
+                            );
+                        }
+                    }
+                }
+                else if (gameState.Tick > _lastActionTick + 1)
+                {
+                    _logger.Warning(
+                        "[PositionSync] TICK_SKIP! Expected tick {ExpectedTick} but got {ActualTick} for Bot {BotId}",
+                        _lastActionTick + 1,
+                        gameState.Tick,
+                        BotId
+                    );
+                }
+                
+                // Reset tracking after checking
+                _expectedNextPosition = null;
+                _lastActionSent = null;
+                _lastActionTick = -1;
+            }
+            
+            if (gameState == null)
+            {
+                _logger.Error("GetAction received null GameState for Bot {BotId}. Returning default action.", BotId);
+                return BotAction.Up; // Safe default if gameState is null
+            }
+            
             var actionResult = GetActionWithScores(gameState);
-            return actionResult.ChosenAction;
+            var chosenAction = actionResult.ChosenAction;
+            
+            // Enhanced post-action telemetry
+            var me2 = gameState.Animals?.FirstOrDefault(a => a.Id == BotId);
+            if (me2 != null)
+            {
+                _logger.Information(
+                    "[PositionSync] AFTER_ACTION T{Tick} Bot:{BotId} ChosenAction:{Action} CurrentPos:({X},{Y})",
+                    gameState.Tick,
+                    BotId,
+                    chosenAction,
+                    me2.X,
+                    me2.Y
+                );
+                
+                // Set expected position for next tick verification (only for movement actions)
+                if (IsMovementAction(chosenAction))
+                {
+                    var expectedPos = CalculateExpectedPosition(me2.X, me2.Y, chosenAction);
+                    if (IsLegalMove(gameState, me2, chosenAction))
+                    {
+                        _expectedNextPosition = expectedPos;
+                        _lastActionSent = chosenAction;
+                        _lastActionTick = gameState.Tick;
+                        
+                        _logger.Information(
+                            "[PositionSync] EXPECTATION_SET T{Tick} Bot:{BotId} Action:{Action} ExpectedNextPos:({ExpectedX},{ExpectedY})",
+                            gameState.Tick,
+                            BotId,
+                            chosenAction,
+                            expectedPos.Item1,
+                            expectedPos.Item2
+                        );
+                    }
+                    else
+                    {
+                        _logger.Warning(
+                            "[PositionSync] ILLEGAL_MOVE! T{Tick} Bot:{BotId} attempted illegal action {Action} from ({X},{Y})",
+                            gameState.Tick,
+                            BotId,
+                            chosenAction,
+                            me2.X,
+                            me2.Y
+                        );
+                    }
+                }
+            }
+            
+            return chosenAction;
         }
         catch (Exception ex)
         {
@@ -656,6 +796,47 @@ public class HeuroBotService : IBot<HeuroBotService>
         int currentTick = state.Tick;
 
         var action = GetAction(state);
+        
+        // Record the expected position based on the action
+        var me = state.Animals?.FirstOrDefault(a => a.Id == BotId);
+        if (me != null && action != BotAction.UseItem)
+        {
+            // Calculate expected next position based on the action
+            int expectedX = me.X;
+            int expectedY = me.Y;
+            
+            switch (action)
+            {
+                case BotAction.Up:
+                    expectedY--;
+                    break;
+                case BotAction.Down:
+                    expectedY++;
+                    break;
+                case BotAction.Left:
+                    expectedX--;
+                    break;
+                case BotAction.Right:
+                    expectedX++;
+                    break;
+            }
+            
+            // Store the action and expected position for verification in the next tick
+            _lastActionSent = action;
+            _expectedNextPosition = (expectedX, expectedY);
+            _lastActionTick = currentTick;
+            
+            _logger.Debug(
+                "Bot {BotId} sending action {Action} on tick {Tick}, expecting to move from ({CurrentX}, {CurrentY}) to ({ExpectedX}, {ExpectedY})",
+                BotId,
+                action,
+                currentTick,
+                me.X,
+                me.Y,
+                expectedX,
+                expectedY
+            );
+        }
 
         stopwatch.Stop();
         var elapsedMs = stopwatch.ElapsedMilliseconds;
@@ -744,5 +925,42 @@ public class HeuroBotService : IBot<HeuroBotService>
         return 4;
     }
 
+    /// <summary>
+    /// Determines if the given action is a movement action (not UseItem)
+    /// </summary>
+    private static bool IsMovementAction(BotAction action)
+    {
+        return action == BotAction.Up || action == BotAction.Down || 
+               action == BotAction.Left || action == BotAction.Right;
+    }
+
+    /// <summary>
+    /// Calculates the expected position after performing the given movement action
+    /// </summary>
+    private static (int x, int y) CalculateExpectedPosition(int currentX, int currentY, BotAction action)
+    {
+        return action switch
+        {
+            BotAction.Up => (currentX, currentY - 1),
+            BotAction.Down => (currentX, currentY + 1),
+            BotAction.Left => (currentX - 1, currentY),
+            BotAction.Right => (currentX + 1, currentY),
+            _ => (currentX, currentY) // For UseItem or invalid actions
+        };
+    }
+
+    /// <summary>
+    /// Checks if the given movement action is legal from the current position
+    /// </summary>
+    private bool IsLegalMove(GameState gameState, Animal animal, BotAction action)
+    {
+        if (!IsMovementAction(action))
+            return action == BotAction.UseItem && animal.HeldPowerUp != null;
+
+        var (targetX, targetY) = CalculateExpectedPosition(animal.X, animal.Y, action);
+        var targetCell = gameState.Cells?.FirstOrDefault(c => c.X == targetX && c.Y == targetY);
+        
+        return targetCell != null && targetCell.Content != CellContent.Wall;
+    }
 
 }

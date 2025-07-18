@@ -1,0 +1,9 @@
+{
+  "testName": "StaticHeuro_StateSynchronization_23",
+  "description": "Bot must maintain state synchronization - no action execution discrepancies allowed",
+  "gameStateFile": "23_sync.json",
+  "botsToTest": ["StaticHeuro"],
+  "acceptableActions": [4],
+  "expectedBehavior": "Bot should choose Right action without any position synchronization discrepancies",
+  "successCriteria": "No [PositionSync] DISCREPANCY warnings in logs"
+}

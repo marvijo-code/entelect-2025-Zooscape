@@ -611,6 +611,7 @@ const App = memo(() => {
 
           // Provide friendlier error messages for common scenarios
           let friendlyMessage = "Failed to connect to game server";
+          let shouldPoll = false;
 
           if (err.message && (
             err.message.includes("Failed to fetch") ||
@@ -619,14 +620,50 @@ const App = memo(() => {
             err.message.includes("ERR_CONNECTION_REFUSED") ||
             err.message.includes("ECONNREFUSED")
           )) {
-            friendlyMessage = "Game server is not running or not accessible. Please make sure the game engine is started and running on the expected port.";
+            friendlyMessage = "🎮 Waiting for game server to start... We'll keep trying to connect every 5 seconds.";
+            shouldPoll = true;
           } else if (err.message && err.message.includes("timeout")) {
-            friendlyMessage = "Connection to game server timed out. The server may be overloaded or not responding.";
+            friendlyMessage = "⏱️ Connection timed out. The server may be busy - we'll retry in 5 seconds.";
+            shouldPoll = true;
           } else if (err.message) {
-            friendlyMessage = `Failed to connect to game server: ${err.message}`;
+            friendlyMessage = `❌ Connection failed: ${err.message}`;
           }
 
           setError(friendlyMessage);
+
+          // Start polling if it's a server availability issue
+          if (shouldPoll) {
+            const pollInterval = setInterval(() => {
+              console.log("Attempting to reconnect to game server...");
+              
+              // Try to establish a new connection
+              const testConnection = new HubConnectionBuilder()
+                .withUrl(HUB_URL)
+                .configureLogging(LogLevel.Error) // Reduce logging for polling attempts
+                .build();
+
+              testConnection.start()
+                .then(() => {
+                  console.log("✅ Successfully reconnected to game server!");
+                  setError(null);
+                  clearInterval(pollInterval);
+                  testConnection.stop(); // Stop the test connection
+                  
+                  // Trigger a re-render to establish the proper connection
+                  window.location.reload();
+                })
+                .catch((pollErr) => {
+                  console.log("Still waiting for game server...");
+                  testConnection.stop().catch(() => {}); // Cleanup failed connection
+                  
+                  // Update the friendly message to show we're still trying
+                  setError("🎮 Still waiting for game server... (retrying every 5 seconds)");
+                });
+            }, 5000); // Poll every 5 seconds
+
+            // Store the interval ID for cleanup
+            connectionInstance._pollInterval = pollInterval;
+          }
         });
     } else {
       // If in replay mode or no HUB_URL, ensure any existing connection is stopped and cleared
@@ -642,6 +679,13 @@ const App = memo(() => {
       if (connectionInstance && connectionInstance.state === HubConnectionState.Connected) {
         console.log("Cleaning up SignalR connection (Effect 1 unmount or change)");
         connectionInstance.stop().catch(err => console.error("Error stopping connection during cleanup", err));
+      }
+      
+      // Clean up polling interval if it exists
+      if (connectionInstance && connectionInstance._pollInterval) {
+        console.log("Cleaning up polling interval");
+        clearInterval(connectionInstance._pollInterval);
+        connectionInstance._pollInterval = null;
       }
     };
   }, [HUB_URL, tickStateChangedHandler, showReplayMode]); // Added showReplayMode to dependencies

@@ -2520,6 +2520,18 @@
     "Method": ""
   },
   {
+    "Timestamp": "2025-07-18T04:16:46.6332166Z",
+    "Generation": 61,
+    "IndividualId": "054b6a86-d94f-48ce-a5c8-df83b1809e27",
+    "Score": 28076,
+    "Fitness": 14721.964157652366,
+    "SurvivalTime": 0,
+    "Captures": 0,
+    "Rank": 2,
+    "TotalPlayers": 4,
+    "Method": ""
+  },
+  {
     "Timestamp": "2025-07-16T19:40:09.7969228Z",
     "Generation": 61,
     "IndividualId": "1b15bbf3-8ceb-4660-8c4f-d0b6ce428668",
