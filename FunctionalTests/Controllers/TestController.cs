@@ -510,7 +510,7 @@ public class TestController : ControllerBase
             if (getActionWithDetailedScoresMethod != null)
             {
                 // Bot supports detailed scoring
-                var result = getActionWithDetailedScoresMethod.Invoke(bot, new object[] { gameState, animal.Id });
+                var result = getActionWithDetailedScoresMethod.Invoke(bot, new object[] { gameState, animal.Id.ToString() });
                 
                 // Extract action and scores from the tuple result
                 var resultType = result?.GetType();

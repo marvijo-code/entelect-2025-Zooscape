@@ -15,9 +15,10 @@ This folder contains logically organized documentation files extracted from the 
 - **Use GameStateInspector or API endpoints** to get actual heuristic breakdowns, not assumptions
 
 ### Test Execution Rules
-- **`dotnet test FunctionalTests --filter "StaticHeuro"`** runs ALL StaticHeuro tests (currently only "Game State 12: StaticHeuro Must Move Up")
-- **Use specific test names** or API endpoints to run individual tests: `Invoke-RestMethod -Method POST -Uri "http://localhost:5008/api/test/run/TestName"`
-- **Always restart the API** (`start-api.ps1 -Force`) after code changes before testing
+- **To run all JSON-driven tests**: `dotnet test FunctionalTests --filter "ExecuteAllJsonDefinedTests"`
+- **Use specific test names** or API endpoints to run individual tests**: `Invoke-RestMethod -Method POST -Uri "http://localhost:5008/api/test/run/TestName"`
+- **Always stop the API first** (`./start-api.ps1 -Stop`) before any `dotnet build` or `dotnet test` command to prevent DLL file locks.
+- **Always restart the API** (`./start-api.ps1 -Force`) after code or weight changes and after tests complete
 
 ### create_test.ps1 Usage
 - **Purpose**: Automatically adds tests to `ConsolidatedTests.json` - never edit this file manually
@@ -68,7 +69,8 @@ Below is a quick reference of the primary CLI tools and helper scripts you will 
 | **find_close_zookeeper_state.ps1** | project root | PowerShell helper to locate states where a zookeeper is adjacent to the bot. | `.\find_close_zookeeper_state.ps1 -LogDirectory "logs/20250717_match" -BotNickname "StaticHeuro"` |
 | **create_test.ps1** | project root | Generates a functional-test JSON stub from a game-state file. | `.\create_test.ps1 -GameStateFile "FunctionalTests/GameStates/953.json" -BotNickname "StaticHeuro" -AcceptableActions "Right"` |
 | **generate-path-error-tests.ps1** | project root | Auto-generates tests for detected path-decision errors. | `.\generate-path-error-tests.ps1 -LogDirectory "logs/20250717_match" -BotNickname "StaticHeuro" -ErrorType "cluster_abandonment"` |
-| **start-api.ps1** | project root | Rebuilds and restarts the FunctionalTests API (Golden Rule). | `.\start-api.ps1 -Force` |
+| **start-api.ps1** | project root | API lifecycle management (stop, start, restart) | `./start-api.ps1 -Force` |
+| **stop-api.ps1** | project root | Convenience wrapper around `./start-api.ps1 -Stop` to prevent file locks before test runs | `./stop-api.ps1` |
 
 ### Running a Single Functional Test
 

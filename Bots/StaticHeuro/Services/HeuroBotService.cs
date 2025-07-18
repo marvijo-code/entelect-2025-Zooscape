@@ -83,7 +83,15 @@ public class HeuroBotService : IBot<HeuroBotService>
             );
 
             // Return a safe fallback action
-            return BotAction.Up;
+            if (gameState?.Animals != null)
+            {
+                var me = gameState.Animals.FirstOrDefault(a => a.Id == BotId);
+                if (me != null)
+                {
+                    return GetSafeFallbackAction(gameState, me);
+                }
+            }
+            return BotAction.Up; // Ultimate fallback if we can't find the bot
         }
     }
 
@@ -94,6 +102,38 @@ public class HeuroBotService : IBot<HeuroBotService>
     {
         var (chosenAction, actionScores, _) = GetActionWithDetailedScores(gameState);
         return (chosenAction, actionScores);
+    }
+
+    // Overload that matches TestController expectations
+    public (
+        BotAction ChosenAction,
+        Dictionary<BotAction, decimal> ActionScores,
+        List<ScoreLog> DetailedScores
+    ) GetActionWithDetailedScores(GameState gameState, string animalId)
+    {
+        // Set the BotId to the provided animalId if it's different
+        var originalBotId = BotId;
+        if (!string.IsNullOrEmpty(animalId))
+        {
+            if (Guid.TryParse(animalId, out var parsedId))
+            {
+                BotId = parsedId;
+            }
+            else
+            {
+                _logger?.Warning("Failed to parse animalId '{AnimalId}' as Guid, using original BotId", animalId);
+            }
+        }
+        
+        try
+        {
+            return GetActionWithDetailedScores(gameState);
+        }
+        finally
+        {
+            // Restore original BotId
+            BotId = originalBotId;
+        }
     }
 
     public (
