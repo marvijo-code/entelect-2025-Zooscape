@@ -272,8 +272,14 @@ public class WorkerService : BackgroundService
 
             _ticksTiming.Add((_gameStateService.TickCounter, measuredTickDuration, dutyCycle));
 
+            var positionsSummary = string.Join(
+                ", ",
+                _gameStateService.Animals.Select(kvp =>
+                    $"{kvp.Value.Nickname}@({kvp.Value.Location.X},{kvp.Value.Location.Y})"
+                )
+            );
             var tickMsg =
-                $"Game tick {_gameStateService.TickCounter}, Duration = {measuredTickDuration.TotalMilliseconds:F2} / {_gameSettings.TickDuration}, Duty Cycle = {dutyCycle:F4}";
+                $"Game tick {_gameStateService.TickCounter}, Duration = {measuredTickDuration.TotalMilliseconds:F2} / {_gameSettings.TickDuration}, Duty Cycle = {dutyCycle:F4}, Positions = [{positionsSummary}]";
 
             // Track ticks that exceed duty cycle
             if (dutyCycle >= 1)

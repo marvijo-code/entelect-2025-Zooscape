@@ -15,10 +15,18 @@ public class HeuroBotService : IBot<HeuroBotService>
     private readonly HeuristicWeights _weights;
     public bool LogHeuristicScores { get; set; } = false;
     
+    // Performance and timing constants
+    private const int HARD_DEADLINE_MS = 180;
+    private const int SOFT_BUDGET_MS = 120;
+    
     // Track last action and expected position for position tracking
     private BotAction? _lastActionSent = null;
     private (int x, int y)? _expectedNextPosition = null;
     private int _lastActionTick = -1;
+    
+    // Late tick tracking for robustness
+    private int _lateTickCount = 0;
+    private bool _forceEssentialHeuristicsOnly = false;
 
     public HeuroBotService(ILogger? logger = null)
     {
@@ -58,6 +66,31 @@ public class HeuroBotService : IBot<HeuroBotService>
         BotAction?
     > _animalLastDirectionsHistory = new();
 
+    /// <summary>
+    /// Clears stale position-dependent cached data when position synchronization fails.
+    /// This ensures the bot uses fresh engine data for future decisions.
+    /// </summary>
+    private void ClearStalePositionData()
+    {
+        // Clear visit counts that might be based on incorrect position tracking
+        _visitCounts.Clear();
+        
+        // Clear visited quadrants that might be stale
+        _visitedQuadrants.Clear();
+        
+        // Clear recent position history for this bot
+        var botKey = BotId.ToString();
+        _animalRecentPositionsHistory.TryRemove(botKey, out _);
+        _animalLastDirectionsHistory.TryRemove(botKey, out _);
+        
+        _logger.Information(
+            "[PositionSync] RECOVERY_COMPLETE: Cleared visit counts ({VisitCountsCleared}), quadrants ({QuadrantsCleared}), and position history for bot {BotId}",
+            _visitCounts.Count,
+            _visitedQuadrants.Count,
+            BotId
+        );
+    }
+
     public void SetBotId(Guid botId)
     {
         _logger.Information(
@@ -71,6 +104,9 @@ public class HeuroBotService : IBot<HeuroBotService>
 
     public BotAction GetAction(GameState gameState)
     {
+        // Start timing immediately for budget guard
+        var actionStopwatch = Stopwatch.StartNew();
+        
         try
         {
             // Ultra-precise telemetry for state synchronization debugging
@@ -135,6 +171,15 @@ public class HeuroBotService : IBot<HeuroBotService>
                                 currentPos.Item2,
                                 gameState.Tick
                             );
+                            
+                            // CRITICAL FIX: Force state recovery by clearing stale tracking data
+                            // This ensures the bot uses the engine's authoritative position for future decisions
+                            _logger.Information(
+                                "[PositionSync] RECOVERY: Clearing stale position tracking data to resync with engine state"
+                            );
+                            
+                            // Clear any cached position-dependent data that might be stale
+                            ClearStalePositionData();
                         }
                     }
                 }
@@ -148,16 +193,20 @@ public class HeuroBotService : IBot<HeuroBotService>
                     );
                 }
                 
-                // Reset tracking after checking
-                _expectedNextPosition = null;
-                _lastActionSent = null;
-                _lastActionTick = -1;
+                // Reset tracking after checking (only if no discrepancy was found)
+                // If there was a discrepancy, tracking was already cleared by ClearStalePositionData()
+                if (_expectedNextPosition != null)
+                {
+                    _expectedNextPosition = null;
+                    _lastActionSent = null;
+                    _lastActionTick = -1;
+                }
             }
             
             if (gameState == null)
             {
                 _logger.Error("GetAction received null GameState for Bot {BotId}. Returning default action.", BotId);
-                return BotAction.Up; // Safe default if gameState is null
+                return BotAction.Up; // Safe default if gameState is null - no animal context available
             }
             
             var actionResult = GetActionWithScores(gameState);
@@ -209,6 +258,60 @@ public class HeuroBotService : IBot<HeuroBotService>
                 }
             }
             
+            // Check if we exceeded the hard deadline and implement late-action handling
+            actionStopwatch.Stop();
+            var elapsedMs = actionStopwatch.ElapsedMilliseconds;
+            
+            if (elapsedMs >= HARD_DEADLINE_MS)
+            {
+                _logger.Warning(
+                    "[CRITICAL_TIMEOUT] T{Tick} Bot:{BotId} exceeded {Deadline}ms deadline with {Elapsed}ms - suppressing action",
+                    gameState.Tick,
+                    BotId,
+                    HARD_DEADLINE_MS,
+                    elapsedMs
+                );
+                
+                // Clear expected position to prevent mismatch logs
+                _expectedNextPosition = null;
+                _lastActionSent = null;
+                _lastActionTick = -1;
+                
+                // Track late ticks for robustness
+                _lateTickCount++;
+                if (_lateTickCount >= 3)
+                {
+                    _logger.Warning(
+                        "[LATE_TICK_RECOVERY] Bot:{BotId} had {LateCount} consecutive late ticks - switching to essential heuristics only",
+                        BotId,
+                        _lateTickCount
+                    );
+                    _forceEssentialHeuristicsOnly = true;
+                }
+                
+                // Return safe fallback action instead of the computed one
+                if (me2 != null)
+                {
+                    return GetSafeFallbackAction(gameState, me2);
+                }
+                return BotAction.Up;
+            }
+            else
+            {
+                // Reset late tick count on successful timing
+                if (_lateTickCount > 0)
+                {
+                    _lateTickCount = 0;
+                    _forceEssentialHeuristicsOnly = false;
+                    _logger.Information(
+                        "[TIMING_RECOVERY] Bot:{BotId} back under deadline ({Elapsed}ms < {Deadline}ms) - resuming normal heuristics",
+                        BotId,
+                        elapsedMs,
+                        HARD_DEADLINE_MS
+                    );
+                }
+            }
+            
             return chosenAction;
         }
         catch (Exception ex)
@@ -231,7 +334,7 @@ public class HeuroBotService : IBot<HeuroBotService>
                     return GetSafeFallbackAction(gameState, me);
                 }
             }
-            return BotAction.Up; // Ultimate fallback if we can't find the bot
+            return BotAction.Up; // Ultimate fallback if we can't find the bot - no animal context available
         }
     }
 
@@ -283,6 +386,7 @@ public class HeuroBotService : IBot<HeuroBotService>
     ) GetActionWithDetailedScores(GameState gameState)
     {
         var totalStopwatch = Stopwatch.StartNew();
+        var actionStopwatch = totalStopwatch; // Use same stopwatch for budget guard
         int currentTick = gameState?.Tick ?? -1;
 
         // Enhanced null safety checks
@@ -548,7 +652,10 @@ public class HeuroBotService : IBot<HeuroBotService>
                 LogHeuristicScores,
                 _visitCounts,
                 currentAnimalPositions, // Pass animal's recent positions
-                lastDirection // Pass animal's last committed direction
+                lastDirection, // Pass animal's last committed direction
+                actionStopwatch, // Pass stopwatch for budget guard
+                SOFT_BUDGET_MS, // Pass soft budget limit
+                _forceEssentialHeuristicsOnly // Pass essential-only flag
             );
             decimal currentTotalScore = currentScoreLog.TotalScore;
             List<string> currentDetailedLog = currentScoreLog.DetailedLogLines;

@@ -405,28 +405,31 @@ MCTSResult MCTSEngine::findBestAction(const GameState& state, const std::string&
     MCTSResult result;
     result.bestAction = BotAction::None;
 
+    // Select the child with the highest visit count (robust measure)
     MCTSNode* bestChild = nullptr;
-    double bestValue = -std::numeric_limits<double>::infinity();
+    int bestVisits = -1;
 
     for (const auto& child : root->getChildren()) {
-        double childValue = child->getAverageReward();
-        if (childValue > bestValue) {
-            bestValue = childValue;
+        int visits = child->getVisits();
+        if (visits > bestVisits) {
+            bestVisits = visits;
             bestChild = child.get();
-        } else if (childValue == bestValue) {
-            if (bestChild == nullptr || child->getVisits() > bestChild->getVisits()) {
+        } else if (visits == bestVisits && bestChild != nullptr) {
+            // Tie-break: higher average reward
+            if (child->getAverageReward() > bestChild->getAverageReward()) {
                 bestChild = child.get();
             }
         }
 
+        // Collect stats for caller
         double avgScore = child->getAverageReward();
-        result.allActionStats.push_back({child->getAction(), child->getVisits(), avgScore});
+        result.allActionStats.push_back({child->getAction(), visits, avgScore});
     }
 
     if (bestChild) {
         result.bestAction = bestChild->getAction();
     } else {
-        // Fallback if no children were explored
+        // Fallback if no children were explored (rare)
         auto possibleMoves = state.getLegalActions(playerId);
         if (!possibleMoves.empty()) {
             result.bestAction = possibleMoves[0];
@@ -575,10 +578,10 @@ double MCTSEngine::simulate(const GameState& state, const std::string& playerId,
         // Cycle detection: check if we've seen this state before
         std::string stateHash = hashGameState(simState, playerId);
         if (visitedStates.find(stateHash) != visitedStates.end()) {
-            // Apply strong penalty for revisiting state and terminate rollout
-            cumulativeReward -= 2000.0 * std::pow(decayFactor, depth);
+            // Apply moderate penalty for revisiting state but continue rollout
+            cumulativeReward -= 100.0 * std::pow(decayFactor, depth);
             cycleDetectionPenalty++;
-            break;
+            if (cycleDetectionPenalty > 3) break; // Only terminate after multiple cycles
         }
         visitedStates.insert(stateHash);
 
@@ -615,10 +618,10 @@ double MCTSEngine::simulate(const GameState& state, const std::string& playerId,
             }
         }
         
-        // Terminate rollout early if captured, but apply significant penalty
+        // Apply penalty if captured but continue rollout to learn recovery
         if (simState.isPlayerCaught(playerId)) {
-            cumulativeReward -= 2000.0 * std::pow(decayFactor, depth);
-            break;
+            cumulativeReward -= 500.0 * std::pow(decayFactor, depth);
+            break; // Still terminate as capture is terminal
         }
 
         depth++;
@@ -718,12 +721,11 @@ BotAction MCTSEngine::selectSimulationAction(const GameState& state, const std::
     
     const Animal* animal = state.getAnimal(playerId);
     if (!animal) {
-        // Random fallback
         std::uniform_int_distribution<size_t> dist(0, legalActions.size() - 1);
         return legalActions[dist(rng)];
     }
     
-    // Aggressive pellet-focused policy for simulation
+    // Simplified pellet-focused simulation policy
     BotAction bestAction = legalActions[0];
     double bestScore = -std::numeric_limits<double>::infinity();
     
@@ -737,97 +739,40 @@ BotAction MCTSEngine::selectSimulationAction(const GameState& state, const std::
             case BotAction::Left: newPos.x--; break;
             case BotAction::Right: newPos.x++; break;
             case BotAction::UseItem:
-                // Favor using power-ups when beneficial
+                // Simple power-up usage
                 if (animal->heldPowerUp == PowerUpType::Scavenger) {
-                    score += 200.0; // High value for scavenger
-                } else if (animal->heldPowerUp == PowerUpType::ChameleonCloak && 
-                          state.getZookeeperThreat(animal->position) > 3.0) {
-                    score += 150.0; // Use cloak when threatened
-                } else if (animal->heldPowerUp == PowerUpType::BigMooseJuice && 
-                          state.getZookeeperThreat(animal->position) > 2.0) {
-                    score += 100.0; // Use juice when threatened
+                    return BotAction::UseItem; // Always use scavenger
                 }
+                score += 50.0; // Moderate bonus for other power-ups
                 break;
         }
         
         if (!state.isTraversable(newPos.x, newPos.y)) {
-            score = -1000.0; // Penalize invalid moves
-            continue;
+            continue; // Skip invalid moves
         }
         
-        // Check for immediate zookeeper threats
-        double currentThreat = state.getZookeeperThreat(newPos);
-        if (currentThreat > 8.0) {
-            score -= 500.0; // High penalty for dangerous moves
-        } else if (currentThreat > 5.0) {
-            score -= 200.0; // Medium penalty for risky moves
-        } else if (currentThreat > 2.0) {
-            score -= 50.0 * currentThreat; // Scaled penalty
+        // Simple zookeeper avoidance - avoid if very close
+        double threat = state.getZookeeperThreat(newPos);
+        if (threat > 5.0) {
+            score -= 200.0; // Penalty for high threat
         }
         
-        // Check for zookeeper collision in next move
-        for (const auto& zk : state.zookeepers) {
-            Position zkNextPos = state.predictZookeeperPosition(zk, 1);
-            if (zkNextPos == newPos) {
-                score -= 800.0; // High penalty for walking into zookeeper
-            }
-            
-            // Check proximity to predicted zookeeper position
-            int distToZk = std::abs(newPos.x - zkNextPos.x) + std::abs(newPos.y - zkNextPos.y);
-            if (distToZk == 1) {
-                score -= 300.0; // Medium penalty for being adjacent to zookeeper
-            } else if (distToZk == 2) {
-                score -= 100.0; // Small penalty for being close
-            }
-        }
-        
-        // Check what's at the destination - favor pellets
+        // Strong preference for pellets
         CellContent cellContent = state.getCell(newPos.x, newPos.y);
-        switch (cellContent) {
-            case CellContent::Pellet:
-                score += 150.0 * std::max(1, animal->scoreStreak); // High pellet value
-                break;
-            case CellContent::PowerPellet:
-                score += 300.0 * std::max(1, animal->scoreStreak); // Very high power pellet value
-                break;
-            case CellContent::Scavenger:
-                score += 100.0; // Valuable power-up
-                break;
-            case CellContent::ChameleonCloak:
-                score += 80.0 + currentThreat * 5.0; // More valuable when threatened
-                break;
-            case CellContent::BigMooseJuice:
-                score += 60.0;
-                break;
-            default:
-                break;
+        if (cellContent == CellContent::Pellet) {
+            score += 100.0;
+        } else if (cellContent == CellContent::PowerPellet) {
+            score += 200.0;
         }
         
-        // Bias toward nearest pellet
+        // Move toward nearest pellet
         int distToPellet = state.distanceToNearestPellet(newPos);
-        if (distToPellet >= 0) {
-            if (distToPellet == 0) {
-                score += 200.0; // Bonus for being on pellet
-            } else {
-                score += 40.0 / distToPellet; // Inverse distance bonus
-            }
+        if (distToPellet >= 0 && distToPellet < 10) {
+            score += 20.0 / (1.0 + distToPellet);
         }
         
-        // Maintain streak urgency
-        if (animal->ticksSinceLastPellet >= 3) {
-            score -= 50.0 * animal->ticksSinceLastPellet; // Penalty for not collecting
-        }
-        
-        // Small exploration bonus for unvisited cells
-        if (state.visitedCells.find(newPos) == state.visitedCells.end()) {
-            score += 50.0; // Increased bonus for exploring new areas
-        } else {
-            // Penalty for revisiting cells
-            score -= 20.0;
-        }
-        
-        // Small randomization to break ties
-        std::uniform_real_distribution<double> noise(-10.0, 10.0);
+        // Small random component for exploration
+        std::uniform_real_distribution<double> noise(-5.0, 5.0);
         score += noise(rng);
         
         if (score > bestScore) {

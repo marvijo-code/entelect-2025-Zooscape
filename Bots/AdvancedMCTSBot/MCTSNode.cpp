@@ -72,23 +72,8 @@ MCTSNode* MCTSNode::expand() {
     auto child = std::make_unique<MCTSNode>(std::move(newState), this, actionToExpand, playerId);
     MCTSNode* childPtr = child.get();
     
-    // -- Immediate reward shaping: if the action collected a pellet instantly, give the child an initial bonus
-    const Animal* parentAnimal = gameState->getAnimal(playerId);
-    const Animal* childAnimal  = childPtr->getGameState().getAnimal(playerId);
-    if (parentAnimal && childAnimal) {
-        int deltaScore = childAnimal->score - parentAnimal->score;
-        if (deltaScore > 0) {
-            // Scale bonus based on score streak to incentivize maintaining streaks
-            const double immediatePelletBonus = 1000.0 * childAnimal->scoreStreak;
-            child->update(immediatePelletBonus);
-        }
-        
-        // Small penalty for moves that don't collect pellets when streak is at risk
-        if (deltaScore == 0 && parentAnimal->ticksSinceLastPellet >= 2) {
-            const double streakRiskPenalty = -200.0 * parentAnimal->scoreStreak;
-            child->update(streakRiskPenalty);
-        }
-    }
+    // Note: Removed immediate reward shaping to prevent biasing tree before simulation
+    // Let MCTS simulation and backpropagation handle reward evaluation naturally
 
     children.push_back(std::move(child));
     

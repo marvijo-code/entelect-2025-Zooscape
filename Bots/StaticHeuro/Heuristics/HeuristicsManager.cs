@@ -132,7 +132,10 @@ public class HeuristicsManager
         bool logHeuristicScores,
         IReadOnlyDictionary<(int X, int Y), int> visitCounts,
         Queue<(int X, int Y)> animalRecentPositions,
-        BotAction? animalLastDirection
+        BotAction? animalLastDirection,
+        System.Diagnostics.Stopwatch? budgetStopwatch = null,
+        int? softBudgetMs = null,
+        bool forceEssentialOnly = false
     )
     {
         var heuristicContext = new HeuristicContext(
@@ -151,8 +154,10 @@ public class HeuristicsManager
         decimal totalScore = 0m;
         var detailedScoreEntries = new List<HeuristicScoreDetail>();
 
-        // Use essential heuristics only for early ticks to improve performance
-        var heuristicsToUse = state.Tick <= EARLY_TICK_THRESHOLD ? _essentialHeuristics : _heuristics;
+        // Decide if we need to restrict to essential heuristics (early game or forced due to late ticks)
+        var heuristicsToUse = (state.Tick <= EARLY_TICK_THRESHOLD || forceEssentialOnly)
+            ? _essentialHeuristics
+            : _heuristics;
         
         if (logHeuristicScores && state.Tick <= EARLY_TICK_THRESHOLD)
         {
@@ -164,6 +169,16 @@ public class HeuristicsManager
         {
             try
             {
+                // Budget guard: stop early if we've consumed soft time budget
+                if (budgetStopwatch != null && softBudgetMs.HasValue && budgetStopwatch.ElapsedMilliseconds > softBudgetMs.Value)
+                {
+                    if (logHeuristicScores)
+                    {
+                        _logger.Debug("[BudgetGuard] Soft budget of {Budget}ms exceeded after {Elapsed}ms – stopping heuristic loop early.", softBudgetMs.Value, budgetStopwatch.ElapsedMilliseconds);
+                    }
+                    break;
+                }
+
                 decimal score = heuristic.CalculateScore(heuristicContext);
 
                 if (score == 0m) continue;
