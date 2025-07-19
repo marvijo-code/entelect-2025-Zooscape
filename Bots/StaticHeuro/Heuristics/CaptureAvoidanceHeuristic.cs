@@ -16,10 +16,11 @@ public class CaptureAvoidanceHeuristic : IHeuristic
 {
     public string Name => "CaptureAvoidance";
 
-    // Safety thresholds for different risk zones
-    private const int IMMEDIATE_DANGER_THRESHOLD = 3;  // High risk zone
-    private const int MODERATE_DANGER_THRESHOLD = 6;   // Medium risk zone
-    private const int SAFE_DISTANCE_THRESHOLD = 10;    // Low risk zone
+    // Safety thresholds for different risk zones (in tiles)
+    // Any move ending within IMMEDIATE_DANGER_THRESHOLD (<=6) is treated as critical danger and may be vetoed.
+    private const int IMMEDIATE_DANGER_THRESHOLD = 6;  // High risk zone (was 3)
+    private const int MODERATE_DANGER_THRESHOLD = 9;   // Medium risk zone (was 6)
+    private const int SAFE_DISTANCE_THRESHOLD = 15;    // Low risk zone (was 10)
 
     public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
@@ -128,8 +129,8 @@ public class CaptureAvoidanceHeuristic : IHeuristic
             score -= extraPenalty;
         }
 
-        // HARD VETO: Absolutely prohibit any move that ends within 3 tiles of a zookeeper
-        // (distance 0-3 inclusive). This guarantees the bot never enters the critical
+        // HARD VETO: Absolutely prohibit any move that ends within 6 tiles of a zookeeper
+        // (distance 0-6 inclusive). This guarantees the bot never enters the critical
         // danger radius, regardless of any positive scoring bonuses (e.g. pellet).
         if (closestNewDist <= IMMEDIATE_DANGER_THRESHOLD)
         {
