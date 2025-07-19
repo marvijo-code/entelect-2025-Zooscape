@@ -5,6 +5,9 @@ using Marvijo.Zooscape.Bots.Common.Enums;
 using Marvijo.Zooscape.Bots.Common.Models;
 using Serilog;
 using Serilog.Core;
+using System.Linq;
+using System.Collections.Generic;
+using Marvijo.Zooscape.Bots.Common.Utils;
 
 namespace StaticHeuro.Services;
 
@@ -950,27 +953,69 @@ private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once 
         if (pelletMove.HasValue)
             return pelletMove.Value;
 
-        // Try each direction in order of preference and return the first legal one
-        var actionsToTry = new[] { BotAction.Right, BotAction.Down, BotAction.Left, BotAction.Up };
-        
-        foreach (var action in actionsToTry)
+        // Build list of legal candidate moves and evaluate distance to nearest zookeeper
+        var dirMeta = new (BotAction action, int dx, int dy)[]
         {
-            int nx = me.X, ny = me.Y;
-            switch (action)
+            (BotAction.Up, 0, -1),
+            (BotAction.Down, 0, 1),
+            (BotAction.Left, -1, 0),
+            (BotAction.Right, 1, 0)
+        };
+
+        var candidates = new List<(BotAction action, int minDist, bool hasPellet)>();
+
+        foreach (var (action, dx, dy) in dirMeta)
+        {
+            int nx = me.X + dx;
+            int ny = me.Y + dy;
+            var cell = gameState.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
+            if (cell == null || cell.Content == CellContent.Wall)
+                continue; // illegal move
+
+            // Compute Manhattan distance from the new position to the closest zookeeper
+            int minDist = int.MaxValue;
+            if (gameState.Zookeepers != null && gameState.Zookeepers.Count > 0)
             {
-                case BotAction.Up: ny--; break;
-                case BotAction.Down: ny++; break;
-                case BotAction.Left: nx--; break;
-                case BotAction.Right: nx++; break;
+                foreach (var zk in gameState.Zookeepers)
+                {
+                    int dist = BotUtils.ManhattanDistance(nx, ny, zk.X, zk.Y);
+                    if (dist < minDist) minDist = dist;
+                }
             }
-            
-            var targetCell = gameState.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
-            if (targetCell != null && targetCell.Content != CellContent.Wall)
+            else
             {
-                return action;
+                // No zookeepers – treat as extremely safe
+                minDist = int.MaxValue;
             }
+
+            bool hasPellet = cell.Content == CellContent.Pellet;
+            candidates.Add((action, minDist, hasPellet));
         }
-        
+
+        if (candidates.Count > 0)
+        {
+            // Select the move(s) that maximize the distance to the nearest zookeeper
+            int safestDist = candidates.Max(c => c.minDist);
+            var safestMoves = candidates.Where(c => c.minDist == safestDist).ToList();
+
+            // Prefer moves that also collect a pellet
+            var pelletMoveOption = safestMoves.FirstOrDefault(c => c.hasPellet);
+            if (pelletMoveOption.action != default)
+                return pelletMoveOption.action;
+
+            // Fallback to deterministic preference order to avoid oscillation
+            var preferenceOrder = new[] { BotAction.Right, BotAction.Down, BotAction.Left, BotAction.Up };
+            foreach (var pref in preferenceOrder)
+            {
+                var match = safestMoves.FirstOrDefault(c => c.action == pref);
+                if (match.action != default)
+                    return match.action;
+            }
+
+            // As an ultimate fallback, return the first safest move
+            return safestMoves[0].action;
+        }
+
         // If somehow no direction is legal, return Up as absolute last resort
         return BotAction.Up;
     }
