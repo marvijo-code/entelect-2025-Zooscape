@@ -21,9 +21,9 @@
   "TargetEvaluation": 1.5,
   "TiebreakersAwareness": 0.7,
   "ZookeeperCooldown": 0.9,
-  "PelletEfficiency": 40.0,
+  "PelletEfficiency": 100.0,
   "LongTermPelletSeekingFactor": 0.25,
-  "ImmediatePelletBonus": 2000,
+  "ImmediatePelletBonus": 100000,
   "EscapeRoutes": 1.5,
   "AnimalCongestion": -0.6,
   "CaptureRecoveryStrategy": 1.3,
@@ -41,7 +41,7 @@
   "DirectionalVariety": 1.2,
   "EmptyCellAvoidance": 0.8,
   "WallCollisionRisk": 0.6,
-  "LineOfSightPellets": 200.0,
+  "LineOfSightPellets": 500.0,
   "PelletRace": 1.1,
   "RecalcWindowSafety": 0.8,
   "CenterControl": 0.6,
@@ -77,5 +77,5 @@
   "OpponentTrailChasingMaxDistance": 8,
   "OpponentTrailChasingBonus": 1.5,
   "ZookeeperPredictionPenalty": -2.0,
-  "PelletClusterPlanning": 10.0
+  "PelletClusterPlanning": 25.0
 }

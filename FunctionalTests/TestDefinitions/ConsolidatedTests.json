@@ -986,5 +986,35 @@
     "Bots": [
       "ClingyHeuroBot2"
     ]
+  },
+  {
+    "TestName": "StaticHeuro_PelletIgnore_228",
+    "GameStateFile": "228_0.json",
+    "Description": "Bot must collect immediate pellet to the left with 15 consecutive pellets",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Left"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_PelletIgnore_330",
+    "GameStateFile": "330_0.json",
+    "Description": "Bot must collect immediate pellet down with 40 linked pellets",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Down"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
   }
 ]

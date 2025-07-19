@@ -72,6 +72,7 @@ public class HeuristicsManager
             new EndgameStrategyHeuristic(),
             new EscapeRoutesHeuristic(),
             new FirstCommandAdvantageHeuristic(),
+            new ImmediatePelletBonusHeuristic(),
             new LineOfSightPelletsHeuristic(),
             new MobilityHeuristic(),
             new MoveIfIdleHeuristic(),
@@ -114,7 +115,7 @@ public class HeuristicsManager
         _essentialHeuristics =
         [
             new CaptureAvoidanceHeuristic(),
-            
+            new ImmediatePelletBonusHeuristic(),
             new PelletEfficiencyHeuristic(),
             new LineOfSightPelletsHeuristic(),
             new PelletClusterPlanningHeuristic(),
