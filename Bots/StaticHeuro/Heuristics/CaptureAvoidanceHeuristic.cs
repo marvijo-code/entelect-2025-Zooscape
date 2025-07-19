@@ -128,6 +128,16 @@ public class CaptureAvoidanceHeuristic : IHeuristic
             score -= extraPenalty;
         }
 
+        // HARD VETO: Absolutely prohibit any move that ends within 3 tiles of a zookeeper
+        // (distance 0-3 inclusive). This guarantees the bot never enters the critical
+        // danger radius, regardless of any positive scoring bonuses (e.g. pellet).
+        if (closestNewDist <= IMMEDIATE_DANGER_THRESHOLD)
+        {
+            // Pick a value that comfortably outweighs the maximum possible positive score
+            // (ImmediatePelletBonus is 200 000), so we use ‑500 000 to ensure veto.
+            return -500_000m;
+        }
+
         // Clamp small magnitude near zero to exactly zero to avoid noise.
         if (score > -0.01m && score < 0.01m) return 0m;
 

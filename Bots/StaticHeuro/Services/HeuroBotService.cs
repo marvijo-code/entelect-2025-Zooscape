@@ -945,6 +945,11 @@ private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once 
         if (gameState?.Cells == null || me == null)
             return BotAction.Up; // Last resort if we can't analyze the game state
 
+        // FIRST, attempt to collect an adjacent pellet if one exists
+        var pelletMove = TryImmediatePelletMove(gameState, me);
+        if (pelletMove.HasValue)
+            return pelletMove.Value;
+
         // Try each direction in order of preference and return the first legal one
         var actionsToTry = new[] { BotAction.Right, BotAction.Down, BotAction.Left, BotAction.Up };
         

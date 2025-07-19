@@ -1054,5 +1054,23 @@
     "Bots": [
       "ClingyHeuroBot2"
     ]
+  },
+  {
+    "TestName": "StaticHeuro_PelletCollection_50_20250719",
+    "GameStateFile": "50_20250719_153116_0.json",
+    "Description": "Bot should collect pellets efficiently in match 20250719_153116 at tick 50",
+    "botNicknameInStateFile": "StaticHeuro",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Up",
+      "Down",
+      "Left",
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
   }
 ]

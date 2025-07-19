@@ -5,6 +5,7 @@ This folder contains logically organized documentation files extracted from the 
 ## 🚨 CRITICAL WORKFLOW RULES 🚨
 
 ### Immediate Pellet Collection Guarantee
+- The `StaticHeuro` bot **must never move within 3 tiles (Manhattan distance) of any zookeeper** in *all* matches and functional tests. This is enforced inside `CaptureAvoidanceHeuristic.cs` via a **hard veto** that assigns a -500 000 score to any action leading to distance ≤ 3, ensuring such moves are never selected.
 - The `StaticHeuro` bot **must collect at least one pellet on every single tick** in match `20250719_154013` (and in all future regression tests derived from it).
 - This is enforced via the new `TryImmediatePelletMove()` fast-path in `HeuroBotService.cs` which checks for adjacent pellets **before** running expensive heuristic evaluations or risking a timeout.
 - If an adjacent pellet exists and the move is legal, the bot immediately returns the corresponding action, bypassing all other heuristics. This ensures deterministic pellet collection and avoids the prior timeout-suppression edge cases.
