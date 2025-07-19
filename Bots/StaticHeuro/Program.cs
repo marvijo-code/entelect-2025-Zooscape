@@ -27,23 +27,23 @@ public class Program
     {
         Console.WriteLine("TEST: Program.Main has started.");
 
-        // Configure Serilog first
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Information()
-            .WriteTo.Console()
-            .CreateLogger();
-
-        Log.Information("TEST: Serilog configured and attempting to log to console.");
-
-
         try
         {
+            // Load configuration first
             var builder = new ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory)
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .AddEnvironmentVariables();
 
             Configuration = builder.Build();
+
+            // Configure Serilog using configuration
+            Log.Logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(Configuration)
+                .WriteTo.Console()
+                .CreateLogger();
+
+            Log.Information("TEST: Serilog configured and attempting to log to console.");
 
             var runnerIp =
                 Environment.GetEnvironmentVariable("RUNNER_IPV4") ?? Configuration["RunnerIP"];
@@ -96,7 +96,7 @@ public class Program
                 $"Bot '{botNickname}' running with static weights (evolution disabled)"
             );
 
-            var botService = new HeuroBotService(Log.Logger);
+            var botService = new HeuroBotService(Log.Logger, Configuration);
             BotCommand? command = null;
             BotAction? lastSentAction = null;
             // Track the last known position of my animal to verify actual movement
@@ -297,25 +297,28 @@ public class Program
                     var score = myAnimal?.Score ?? 0;
                     
                     // Concise tick logging: Tick, Position, Action, Duration, Score
-                    Log.Information(
-                        "T{Tick} {Position} {Action} {Duration}ms {Score}pts",
-                        currentTick,
-                        position,
-                        command?.Action ?? BotAction.Up,
-                        processingTimeMs,
-                        score
-                    );
-
-                    // Warn if processing took longer than expected (180ms threshold)
-                    if (processingTimeMs > 180)
+                    if (Configuration?.GetValue<bool>("TickLogging:Enabled") == true)
                     {
-                        Log.Warning(
-                            "SLOW T{Tick} {Position} {Action} {Duration}ms - Performance issue!",
+                        Log.Information(
+                            "T{Tick} {Position} {Action} {Duration}ms {Score}pts",
                             currentTick,
                             position,
                             command?.Action ?? BotAction.Up,
-                            processingTimeMs
+                            processingTimeMs,
+                            score
                         );
+
+                        // Warn if processing took longer than expected (180ms threshold)
+                        if (processingTimeMs > 180)
+                        {
+                            Log.Warning(
+                                "SLOW T{Tick} {Position} {Action} {Duration}ms - Performance issue!",
+                                currentTick,
+                                position,
+                                command?.Action ?? BotAction.Up,
+                                processingTimeMs
+                            );
+                        }
                     }
 
                     // Track game performance for evolution

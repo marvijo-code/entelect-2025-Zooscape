@@ -47,7 +47,44 @@ public class LineOfSightPelletsHeuristic : IHeuristic
             pelletPositions
         );
 
-        // Hybrid scoring: balance consecutive pellets with total linked pellets
+        // ------- Enhanced scoring with look-ahead to the first pellet in the ray -------
+
+        // Build a hash-set of walls so we can stop the ray when vision is blocked
+        var wallPositions = heuristicContext.CurrentGameState.Cells
+            .Where(c => c.Content == CellContent.Wall)
+            .Select(c => (c.X, c.Y))
+            .ToHashSet();
+
+        const int LOOKAHEAD_LIMIT = 12;   // enough for practical cases
+
+        int dx = 0, dy = 0;
+        switch (action)
+        {
+            case BotAction.Up:    dy = -1; break;
+            case BotAction.Down:  dy =  1; break;
+            case BotAction.Left:  dx = -1; break;
+            case BotAction.Right: dx =  1; break;
+            default:
+                return 0m; // UseItem etc.
+        }
+
+        // Find distance to the very first pellet along the ray (-1 if none)
+        int firstPelletDistance = -1;
+        for (int step = 1, cx = heuristicContext.MyNewPosition.X + dx, cy = heuristicContext.MyNewPosition.Y + dy;
+             step <= LOOKAHEAD_LIMIT;
+             step++, cx += dx, cy += dy)
+        {
+            if (wallPositions.Contains((cx, cy)))
+                break; // vision blocked
+
+            if (pelletPositions.Contains((cx, cy)))
+            {
+                firstPelletDistance = step;
+                break;
+            }
+        }
+
+        // ---------------- Original hybrid scoring logic ----------------
         // Optimized based on game state analysis to better prioritize immediate pellet collection
         // and long pellet chains
         

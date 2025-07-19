@@ -8,15 +8,22 @@ using Serilog.Core;
 using System.Linq;
 using System.Collections.Generic;
 using Marvijo.Zooscape.Bots.Common.Utils;
+using Microsoft.Extensions.Configuration;
 
 namespace StaticHeuro.Services;
 
 public class HeuroBotService : IBot<HeuroBotService>
 {
     private readonly ILogger _logger;
+    private readonly IConfiguration? _configuration;
     private readonly HeuristicsManager _heuristics;
     private readonly HeuristicWeights _weights;
     public bool LogHeuristicScores { get; set; } = false;
+    
+    /// <summary>
+    /// Checks if tick logging is enabled in configuration
+    /// </summary>
+    private bool IsTickLoggingEnabled => _configuration?.GetValue<bool>("TickLogging:Enabled") ?? false;
     
     // Performance and timing constants
     private const int HARD_DEADLINE_MS = 180;
@@ -48,9 +55,10 @@ private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once 
     private int _emergencyFallbackStartTick = -1;
     private const int EMERGENCY_FALLBACK_DURATION = 10;
 
-    public HeuroBotService(ILogger? logger = null)
+    public HeuroBotService(ILogger? logger = null, IConfiguration? configuration = null)
     {
         _logger = logger ?? Logger.None;
+        _configuration = configuration;
 
         // Get weights with null safety
         _weights = WeightManager.Instance;
@@ -179,6 +187,9 @@ private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once 
                     _expectedNextPosition = null;
                     _lastActionSent = null;
                     _lastActionTick = -1;
+
+                // Track consecutive late ticks
+                _lateTickCount++;
                 }
             }
             
@@ -204,6 +215,9 @@ private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once 
                 _expectedNextPosition = null;
                 _lastActionSent = null;
                 _lastActionTick = -1;
+
+                // Track consecutive late ticks
+                _lateTickCount++;
                 
                 // Activate essential-heuristics-only mode for a back-off period
                 _essentialBackoffTicksRemaining = ESSENTIAL_BACKOFF_DURATION;
@@ -268,6 +282,9 @@ private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once 
                 _expectedNextPosition = null;
                 _lastActionSent = null;
                 _lastActionTick = -1;
+
+                // Track consecutive late ticks
+                _lateTickCount++;
                 
                 // Activate essential-heuristics-only mode for a back-off period
                 _essentialBackoffTicksRemaining = ESSENTIAL_BACKOFF_DURATION;
@@ -292,6 +309,9 @@ private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once 
             }
             else
             {
+                // Reset late tick counter on timely action
+                _lateTickCount = 0;
+
                 // Successful timing – decrement essential back-off timer if active
                 if (_essentialBackoffTicksRemaining > 0)
                 {
@@ -329,7 +349,7 @@ private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once 
             }
             
             // Single consolidated log line per tick with all required information
-            if (me2 != null)
+            if (me2 != null && IsTickLoggingEnabled)
             {
                 _logger.Information(
                     "T{Tick} ({CurX},{CurY}) {Action} {Elapsed}ms {Score}pts",
@@ -920,7 +940,7 @@ private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once 
         var elapsedMs = stopwatch.ElapsedMilliseconds;
 
         // Performance monitoring (logging consolidated in GetAction for single line per tick)
-        if (elapsedMs > 180)
+        if (elapsedMs > 180 && IsTickLoggingEnabled)
         {
             _logger.Warning(
                 "SLOW ProcessState T{Tick} {Action} {Duration}ms - performance issue",
