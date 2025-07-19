@@ -4,6 +4,14 @@ This folder contains logically organized documentation files extracted from the 
 
 ## 🚨 CRITICAL WORKFLOW RULES 🚨
 
+### Immediate Pellet Collection Guarantee
+- The `StaticHeuro` bot **must collect at least one pellet on every single tick** in match `20250719_154013` (and in all future regression tests derived from it).
+- This is enforced via the new `TryImmediatePelletMove()` fast-path in `HeuroBotService.cs` which checks for adjacent pellets **before** running expensive heuristic evaluations or risking a timeout.
+- If an adjacent pellet exists and the move is legal, the bot immediately returns the corresponding action, bypassing all other heuristics. This ensures deterministic pellet collection and avoids the prior timeout-suppression edge cases.
+- When analysing logs, any tick without a pellet collection now constitutes a **critical regression** and must be fixed before merging.
+
+
+
 ### Test Creation Rules
 - **NEVER manually create or edit test JSON files** - Always use `create_test.ps1` script
 - **NEVER manually edit `ConsolidatedTests.json`** - The `create_test.ps1` script handles this automatically

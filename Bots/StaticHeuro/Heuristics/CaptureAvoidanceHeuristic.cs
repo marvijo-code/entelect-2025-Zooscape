@@ -8,9 +8,18 @@ using Serilog;
 
 namespace StaticHeuro.Heuristics;
 
+/// <summary>
+/// Evaluates the risk of capture by zookeepers and applies penalties or rewards accordingly.
+/// Balances safety with pellet collection opportunities.
+/// </summary>
 public class CaptureAvoidanceHeuristic : IHeuristic
 {
     public string Name => "CaptureAvoidance";
+
+    // Safety thresholds for different risk zones
+    private const int IMMEDIATE_DANGER_THRESHOLD = 3;  // High risk zone
+    private const int MODERATE_DANGER_THRESHOLD = 6;   // Medium risk zone
+    private const int SAFE_DISTANCE_THRESHOLD = 10;    // Low risk zone
 
     public decimal CalculateScore(IHeuristicContext heuristicContext)
     {
@@ -40,7 +49,7 @@ public class CaptureAvoidanceHeuristic : IHeuristic
             // Fatal move – standing on the same tile or adjacent (high risk)
             if (newDist == 0)
             {
-                return -20000m; // Increased penalty for fatal moves
+                return -20000m; // Absolute veto for fatal moves
             }
             else if (newDist == 1)
             {
@@ -51,17 +60,36 @@ public class CaptureAvoidanceHeuristic : IHeuristic
             // Check if we're moving closer or away from this zookeeper
             if (newDist < currentDist)
             {
-                // Moving closer – penalise heavily, especially in danger zone
+                // Moving closer – apply scaled penalty based on danger zone
                 decimal proximityMultiplier = 1;
                 
-                // Enhanced danger zone logic - more aggressive scaling
-                if (newDist <= 3) 
+                // Scale penalty based on danger zone
+                if (newDist <= IMMEDIATE_DANGER_THRESHOLD) 
                 {
-                    proximityMultiplier = (4 - newDist) * 2; // 6 when dist==1, 4 when dist==2, 2 when dist==3
+                    // High risk zone - aggressive penalty
+                    proximityMultiplier = (IMMEDIATE_DANGER_THRESHOLD + 1 - newDist) * 1.5m;
+                }
+                else if (newDist <= MODERATE_DANGER_THRESHOLD)
+                {
+                    // Medium risk zone - moderate penalty
+                    proximityMultiplier = 0.75m;
+                }
+                else if (newDist > SAFE_DISTANCE_THRESHOLD)
+                {
+                    // Safe distance - minimal penalty
+                    proximityMultiplier = 0.25m;
                 }
                 
                 int delta = currentDist - newDist;
-                score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * delta * proximityMultiplier;
+                
+                // Apply penalty with diminishing returns for distant zookeepers
+                // This prevents pellet collection from being blocked by far-away zookeepers
+                decimal penaltyFactor = Math.Min(
+                    heuristicContext.Weights.CaptureAvoidancePenaltyFactor,
+                    heuristicContext.Weights.CaptureAvoidancePenaltyFactor / (Math.Max(1, newDist - IMMEDIATE_DANGER_THRESHOLD))
+                );
+                
+                score -= penaltyFactor * delta * proximityMultiplier;
             }
             else if (newDist > currentDist)
             {
@@ -69,29 +97,34 @@ public class CaptureAvoidanceHeuristic : IHeuristic
                 decimal escapeBonus = heuristicContext.Weights.CaptureAvoidanceRewardFactor;
                 
                 // Enhanced escape bonus when in danger
-                if (currentDist <= 3) 
+                if (currentDist <= IMMEDIATE_DANGER_THRESHOLD) 
                 {
-                    escapeBonus = heuristicContext.Weights.CaptureAvoidanceRewardFactor * (4 - currentDist);
+                    escapeBonus = heuristicContext.Weights.CaptureAvoidanceRewardFactor * 
+                                 (IMMEDIATE_DANGER_THRESHOLD + 1 - currentDist);
                 }
                 
                 score += escapeBonus / Math.Max(currentDist, 1);
             }
             else
             {
-                // Same distance – penalize more aggressively in danger zone
-                if (newDist <= 3)
+                // Same distance – only penalize in danger zones
+                if (newDist <= IMMEDIATE_DANGER_THRESHOLD)
                 {
-                    decimal dangerFactor = 4 - newDist; // 3 when dist==1, 2 when dist==2, 1 when dist==3
-                    score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * dangerFactor * 0.75m; // Increased penalty
+                    decimal dangerFactor = IMMEDIATE_DANGER_THRESHOLD + 1 - newDist;
+                    score -= heuristicContext.Weights.CaptureAvoidancePenaltyFactor * dangerFactor * 0.5m;
                 }
             }
         }
 
         // Apply additional penalty if we're moving toward the closest zookeeper
-        if (closestNewDist < closestCurrentDist && closestNewDist <= 5)
+        // But only if we're already in or moving into a danger zone
+        if (closestNewDist < closestCurrentDist && closestNewDist <= MODERATE_DANGER_THRESHOLD)
         {
-            // Extra penalty for moving toward the closest zookeeper
-            decimal extraPenalty = (6 - closestNewDist) * heuristicContext.Weights.CaptureAvoidancePenaltyFactor * 0.5m;
+            // Extra penalty for moving toward the closest zookeeper, scaled by distance
+            decimal extraPenalty = Math.Min(
+                (MODERATE_DANGER_THRESHOLD + 1 - closestNewDist) * heuristicContext.Weights.CaptureAvoidancePenaltyFactor * 0.3m,
+                heuristicContext.Weights.CaptureAvoidancePenaltyFactor * 2
+            );
             score -= extraPenalty;
         }
 

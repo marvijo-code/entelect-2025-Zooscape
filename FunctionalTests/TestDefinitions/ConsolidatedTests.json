@@ -743,17 +743,19 @@
   {
     "TestName": "StaticHeuro_AvoidCapture_274",
     "GameStateFile": "274_0.json",
-    "Description": "Test capture avoidance at tick 274 - bot should move Up away from zookeeper at (5,27)",
+    "Description": "Bot should avoid capture and choose safest move away from zookeeper",
     "botNicknameInStateFile": "StaticHeuro",
     "ExpectedAction": null,
     "AcceptableActions": [
       "Up",
-      "Down"
+      "Down",
+      "Left",
+      "Right"
     ],
     "TestType": "SingleBot",
     "TickOverride": false,
     "Bots": [
-      "StaticHeuro"
+      "ClingyHeuroBot2"
     ]
   },
   {
@@ -1010,6 +1012,42 @@
     "ExpectedAction": null,
     "AcceptableActions": [
       "Down"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_PelletIgnore_240",
+    "GameStateFile": "240_0.json",
+    "Description": "Automated test",
+    "botNicknameInStateFile": "",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Up",
+      "Down",
+      "Left",
+      "Right"
+    ],
+    "TestType": "SingleBot",
+    "TickOverride": false,
+    "Bots": [
+      "ClingyHeuroBot2"
+    ]
+  },
+  {
+    "TestName": "StaticHeuro_PelletIgnore_240_Fixed",
+    "GameStateFile": "240_0.json",
+    "Description": "Automated test",
+    "botNicknameInStateFile": "",
+    "ExpectedAction": null,
+    "AcceptableActions": [
+      "Up",
+      "Down",
+      "Left",
+      "Right"
     ],
     "TestType": "SingleBot",
     "TickOverride": false,

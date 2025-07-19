@@ -224,6 +224,26 @@ private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once 
                 return BotAction.Up;
             }
             
+            // FAST-PATH: If a pellet is directly adjacent, immediately move onto it to guarantee pellet collection and save time
+            var meInstant = gameState.Animals?.FirstOrDefault(a => a.Id == BotId);
+            if (meInstant != null)
+            {
+                var instantAction = TryImmediatePelletMove(gameState, meInstant);
+                if (instantAction.HasValue)
+                {
+                    // Set expected position for next tick
+                    if (IsMovementAction(instantAction.Value))
+                    {
+                        var expectedPosFast = CalculateExpectedPosition(meInstant.X, meInstant.Y, instantAction.Value);
+                        _expectedNextPosition = expectedPosFast;
+                        _lastActionSent = instantAction.Value;
+                        _lastActionTick = gameState.Tick;
+                    }
+                    _logger.Debug("[FAST_PELLET] T{Tick} Moving {Action} to collect adjacent pellet", gameState.Tick, instantAction.Value);
+                    return instantAction.Value;
+                }
+            }
+
             var actionResult = GetActionWithScores(gameState);
             var chosenAction = actionResult.ChosenAction;
             
@@ -948,6 +968,39 @@ private int _essentialBackoffTicksRemaining = 0; // Counts down every tick once 
         
         // If somehow no direction is legal, return Up as absolute last resort
         return BotAction.Up;
+    }
+
+    /// <summary>
+    /// Checks for an immediate pellet adjacent to the bot and returns the corresponding action if found.
+    /// Returns null if no adjacent pellet exists.
+    /// </summary>
+    private BotAction? TryImmediatePelletMove(GameState gameState, Animal me)
+    {
+        if (gameState?.Cells == null)
+            return null;
+
+        // Direction preference order: Right, Down, Left, Up (consistent with GetSafeFallbackAction)
+        var dirs = new (BotAction action, int dx, int dy)[]
+        {
+            (BotAction.Right, 1, 0),
+            (BotAction.Down, 0, 1),
+            (BotAction.Left, -1, 0),
+            (BotAction.Up, 0, -1)
+        };
+
+        foreach (var (action, dx, dy) in dirs)
+        {
+            int nx = me.X + dx;
+            int ny = me.Y + dy;
+
+            var cell = gameState.Cells.FirstOrDefault(c => c.X == nx && c.Y == ny);
+            if (cell != null && cell.Content == CellContent.Pellet && IsLegalMove(gameState, me, action))
+            {
+                return action;
+            }
+        }
+
+        return null;
     }
 
     // Determine quadrant based on map midpoints
