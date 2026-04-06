@@ -752,7 +752,7 @@ public sealed class MonteCarloBotService : IBot<MonteCarloBotService>
 
         if (candidate.IsFallback != incumbent.IsFallback)
         {
-            return !candidate.IsFallback;
+            return candidate.IsFallback;
         }
 
         return false;
