@@ -22,6 +22,63 @@ function Stop-ProcessOnPort {
     }
 }
 
+function Test-PortListening {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Port
+    )
+
+    return $null -ne (netstat -ano | Select-String ":$Port" | Select-String "LISTENING")
+}
+
+function Ensure-NpmDependencies {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$WorkingDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$NpmCommand
+    )
+
+    $nodeModulesPath = Join-Path $WorkingDirectory "node_modules"
+    $needsInstall = -not (Test-Path $nodeModulesPath)
+
+    if ($needsInstall) {
+        Write-Host "Installing frontend workspace dependencies..." -ForegroundColor Yellow
+        Push-Location $WorkingDirectory
+        try {
+            & $NpmCommand install --no-fund --no-audit
+        } finally {
+            Pop-Location
+        }
+    } else {
+        Write-Host "Using existing frontend workspace dependencies." -ForegroundColor DarkGray
+    }
+}
+
+function Show-JobOutput {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Management.Automation.Job]$Job,
+        [switch]$Keep
+    )
+
+    $receiveParams = @{
+        Job = $Job
+        ErrorAction = 'SilentlyContinue'
+    }
+    if ($Keep) {
+        $receiveParams.Keep = $true
+    }
+
+    $jobOutput = Receive-Job @receiveParams
+    if ($jobOutput) {
+        $color = if ($Job.Name -eq "ZooscapeVisualizerApi") { "Cyan" } else { "Green" }
+        foreach ($line in $jobOutput) {
+            Write-Host "[$($Job.Name)] $line" -ForegroundColor $color
+        }
+    }
+}
+
 # Stop existing processes
 Stop-ProcessOnPort -Port 5252 -ServiceName "Frontend"
 Stop-ProcessOnPort -Port 5008 -ServiceName "API"
@@ -31,6 +88,10 @@ Write-Host "Starting Zooscape Visualizer API and Frontend..."
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $ApiDir = Join-Path $ScriptDirectory "visualizer-2d\api"
 $FrontendDir = Join-Path $ScriptDirectory "visualizer-2d"
+$NodeCommand = (Get-Command node.exe -ErrorAction Stop).Source
+$NpmCommand = (Get-Command npm.cmd -ErrorAction Stop).Source
+$apiJob = $null
+$frontendJob = $null
 
 # Check if API directory exists
 if (-not (Test-Path $ApiDir)) {
@@ -38,9 +99,9 @@ if (-not (Test-Path $ApiDir)) {
     exit 1
 }
 
-# Check if server.js exists in API directory
-if (-not (Test-Path (Join-Path $ApiDir "server.js"))) {
-    Write-Error "server.js not found in $ApiDir."
+# Check if server.cjs exists in API directory
+if (-not (Test-Path (Join-Path $ApiDir "server.cjs"))) {
+    Write-Error "server.cjs not found in $ApiDir."
     exit 1
 }
 
@@ -56,40 +117,52 @@ if (-not (Test-Path (Join-Path $FrontendDir "package.json"))) {
     exit 1
 }
 
+Ensure-NpmDependencies -WorkingDirectory $FrontendDir -NpmCommand $NpmCommand
+
 # Start API in background job
 Write-Host "Starting API server on port 5008..."
-Push-Location $ApiDir
-try {
-    Write-Host "Installing API dependencies..."
-    npm install
-    
-    # Start API as a background job with nodemon for hot-reloading
-    $apiJob = Start-Job -ScriptBlock {
-        Set-Location $using:ApiDir
-        # Call nodemon directly from node_modules/.bin
-        & ".\node_modules\.bin\nodemon.cmd" --watch ./ server.js
-    }
-    Write-Host "API server started as job $($apiJob.Id)"
-} finally {
-    Pop-Location
+$apiJob = Start-Job -Name "ZooscapeVisualizerApi" -ScriptBlock {
+    Set-Location $using:ApiDir
+    $env:PORT = "5008"
+    & $using:NodeCommand server.cjs
 }
+Write-Host "API server started as job $($apiJob.Id)"
 
 # Start Frontend in background job
 Write-Host "Starting Frontend on port 5252..."
-Push-Location $FrontendDir
-try {
-    Write-Host "Installing Frontend dependencies..."
-    npm install
-    
-    # Start Frontend as a background job
-    $frontendJob = Start-Job -ScriptBlock {
-        Set-Location $using:FrontendDir
-        $env:PORT = "5252"
-        vite
+$frontendJob = Start-Job -Name "ZooscapeVisualizerFrontend" -ScriptBlock {
+    Set-Location $using:FrontendDir
+    $env:PORT = "5252"
+    & $using:NpmCommand run dev
+}
+Write-Host "Frontend started as job $($frontendJob.Id)"
+
+$startupDeadline = (Get-Date).AddSeconds(20)
+while ((Get-Date) -lt $startupDeadline) {
+    Show-JobOutput -Job $apiJob
+    Show-JobOutput -Job $frontendJob
+
+    $failedJobs = @($apiJob, $frontendJob) | Where-Object { $_.State -in @('Failed', 'Stopped', 'Completed') }
+    if ($failedJobs) {
+        foreach ($job in $failedJobs) {
+            Write-Host "Job '$($job.Name)' exited early with state $($job.State)." -ForegroundColor Red
+            Show-JobOutput -Job $job -Keep
+        }
+
+        throw "One or more visualizer services failed during startup."
     }
-    Write-Host "Frontend started as job $($frontendJob.Id)"
-} finally {
-    Pop-Location
+
+    if ((Test-PortListening -Port 5008) -and (Test-PortListening -Port 5252)) {
+        break
+    }
+
+    Start-Sleep -Milliseconds 500
+}
+
+if (-not ((Test-PortListening -Port 5008) -and (Test-PortListening -Port 5252))) {
+    Show-JobOutput -Job $apiJob -Keep
+    Show-JobOutput -Job $frontendJob -Keep
+    throw "Timed out waiting for the visualizer services to listen on ports 5008 and 5252."
 }
 
 Write-Host "Both services are now running in background jobs."
@@ -100,22 +173,25 @@ Write-Host "Press Ctrl+C to stop all services."
 # Display job output in real-time
 try {
     while ($true) {
-        $apiOutput = Receive-Job -Job $apiJob
-        $frontendOutput = Receive-Job -Job $frontendJob
-        
-        if ($apiOutput) {
-            Write-Host "[API] $apiOutput" -ForegroundColor Cyan
-        }
-        
-        if ($frontendOutput) {
-            Write-Host "[Frontend] $frontendOutput" -ForegroundColor Green
+        Show-JobOutput -Job $apiJob
+        Show-JobOutput -Job $frontendJob
+
+        if ($apiJob.State -notin @('Running', 'NotStarted') -or $frontendJob.State -notin @('Running', 'NotStarted')) {
+            Write-Host "A visualizer job exited with API state '$($apiJob.State)' and Frontend state '$($frontendJob.State)'." -ForegroundColor Yellow
+            break
         }
         
         Start-Sleep -Milliseconds 500
     }
 } finally {
     # Clean up jobs when script is interrupted
-    Stop-Job -Job $apiJob, $frontendJob
-    Remove-Job -Job $apiJob, $frontendJob
+    if ($apiJob) {
+        Stop-Job -Job $apiJob -ErrorAction SilentlyContinue
+        Remove-Job -Job $apiJob -ErrorAction SilentlyContinue
+    }
+    if ($frontendJob) {
+        Stop-Job -Job $frontendJob -ErrorAction SilentlyContinue
+        Remove-Job -Job $frontendJob -ErrorAction SilentlyContinue
+    }
     Write-Host "All services stopped." -ForegroundColor Yellow
 }

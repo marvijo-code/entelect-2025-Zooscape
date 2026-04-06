@@ -89,14 +89,6 @@ public sealed class MonteCarloBotService : IBot<MonteCarloBotService>
         UpdateCaptureState(me);
         var layout = EnsureLayout(gameState);
         var root = BuildRootState(gameState, me, layout);
-        var usePostCaptureEscape = ShouldUsePostCaptureEscape(root);
-
-        if (usePostCaptureEscape)
-        {
-            var escapeSeedAction = root.CandidateCount > 0 ? root.Candidates[0] : BotAction.Up;
-            return GetSafetyOverride(gameState, me, root, escapeSeedAction);
-        }
-
         if (!ShouldConsiderMonteCarlo(root))
         {
             var baselineAction = GetFallbackAction(gameState, root);

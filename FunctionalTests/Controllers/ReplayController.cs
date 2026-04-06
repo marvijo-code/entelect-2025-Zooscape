@@ -54,6 +54,7 @@ public class ReplayController : ControllerBase
                         var fileContent = await System.IO.File.ReadAllTextAsync(firstLogPath);
                         var gameData = JsonNode.Parse(fileContent);
                         var runId = new DirectoryInfo(runDir).Name;
+                        var seed = await TryReadSeedAsync(runDir);
 
                         return new
                         {
@@ -61,7 +62,8 @@ public class ReplayController : ControllerBase
                             name = $"Game {runId}",
                             date = new FileInfo(runDir).LastWriteTimeUtc,
                             playerCount = (gameData["animals"] ?? gameData["Animals"])?.AsArray().Count ?? 0,
-                            tickCount = files.Length
+                            tickCount = files.Length,
+                            seed
                         };
                     }
                     catch (Exception ex)
@@ -135,6 +137,40 @@ public class ReplayController : ControllerBase
         }, TimeSpan.FromMinutes(1));
 
         return Content(gameState, "application/json");
+    }
+
+    private static async Task<int?> TryReadSeedAsync(string runDir)
+    {
+        var engineLogPath = Path.Combine(runDir, "engine.out.log");
+        if (!System.IO.File.Exists(engineLogPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var lines = await System.IO.File.ReadAllLinesAsync(engineLogPath);
+            foreach (var line in lines)
+            {
+                const string marker = "Starting game engine with seed:";
+                var markerIndex = line.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+                if (markerIndex < 0)
+                {
+                    continue;
+                }
+
+                var seedText = line[(markerIndex + marker.Length)..].Trim();
+                if (int.TryParse(seedText, out var seed))
+                {
+                    return seed;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
     }
 
     [HttpGet("file/load-json")]

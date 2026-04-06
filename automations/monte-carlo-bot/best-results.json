@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-04-06T14:33:39.8497338+02:00",
+  "updated_at": "2026-04-06T19:38:21.9406569+02:00",
   "selection_policy": {
     "official_anchor": "Use the run that best balances undefeated or strongest match record with high score and low captures for the stored seed set. Do not blindly trust the harness auto-best file when it prefers score diff over capture quality.",
     "latest_broader_sample": "Keep the newest wider-seed benchmark summary for each tracked opponent so regression and volatility can be seen beyond the official anchor seed set."
@@ -23,20 +23,64 @@
       "avg_capture_diff": -3.0
     },
     "StaticHeuro": {
-      "run_name": "20260406_133614_MonteCarloBot_vs_StaticHeuro",
-      "summary_path": "output/headtohead/20260406_133614_MonteCarloBot_vs_StaticHeuro/summary.json",
-      "tag": "best-montecarlobot-vs-staticheuro-20260406-134413",
-      "commit": "fe64100afe55c7efd1987f9843b4de1f03cae3da",
+      "run_name": "20260406_192909_MonteCarloBot_vs_StaticHeuro",
+      "summary_path": "output/headtohead/20260406_192909_MonteCarloBot_vs_StaticHeuro/summary.json",
+      "tag": "best-montecarlobot-vs-staticheuro-20260406-193821",
+      "commit": "4eb3dfccdc870abe0f55d345d62ba7f3968c0c1a",
       "seeds": [101, 102, 103, 104, 105],
       "wins": 5,
       "losses": 0,
       "ties": 0,
-      "avg_score": 99230.4,
-      "avg_opponent_score": 71648.8,
-      "avg_captured": 0.6,
-      "avg_opponent_captured": 1.4,
-      "avg_score_diff": 27581.6,
-      "avg_capture_diff": -0.8
+      "avg_score": 103509.0,
+      "avg_opponent_score": 80362.2,
+      "avg_captured": 0.4,
+      "avg_opponent_captured": 1.6,
+      "avg_score_diff": 23146.8,
+      "avg_capture_diff": -1.2,
+      "notes": [
+        "Promoted from the validated worktree change that stops hard-short-circuiting directly into post-capture escape.",
+        "Higher score and fewer captures than the prior 5-0 StaticHeuro anchor, so this is now the official score/capture reference."
+      ]
+    }
+  },
+  "latest_official_validations": {
+    "NeuralNetBot": {
+      "run_name": "20260406_192049_MonteCarloBot_vs_NeuralNetBot",
+      "summary_path": "output/headtohead/20260406_192049_MonteCarloBot_vs_NeuralNetBot/summary.json",
+      "commit": "4eb3dfccdc870abe0f55d345d62ba7f3968c0c1a",
+      "seeds": [101, 102, 103, 104, 105],
+      "wins": 4,
+      "losses": 1,
+      "ties": 0,
+      "avg_score": 104325.4,
+      "avg_opponent_score": 94500.6,
+      "avg_captured": 0.2,
+      "avg_opponent_captured": 1.2,
+      "avg_score_diff": 9824.8,
+      "avg_capture_diff": -1.0,
+      "notes": [
+        "Current headless validation for the live worktree change that keeps MonteCarlo/fallback selection active during post-capture escape ticks.",
+        "Recovered from 2-3 / 91926.2 / 1.0 captures to 4-1 / 104325.4 / 0.2 captures; only seed 105 still lost, by score with equal captures."
+      ]
+    },
+    "StaticHeuro": {
+      "run_name": "20260406_192909_MonteCarloBot_vs_StaticHeuro",
+      "summary_path": "output/headtohead/20260406_192909_MonteCarloBot_vs_StaticHeuro/summary.json",
+      "commit": "4eb3dfccdc870abe0f55d345d62ba7f3968c0c1a",
+      "seeds": [101, 102, 103, 104, 105],
+      "wins": 5,
+      "losses": 0,
+      "ties": 0,
+      "avg_score": 103509.0,
+      "avg_opponent_score": 80362.2,
+      "avg_captured": 0.4,
+      "avg_opponent_captured": 1.6,
+      "avg_score_diff": 23146.8,
+      "avg_capture_diff": -1.2,
+      "notes": [
+        "Current headless validation for the live worktree change that keeps MonteCarlo/fallback selection active during post-capture escape ticks.",
+        "Promoted to the official StaticHeuro score/capture anchor because it stayed 5-0 while improving both average score and average captures."
+      ]
     }
   },
   "latest_broader_samples": {

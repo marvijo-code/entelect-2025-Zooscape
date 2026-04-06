@@ -80,6 +80,7 @@ const App = memo(() => {
     return () => clearInterval(interval);
   }, [isConnected, showReplayMode]);
   const [replayingGameName, setReplayingGameName] = useState(null);
+  const [replaySeed, setReplaySeed] = useState(null);
   const [replayGameId, setReplayGameId] = useState(null);
   const [replayTickCount, setReplayTickCount] = useState(0);
   const [currentReplayTick, setCurrentReplayTick] = useState(0);
@@ -159,12 +160,12 @@ const App = memo(() => {
     setIsReplaying(false);
     setReplayGameId(null);
     setReplayingGameName("Pasted JSON Data");
+    setReplaySeed(jsonData.seed ?? jsonData.Seed ?? null);
     setGameInitialized(true);
     setIsPlaying(false);
     setShowReplayMode(true); // Keep replay controls for consistency
 
     const processedJsonData = {
-      tick: 0, // Default tick
       ...jsonData,
       tick: jsonData.tick !== undefined ? jsonData.tick : (jsonData.Tick !== undefined ? jsonData.Tick : 0),
     };
@@ -277,6 +278,7 @@ const App = memo(() => {
     const gameId = typeof gameData === 'string' ? gameData : gameData.id;
     const gameName = typeof gameData === 'string' ? gameData : (gameData.name || `Game ${gameData.id}`);
     const tickCount = typeof gameData === 'object' && gameData.tickCount ? gameData.tickCount : 0;
+    const seed = typeof gameData === 'object' ? (gameData.seed ?? null) : null;
 
     console.log("handleReplayGame - Received gameData:", gameData); // DEBUG LINE
     console.log("handleReplayGame - Original gameId:", gameId);
@@ -306,6 +308,7 @@ const App = memo(() => {
     try {
       setSelectedFile(fullDisplayPath); // Store the constructed full path for UI display
       setReplayingGameName(gameName);
+      setReplaySeed(seed);
       setReplayGameId(gameId); // Use the ORIGINAL relative gameId for API calls
       setShowReplayMode(true);
       setIsReplaying(true);
@@ -354,6 +357,7 @@ const App = memo(() => {
       setIsReplaying(false);
       setSelectedFile(null);
       setReplayingGameName('');
+      setReplaySeed(null);
       setGameInitialized(false);
     }
   }, [fetchAndDisplayReplayTick]);
@@ -888,6 +892,7 @@ const App = memo(() => {
     setReplayTickCount(0);
     setReplayGameId(null);
     setReplayingGameName('');
+    setReplaySeed(null);
     setSelectedFile(null); // Clear selected file
     setAllGameStates([]);
     setError(null);
@@ -918,6 +923,7 @@ const App = memo(() => {
     setAnimalColorMap({});
     setError(null);
     setReplayingGameName(null);
+    setReplaySeed(null);
   }, [connection]); // Added missing dependency: connection
 
   const handleTestGameStateSelected = useCallback((gameState, displayName) => {
@@ -935,6 +941,7 @@ const App = memo(() => {
     setGameInitialized(true);
     setIsPlaying(false);
     setReplayingGameName(displayName);
+    setReplaySeed(gameState.seed ?? gameState.Seed ?? null);
 
     // Update animal colors
     if (gameState.animals) {
@@ -1105,7 +1112,7 @@ const App = memo(() => {
         );
       case 1:
         return (
-          <JsonPasteLoader onLoadJson={handleLoadPastedJson} onError={setError} />
+          <JsonPasteLoader onLoadJson={handleLoadPastedJson} onError={setError} apiBaseUrl={API_BASE_URL} />
         );
       case 2: // Was Game Selector, now Connection if not showReplayMode, or Game Selector if showReplayMode
         if (showReplayMode) {
@@ -1130,7 +1137,7 @@ const App = memo(() => {
           return (
             <TestRunner
               onGameStateSelected={handleTestGameStateSelected}
-              apiBaseUrl={import.meta.env.VITE_API_BASE_URL}
+              apiBaseUrl={API_BASE_URL}
               currentGameState={currentGameState}
               currentGameStateName={selectedFile ? `${selectedFile}/${(currentReplayTick || 0) + 1}.json` : `${(currentReplayTick || 0) + 1}.json`}
               shouldShowCreateModal={shouldShowCreateModal}
@@ -1224,6 +1231,9 @@ const App = memo(() => {
             {showReplayMode && replayingGameName && (
               <div className="replay-game-name">
                 📼 Replaying: <strong>{replayingGameName}</strong>
+                {replaySeed !== null && (
+                  <> <span className="replay-seed">Seed: <strong>{replaySeed}</strong></span></>
+                )}
               </div>
             )}
           </div>

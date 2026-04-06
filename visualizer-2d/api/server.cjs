@@ -4,7 +4,8 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 5008;
+// Keep the optional helper API off the ASP.NET API port.
+const PORT = process.env.PORT || 5009;
 
 // Middleware
 app.use(cors());
@@ -16,6 +17,18 @@ const LOGS_DIR = "C:\\dev\\2025-Zooscape\\logs";
 
 // Cache for frequently accessed data
 const cache = new Map();
+
+async function tryReadSeed(runPath) {
+  const engineLogPath = path.join(runPath, 'engine.out.log');
+
+  try {
+    const content = await fs.readFile(engineLogPath, 'utf8');
+    const match = content.match(/Starting game engine with seed:\s*(\d+)/i);
+    return match ? Number.parseInt(match[1], 10) : null;
+  } catch {
+    return null;
+  }
+}
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Helper function to get cached data or compute it
@@ -126,8 +139,7 @@ function sortLogFiles(files) {
     });
 }
 
-// Get list of all available games
-app.get('/api/games', async (req, res) => {
+async function getGamesHandler(req, res) {
   try {
     await ensureLogsDir();
     console.log("API: Fetching games list");
@@ -154,6 +166,7 @@ app.get('/api/games', async (req, res) => {
           // Get metadata from the first log file
           const firstLogPath = path.join(runPath, logFiles[0]);
           const gameData = await readJsonFile(firstLogPath);
+          const seed = await tryReadSeed(runPath);
 
           if (!gameData) return null;
 
@@ -162,7 +175,8 @@ app.get('/api/games', async (req, res) => {
             name: `Game ${runId}`,
             date: stat.mtime,
             playerCount: (gameData.animals || gameData.Animals || []).length,
-            tickCount: logFiles.length
+            tickCount: logFiles.length,
+            seed
           };
         } catch (runError) {
           console.error(`Error processing run ${runId}:`, runError);
@@ -182,10 +196,14 @@ app.get('/api/games', async (req, res) => {
     console.error('Error getting games list:', error);
     res.status(500).json({ error: 'Failed to get games list' });
   }
-});
+}
+
+// Get list of all available games
+app.get('/api/games', getGamesHandler);
+app.get('/api/Replay/games', getGamesHandler);
 
 // Get all data for a specific game with optimized loading
-app.get('/api/games/:gameId', async (req, res) => {
+async function getGameDataHandler(req, res) {
   try {
     const { gameId } = req.params;
     const gameDir = path.join(LOGS_DIR, gameId);
@@ -265,10 +283,13 @@ app.get('/api/games/:gameId', async (req, res) => {
     console.error('Error getting game data:', error);
     res.status(500).json({ error: 'Failed to get game data' });
   }
-});
+}
+
+app.get('/api/games/:gameId', getGameDataHandler);
+app.get('/api/Replay/games/:gameId', getGameDataHandler);
 
 // Endpoint to get a specific game state by tick for replay
-app.get('/api/replay/:gameId/:tick', async (req, res) => {
+async function getReplayTickHandler(req, res) {
   try {
     const { gameId, tick } = req.params;
     const logFileName = `${tick}.json`;
@@ -319,7 +340,10 @@ app.get('/api/replay/:gameId/:tick', async (req, res) => {
     console.error(`Error getting replay state for game ${req.params.gameId}, tick ${req.params.tick}:`, error);
     res.status(500).json({ error: 'Failed to get replay game state' });
   }
-});
+}
+
+app.get('/api/replay/:gameId/:tick', getReplayTickHandler);
+app.get('/api/Replay/:gameId/:tick', getReplayTickHandler);
 
 // Legacy endpoints for backward compatibility
 app.get('/api/log_runs', async (req, res) => {

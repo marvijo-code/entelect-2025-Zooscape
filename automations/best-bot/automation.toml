@@ -1,0 +1,13 @@
+version = 1
+id = "best-bot"
+kind = "cron"
+name = "Best Bot"
+prompt = "continue working on the NeuralNet bot until it can minimize captures and maximize scores. run all terminal workloads in headless mode. do not ask for permissions for repo files, output files, or the automation memory file; make reasonable assumptions and continue without permission prompts. always create git tags of the best versions. benchmark and optimize it against both MonteCarloBot and StaticHeuro, and it must be able to beat the best bot."
+status = "ACTIVE"
+rrule = "FREQ=HOURLY;INTERVAL=4;BYDAY=SU,MO,TU,WE,TH,FR,SA;BYMINUTE=0"
+model = "gpt-5.4"
+reasoning_effort = "high"
+execution_environment = "local"
+cwds = ["C:\\dev\\2025-Zooscape"]
+created_at = 1775145236405
+updated_at = 1775475316557

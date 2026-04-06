@@ -345,6 +345,11 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
                 score += 0.18 + Math.Min(0.72, scoreDeficit / 2600.0);
             }
 
+            if (scoreDeficit >= 4000)
+            {
+                score += 0.35;
+            }
+
             if (!isProtected && currentDanger <= EmergencyDangerDistance)
             {
                 score += 0.60;
@@ -366,6 +371,11 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
             if (scoreDeficit > 0)
             {
                 score -= 0.16 + Math.Min(0.60, scoreDeficit / 3000.0);
+            }
+
+            if (scoreDeficit >= 4000)
+            {
+                score -= 0.30;
             }
 
             if (!isProtected && dangerNowScore <= 0.35)
@@ -542,6 +552,7 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
     {
         var bestProfile = CaptureMoveProfile(gameState, board, geometry, me, bestAction);
         var monteProfile = CaptureMoveProfile(gameState, board, geometry, me, monteAction);
+        var hardChaseBias = scoreDeficit >= 4000;
         var monteBias = currentDanger >= 3 || scoreDeficit > 0 || tick >= 120;
 
         if (monteProfile.NextDanger <= 0)
@@ -560,9 +571,9 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
             || monteProfile.SafePathRatio > bestProfile.SafePathRatio + 0.08
             || monteProfile.CaptureRisk + 0.05 < bestProfile.CaptureRisk;
 
-        var bestClearlyBetterReward = (bestProfile.ImmediateReward > monteProfile.ImmediateReward + (monteBias ? 420.0 : 224.0)
-                || bestProfile.ProjectedReward > monteProfile.ProjectedReward + (monteBias ? 680.0 : 320.0)
-                || bestScore > monteScore + (monteBias ? 2.45 : 1.40))
+        var bestClearlyBetterReward = (bestProfile.ImmediateReward > monteProfile.ImmediateReward + (hardChaseBias ? 520.0 : monteBias ? 420.0 : 224.0)
+                || bestProfile.ProjectedReward > monteProfile.ProjectedReward + (hardChaseBias ? 860.0 : monteBias ? 680.0 : 320.0)
+                || bestScore > monteScore + (hardChaseBias ? 3.00 : monteBias ? 2.45 : 1.40))
             && bestProfile.CaptureRisk <= monteProfile.CaptureRisk + 0.03
             && bestProfile.SafePathRatio + 0.05 >= monteProfile.SafePathRatio;
 
@@ -600,6 +611,7 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
         }
 
         var monteProfile = CaptureMoveProfile(gameState, board, geometry, me, monteAction);
+        var hardChaseBias = scoreDeficit >= 4000;
         var monteBias = currentDanger >= 3 || scoreDeficit > 0 || tick >= 120;
         if (monteProfile.NextDanger <= 0)
         {
@@ -624,9 +636,9 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
                 && profile.CaptureRisk <= monteProfile.CaptureRisk + 0.03
                 && profile.SafePathRatio + 0.05 >= monteProfile.SafePathRatio;
 
-            var materiallyBetterReward = profile.ImmediateReward > monteProfile.ImmediateReward + (monteBias ? 360.0 : 160.0)
+            var materiallyBetterReward = profile.ImmediateReward > monteProfile.ImmediateReward + (hardChaseBias ? 460.0 : monteBias ? 360.0 : 160.0)
                 || (profile.ImmediateReward >= EstimatedPowerPelletScore && monteProfile.ImmediateReward < EstimatedPowerPelletScore)
-                || (profile.ProjectedReward > monteProfile.ProjectedReward + (monteBias ? 720.0 : 340.0) && saferOrEqual);
+                || (profile.ProjectedReward > monteProfile.ProjectedReward + (hardChaseBias ? 920.0 : monteBias ? 720.0 : 340.0) && saferOrEqual);
 
             var materiallySafer = profile.NextDanger > monteProfile.NextDanger
                 && profile.SafeArea >= monteProfile.SafeArea + 0.12

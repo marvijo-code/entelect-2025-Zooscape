@@ -79,6 +79,7 @@ const GameSelector = React.memo(({ onGameSelected, apiBaseUrl }) => {
           <div className="game-details">
             <span>Players: {game.playerCount || 'Unknown'}</span>
             <span>Ticks: {game.tickCount || 'Unknown'}</span>
+            <span>Seed: {game.seed ?? 'Unknown'}</span>
             <span>Date: {new Date(game.date).toLocaleDateString()}</span>
           </div>
         </div>

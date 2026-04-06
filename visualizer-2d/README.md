@@ -9,6 +9,7 @@ A React-based web application for visualizing Zooscape game sessions in real-tim
 - **Configurable Defaults**: Set default mode and tab preferences
 - **Settings Interface**: Configure preferences through the web UI
 - **Environment Variables**: System-wide configuration via .env files
+- **Single API Source**: The normal UI flow uses the ASP.NET `FunctionalTests` API on port `5008`
 
 ## Quick Start
 
@@ -42,7 +43,7 @@ VITE_DEFAULT_ACTIVE_TAB=2              # Default active tab (0-4)
 
 # Connection URLs
 VITE_HUB_URL=http://localhost:5000/bothub      # SignalR hub URL for live mode
-VITE_API_BASE_URL=http://localhost:5008/api    # API server URL for replay data
+VITE_API_BASE_URL=http://localhost:5008/api    # ASP.NET API URL for replay, leaderboard, and test data
 
 # Debug settings
 VITE_DEBUG_LOGS=false                  # Enable debug logging
@@ -128,9 +129,18 @@ The configuration system (`src/config/appConfig.js`) provides:
 ## API Endpoints
 
 - **Live Data**: SignalR connection to `VITE_HUB_URL`
-- **Replay Data**: REST API at `VITE_API_BASE_URL`
-  - `GET /replay/{gameId}/{tickNumber}` - Get specific tick data
-  - `GET /leaderboard_stats` - Get aggregate statistics
+- **Replay/Test/Leaderboard Data**: REST API at `VITE_API_BASE_URL`
+  - `GET /Replay/games` - List replayable matches
+  - `GET /Replay/{gameId}/{tickNumber}` - Get specific tick data
+  - `GET /Replay/file/load-json?path=...` - Load a local JSON file inside the repo tree
+  - `GET /Leaderboard/stats` - Get aggregate statistics
+  - `GET /Test/definitions` - Load functional test definitions
+
+### Local Development Ports
+
+- `http://localhost:5008` is reserved for the ASP.NET `FunctionalTests` API.
+- `npm run dev` serves the Vite frontend separately.
+- `visualizer-2d/api/server.cjs` is an optional helper API and defaults to port `5009` to avoid stealing `5008`.
 
 ## Browser Support
 
