@@ -1259,7 +1259,7 @@ public sealed class MonteCarloBotService : IBot<MonteCarloBotService>
 
         var exitValue = CountExits(root, position) * 3;
         var localPotential = EstimateLocalPelletPotential(root, position, consumed);
-        var potentialWeight = nearestDanger <= 2 ? 0.35 : 0.85;
+        var potentialWeight = nearestDanger <= 2 ? 0.35 : 0.95;
 
         return safety
             + heldValue
@@ -1267,7 +1267,7 @@ public sealed class MonteCarloBotService : IBot<MonteCarloBotService>
             + exitValue
             + Math.Min(24, streak * 4)
             + localPotential * potentialWeight
-            + (score - root.Score) * 0.022;
+            + (score - root.Score) * 0.025;
     }
 
     private static BotAction ChooseRolloutAction(
@@ -1325,7 +1325,7 @@ public sealed class MonteCarloBotService : IBot<MonteCarloBotService>
             }
 
             weight += exitCount * (nextDanger <= 2 ? 2.5 : 1.5);
-            weight += localPotential * (nextDanger <= 2 ? 0.28 : 0.65);
+            weight += localPotential * (nextDanger <= 2 ? 0.29 : 0.74);
 
             if (nextDanger <= 1)
             {
