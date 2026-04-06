@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-04-06T23:18:40.6818980+02:00",
+  "updated_at": "2026-04-07T00:12:04+02:00",
   "selection_policy": {
     "official_anchor": "Use the run that best balances undefeated or strongest match record with high score and low captures for the stored seed set. Do not blindly trust the harness auto-best file when it prefers score diff over capture quality.",
     "latest_broader_sample": "Keep the newest wider-seed benchmark summary for each tracked opponent so regression and volatility can be seen beyond the official anchor seed set."
@@ -61,9 +61,9 @@
   },
   "latest_official_validations": {
     "NeuralNetBot": {
-      "run_name": "20260406_221828_MonteCarloBot_vs_NeuralNetBot",
-      "summary_path": "output/headtohead/20260406_221828_MonteCarloBot_vs_NeuralNetBot/summary.json",
-      "commit": "b1ee552f847d1144c2d4012808356c3e996bc5d7",
+      "run_name": "20260406_234756_MonteCarloBot_vs_NeuralNetBot",
+      "summary_path": "output/headtohead/20260406_234756_MonteCarloBot_vs_NeuralNetBot/summary.json",
+      "commit": "c03b29f93df2fb57026eeefb2c245b8662819aca",
       "seeds": [
         101,
         102,
@@ -74,21 +74,21 @@
       "wins": 5,
       "losses": 0,
       "ties": 0,
-      "avg_score": 118980.0,
-      "avg_opponent_score": 94674.8,
-      "avg_captured": 0.4,
+      "avg_score": 108894.6,
+      "avg_opponent_score": 91711.0,
+      "avg_captured": 0.2,
       "avg_opponent_captured": 1.2,
-      "avg_score_diff": 24305.2,
-      "avg_capture_diff": -0.8,
+      "avg_score_diff": 17183.6,
+      "avg_capture_diff": -1.0,
       "notes": [
-        "Current headless official validation for the rollout-scoring refinement committed in b1ee552.",
-        "The only material remaining NeuralNet volatility is broader-seed losses on 103 and 109, not the official 101-105 anchor set."
+        "Current headless official validation for the narrower near-danger rollout tweak on top of c03b29f.",
+        "This live candidate recovered to 5-0 and cut captures to 0.2, but it still stays below the official NeuralNet anchor because the official anchor keeps a materially higher average score."
       ]
     },
     "StaticHeuro": {
-      "run_name": "20260406_222643_MonteCarloBot_vs_StaticHeuro",
-      "summary_path": "output/headtohead/20260406_222643_MonteCarloBot_vs_StaticHeuro/summary.json",
-      "commit": "b1ee552f847d1144c2d4012808356c3e996bc5d7",
+      "run_name": "20260406_235613_MonteCarloBot_vs_StaticHeuro",
+      "summary_path": "output/headtohead/20260406_235613_MonteCarloBot_vs_StaticHeuro/summary.json",
+      "commit": "c03b29f93df2fb57026eeefb2c245b8662819aca",
       "seeds": [
         101,
         102,
@@ -96,27 +96,26 @@
         104,
         105
       ],
-      "wins": 2,
-      "losses": 3,
+      "wins": 4,
+      "losses": 1,
       "ties": 0,
-      "avg_score": 112039.4,
-      "avg_opponent_score": 89580.8,
-      "avg_captured": 0.8,
-      "avg_opponent_captured": 3.0,
-      "avg_score_diff": 22458.6,
-      "avg_capture_diff": -2.2,
+      "avg_score": 96718.8,
+      "avg_opponent_score": 66198.0,
+      "avg_captured": 1.0,
+      "avg_opponent_captured": 2.4,
+      "avg_score_diff": 30520.8,
+      "avg_capture_diff": -1.4,
       "notes": [
-        "Current complete headless official validation for the rollout-scoring refinement committed in b1ee552.",
-        "Broader seeds improved to 8-2, but the official 101-105 lane stayed below the stored StaticHeuro anchor and a later rerun hit a seed-103 harness failure."
+        "Current headless official validation for the same narrower near-danger rollout tweak on top of c03b29f.",
+        "Record and score diff improved to 4-1, but the tweak still lost seed 105 and averaged 1.0 captures, so the official StaticHeuro anchor remains unchanged."
       ]
     }
   },
   "latest_broader_samples": {
     "NeuralNetBot": {
-      "run_name": "20260406_223556_MonteCarloBot_vs_NeuralNetBot",
-      "summary_path": "output/headtohead/20260406_223556_MonteCarloBot_vs_NeuralNetBot/summary.json",
-      "tag": "best-montecarlobot-vs-neuralnetbot-20260406-231719",
-      "commit": "b1ee552f847d1144c2d4012808356c3e996bc5d7",
+      "run_name": "20260406_233759_MonteCarloBot_vs_NeuralNetBot",
+      "summary_path": "output/headtohead/20260406_233759_MonteCarloBot_vs_NeuralNetBot/summary.json",
+      "commit": "c03b29f93df2fb57026eeefb2c245b8662819aca",
       "seeds": [
         101,
         102,
@@ -129,25 +128,24 @@
         109,
         110
       ],
-      "wins": 8,
-      "losses": 2,
+      "wins": 9,
+      "losses": 1,
       "ties": 0,
-      "avg_score": 102545.8,
-      "avg_opponent_score": 98924.6,
-      "avg_captured": 0.4,
-      "avg_opponent_captured": 0.7,
-      "avg_score_diff": 3621.2,
-      "avg_capture_diff": -0.3,
+      "avg_score": 102668.6,
+      "avg_opponent_score": 78762.4,
+      "avg_captured": 0.3,
+      "avg_opponent_captured": 0.5,
+      "avg_score_diff": 23906.2,
+      "avg_capture_diff": -0.2,
       "notes": [
-        "Latest broader sample for the committed rollout-scoring variant.",
-        "Stayed positive overall at 8-2, but lost seeds 103 and 109, so the wider lane still has score-race volatility to target next."
+        "Latest broader sample for the current c03b29f near-danger rollout tweak after the sandbox harness repair.",
+        "Improved to 9-1 with 0.3 average captures; only seed 106 still lost, on score and captures."
       ]
     },
     "StaticHeuro": {
-      "run_name": "20260406_225205_MonteCarloBot_vs_StaticHeuro",
-      "summary_path": "output/headtohead/20260406_225205_MonteCarloBot_vs_StaticHeuro/summary.json",
-      "tag": "best-montecarlobot-vs-staticheuro-20260406-193821",
-      "commit": "b1ee552f847d1144c2d4012808356c3e996bc5d7",
+      "run_name": "20260406_235417_MonteCarloBot_vs_StaticHeuro",
+      "summary_path": "output/headtohead/20260406_235417_MonteCarloBot_vs_StaticHeuro/summary.json",
+      "commit": "c03b29f93df2fb57026eeefb2c245b8662819aca",
       "seeds": [
         101,
         102,
@@ -160,18 +158,18 @@
         109,
         110
       ],
-      "wins": 8,
-      "losses": 2,
+      "wins": 9,
+      "losses": 1,
       "ties": 0,
-      "avg_score": 107873.6,
-      "avg_opponent_score": 90019.1,
-      "avg_captured": 0.7,
-      "avg_opponent_captured": 3.0,
-      "avg_score_diff": 17854.5,
-      "avg_capture_diff": -2.3,
+      "avg_score": 103401.1,
+      "avg_opponent_score": 71302.0,
+      "avg_captured": 0.4,
+      "avg_opponent_captured": 3.6,
+      "avg_score_diff": 32099.1,
+      "avg_capture_diff": -3.2,
       "notes": [
-        "Latest broader sample for the committed rollout-scoring variant.",
-        "Broader seeds recovered to 8-2 with strong capture control, but official seeds 101, 104, and 105 still need stabilization before replacing the StaticHeuro anchor."
+        "Latest broader sample for the current c03b29f near-danger rollout tweak after the sandbox harness repair.",
+        "Improved to 9-1 with the same 0.4 average captures as the official StaticHeuro anchor; only seed 101 still lost, by score."
       ]
     }
   }

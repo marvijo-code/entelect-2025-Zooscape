@@ -7,7 +7,10 @@ param(
     [int]$StartGameTimeout = 20,
     [int]$TickDuration = 200,
     [int]$BasePort = 5000,
-    [switch]$Release
+    [switch]$Release,
+    [switch]$SkipBestUpdate,
+    [switch]$SkipCandidateBuild,
+    [switch]$SkipOpponentBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,10 +22,12 @@ $stageInstance = Get-Date -Format "yyyyMMdd_HHmmss_fff"
 $outputRoot = Join-Path $repoRoot "output\headtohead"
 $bestRoot = Join-Path $repoRoot "output\best-bot"
 $dotnetHome = Join-Path $repoRoot "output\dotnet-home"
+$buildBinRoot = Join-Path $repoRoot "output\build-bin"
 $nugetConfig = Join-Path $repoRoot "tools\nuget.local.config"
 New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $bestRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $dotnetHome | Out-Null
+New-Item -ItemType Directory -Force -Path $buildBinRoot | Out-Null
 
 $env:DOTNET_CLI_HOME = $dotnetHome
 $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
@@ -35,11 +40,41 @@ $env:USERPROFILE = $dotnetHome
 $env:APPDATA = $repoRoot
 $env:NUGET_PACKAGES = "C:\Users\marvi\.nuget\packages"
 
+function Remove-StaleBuildArtifacts {
+    $staleDirectories = @(
+        (Join-Path $buildBinRoot '`$(MSBuildProjectName)')
+    )
+
+    foreach ($staleDirectory in $staleDirectories) {
+        if (Test-Path -LiteralPath $staleDirectory) {
+            Remove-Item -LiteralPath $staleDirectory -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Invoke-Build([string]$projectPath, [string]$workingDirectory) {
+    $projectKey = [System.IO.Path]::GetFileNameWithoutExtension($projectPath)
+    $isolatedBuildBin = Join-Path $buildBinRoot $projectKey
+    $isolatedBuildBinArg = [System.IO.Path]::GetFullPath($isolatedBuildBin) + [System.IO.Path]::DirectorySeparatorChar
+    $buildArgs = @(
+        "build"
+        (Split-Path $projectPath -Leaf)
+        "-c"
+        $configuration
+        "--nologo"
+        "--configfile"
+        $nugetConfig
+        "-p:RestoreIgnoreFailedSources=true"
+        "-p:BaseOutputPath=$isolatedBuildBinArg"
+    )
+
+    Remove-Item -LiteralPath $isolatedBuildBin -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-StaleBuildArtifacts
+    New-Item -ItemType Directory -Force -Path $isolatedBuildBin | Out-Null
     Write-Host "Building $projectPath ($configuration)..."
     Push-Location $workingDirectory
     try {
-        dotnet build (Split-Path $projectPath -Leaf) -c $configuration --nologo --configfile $nugetConfig -p:RestoreIgnoreFailedSources=true
+        & dotnet @buildArgs
     }
     finally {
         Pop-Location
@@ -73,6 +108,7 @@ function Copy-DirectoryContents([string]$sourceDirectory, [string]$targetDirecto
 }
 
 function Get-ProjectDll([string]$projectDirectory, [string]$assemblyName) {
+    $isolatedBinPath = Join-Path $repoRoot "output\build-bin\$assemblyName\$configuration\$tfm\$assemblyName.dll"
     $binPath = Join-Path $projectDirectory "bin\$configuration\$tfm\$assemblyName.dll"
     $objPath = Join-Path $projectDirectory "obj\$configuration\$tfm\$assemblyName.dll"
     $stagePath = Join-Path $repoRoot "output\bot-staging\$assemblyName\$configuration\$tfm\$stageInstance\$assemblyName.dll"
@@ -84,6 +120,10 @@ function Get-ProjectDll([string]$projectDirectory, [string]$assemblyName) {
         $latestStageDll = Get-ChildItem $stageRoot -Recurse -Filter "$assemblyName.dll" -ErrorAction SilentlyContinue |
             Sort-Object LastWriteTimeUtc -Descending |
             Select-Object -First 1 -ExpandProperty FullName
+    }
+
+    if (Test-Path $isolatedBinPath) {
+        $binPath = $isolatedBinPath
     }
 
     if (-not (Test-Path $binPath) -and -not [string]::IsNullOrWhiteSpace($latestStageDll)) {
@@ -240,6 +280,14 @@ function Get-AverageOrZero([object[]]$values) {
     return [Math]::Round((($values | Measure-Object -Average).Average), 2)
 }
 
+function Get-BotProjectPath([string]$botName) {
+    if ($botName -eq "NeuralNetBot") {
+        return Join-Path $repoRoot "Bots\MonteCarloBot\NeuralNetBot\NeuralNetBot.csproj"
+    }
+
+    return Join-Path $repoRoot "Bots\$botName\$botName.csproj"
+}
+
 function Get-CandidateSummary([object[]]$results, [string]$candidateName, [string]$opponentName, [string]$runName) {
     $completedResults = @($results | Where-Object { -not $_.Error })
     $errorSeeds = @($results | Where-Object { $_.Error } | ForEach-Object { $_.Seed })
@@ -319,10 +367,10 @@ function Test-IsBetterSummary($candidate, $best) {
     return $candidate.AvgScore -gt $best.AvgScore
 }
 
-$opponentProjectPath = Join-Path $repoRoot "Bots\$OpponentBot\$OpponentBot.csproj"
+$opponentProjectPath = Get-BotProjectPath $OpponentBot
 $candidateProjectPath = Join-Path $repoRoot $CandidateProject
 $candidateProjectDir = Split-Path $candidateProjectPath -Parent
-$opponentProjectDir = Join-Path $repoRoot "Bots\$OpponentBot"
+$opponentProjectDir = Split-Path $opponentProjectPath -Parent
 if (-not (Test-Path $candidateProjectPath)) {
     throw "Candidate project not found: $candidateProjectPath"
 }
@@ -340,8 +388,9 @@ else {
 }
 $functionalTestsBin = Join-Path $repoRoot "FunctionalTests\bin\$configuration\$tfm"
 $neuralNetBin = Join-Path $repoRoot "Bots\MonteCarloBot\NeuralNetBot\bin\$configuration\$tfm"
+$hasOpponentStageDll = -not [string]::IsNullOrWhiteSpace($opponentStageDll) -and (Test-Path $opponentStageDll)
 
-if ($OpponentBot -eq "MonteCarloBot" -and -not (Test-Path $opponentBinDll) -and -not (Test-Path $opponentStageDll)) {
+if (-not $SkipOpponentBuild -and $OpponentBot -eq "MonteCarloBot" -and -not (Test-Path $opponentBinDll) -and -not $hasOpponentStageDll) {
     if (Test-Path (Join-Path $functionalTestsBin "MonteCarloBot.dll")) {
         Copy-DirectoryContents $functionalTestsBin (Join-Path $opponentProjectDir "bin\$configuration\$tfm")
     }
@@ -350,15 +399,17 @@ if ($OpponentBot -eq "MonteCarloBot" -and -not (Test-Path $opponentBinDll) -and 
     }
 }
 
-if (-not (Test-Path $opponentBinDll) -and -not (Test-Path $opponentStageDll)) {
+if (-not $SkipOpponentBuild -and -not (Test-Path $opponentBinDll) -and -not $hasOpponentStageDll) {
     Invoke-Build $opponentProjectPath $opponentProjectDir
 }
 if (-not (Test-Path $engineDll)) {
     Invoke-Build (Join-Path $repoRoot "engine\Zooscape\Zooscape.csproj") (Join-Path $repoRoot "engine\Zooscape")
 }
-Invoke-Build $candidateProjectPath $candidateProjectDir
+if (-not $SkipCandidateBuild) {
+    Invoke-Build $candidateProjectPath $candidateProjectDir
+}
 
-if ($OpponentBot -eq "MonteCarloBot" -and -not (Test-Path $opponentBinDll) -and -not (Test-Path $opponentStageDll)) {
+if (-not $SkipOpponentBuild -and $OpponentBot -eq "MonteCarloBot" -and -not (Test-Path $opponentBinDll) -and -not $hasOpponentStageDll) {
     if (Test-Path (Join-Path $functionalTestsBin "MonteCarloBot.dll")) {
         Copy-DirectoryContents $functionalTestsBin (Join-Path $opponentProjectDir "bin\$configuration\$tfm")
     }
@@ -393,10 +444,11 @@ $runRoot = Join-Path $outputRoot $runName
 New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
 
 $results = @()
-foreach ($seed in $Seeds) {
+for ($seedIndex = 0; $seedIndex -lt $Seeds.Count; $seedIndex++) {
+    $seed = $Seeds[$seedIndex]
     $seedDir = Join-Path $runRoot ("seed_" + $seed)
     New-Item -ItemType Directory -Force -Path $seedDir | Out-Null
-    $port = Get-FreeTcpPort $BasePort
+    $port = Get-FreeTcpPort ($BasePort + ($seedIndex * 10))
 
     $engineEnv = @{
         ASPNETCORE_ENVIRONMENT = "Development"
@@ -532,20 +584,25 @@ $summary = Get-CandidateSummary $results $CandidateNickname $OpponentBot $runNam
 $summaryPath = Join-Path $runRoot "summary.json"
 $summary | ConvertTo-Json -Depth 5 | Set-Content $summaryPath
 
-$bestPath = Join-Path $bestRoot "$($CandidateNickname)_vs_$($OpponentBot).json"
-$bestSummary = $null
-if (Test-Path $bestPath) {
-    $bestSummary = Get-Content $bestPath -Raw | ConvertFrom-Json
-}
+if (-not $SkipBestUpdate) {
+    $bestPath = Join-Path $bestRoot "$($CandidateNickname)_vs_$($OpponentBot).json"
+    $bestSummary = $null
+    if (Test-Path $bestPath) {
+        $bestSummary = Get-Content $bestPath -Raw | ConvertFrom-Json
+    }
 
-if (Test-IsBetterSummary $summary $bestSummary) {
-    $summary | ConvertTo-Json -Depth 5 | Set-Content $bestPath
-    $tagName = "best-{0}-vs-{1}-{2}" -f $CandidateNickname.ToLowerInvariant(), $OpponentBot.ToLowerInvariant(), (Get-Date -Format "yyyyMMdd-HHmmss")
-    git tag $tagName
-    Write-Host "New best run recorded. Created git tag: $tagName"
+    if (Test-IsBetterSummary $summary $bestSummary) {
+        $summary | ConvertTo-Json -Depth 5 | Set-Content $bestPath
+        $tagName = "best-{0}-vs-{1}-{2}" -f $CandidateNickname.ToLowerInvariant(), $OpponentBot.ToLowerInvariant(), (Get-Date -Format "yyyyMMdd-HHmmss")
+        git tag $tagName
+        Write-Host "New best run recorded. Created git tag: $tagName"
+    }
+    else {
+        Write-Host "Run completed, but it did not beat the recorded best."
+    }
 }
 else {
-    Write-Host "Run completed, but it did not beat the recorded best."
+    Write-Host "Run completed without updating recorded best results."
 }
 
 $summary
