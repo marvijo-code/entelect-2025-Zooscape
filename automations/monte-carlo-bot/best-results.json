@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-04-06T14:33:39.8497338+02:00",
+  "selection_policy": {
+    "official_anchor": "Use the run that best balances undefeated or strongest match record with high score and low captures for the stored seed set. Do not blindly trust the harness auto-best file when it prefers score diff over capture quality.",
+    "latest_broader_sample": "Keep the newest wider-seed benchmark summary for each tracked opponent so regression and volatility can be seen beyond the official anchor seed set."
+  },
+  "official_anchors": {
+    "NeuralNetBot": {
+      "run_name": "20260404_075313_MonteCarloBot_vs_NeuralNetBot",
+      "summary_path": "output/headtohead/20260404_075313_MonteCarloBot_vs_NeuralNetBot/summary.json",
+      "tag": "best-montecarlobot-vs-neuralnetbot-20260404-080141",
+      "commit": "2eedb51d9ec52e15ad9f6952d221f232b9c8e73e",
+      "seeds": [101, 102, 103, 104, 105],
+      "wins": 5,
+      "losses": 0,
+      "ties": 0,
+      "avg_score": 104247.4,
+      "avg_opponent_score": 51603.4,
+      "avg_captured": 0.2,
+      "avg_opponent_captured": 3.2,
+      "avg_score_diff": 52644.0,
+      "avg_capture_diff": -3.0
+    },
+    "StaticHeuro": {
+      "run_name": "20260406_133614_MonteCarloBot_vs_StaticHeuro",
+      "summary_path": "output/headtohead/20260406_133614_MonteCarloBot_vs_StaticHeuro/summary.json",
+      "tag": "best-montecarlobot-vs-staticheuro-20260406-134413",
+      "commit": "fe64100afe55c7efd1987f9843b4de1f03cae3da",
+      "seeds": [101, 102, 103, 104, 105],
+      "wins": 5,
+      "losses": 0,
+      "ties": 0,
+      "avg_score": 99230.4,
+      "avg_opponent_score": 71648.8,
+      "avg_captured": 0.6,
+      "avg_opponent_captured": 1.4,
+      "avg_score_diff": 27581.6,
+      "avg_capture_diff": -0.8
+    }
+  },
+  "latest_broader_samples": {
+    "NeuralNetBot": {
+      "run_name": "20260406_135800_MonteCarloBot_vs_NeuralNetBot",
+      "summary_path": "output/headtohead/20260406_135800_MonteCarloBot_vs_NeuralNetBot/summary.json",
+      "tag": "best-montecarlobot-vs-neuralnetbot-20260406-141536",
+      "commit": "c0eb4313f4fdfc2c93a002b32907e7bb48480c5a",
+      "seeds": [101, 102, 103, 104, 105, 106, 107, 108, 109, 110],
+      "wins": 10,
+      "losses": 0,
+      "ties": 0,
+      "avg_score": 70768.1,
+      "avg_opponent_score": 39332.0,
+      "avg_captured": 5.0,
+      "avg_opponent_captured": 5.1,
+      "avg_score_diff": 31436.1,
+      "avg_capture_diff": -0.1,
+      "notes": [
+        "Score sweep on 101-110, but capture profile is volatile.",
+        "Capture spikes worth targeting next: seed 108 had 17 captures, and seed 107 still won while taking more captures than NeuralNetBot."
+      ]
+    },
+    "StaticHeuro": {
+      "run_name": "20260406_141559_MonteCarloBot_vs_StaticHeuro",
+      "summary_path": "output/headtohead/20260406_141559_MonteCarloBot_vs_StaticHeuro/summary.json",
+      "tag": "best-montecarlobot-vs-staticheuro-20260406-143340",
+      "commit": "c0eb4313f4fdfc2c93a002b32907e7bb48480c5a",
+      "seeds": [101, 102, 103, 104, 105, 106, 107, 108, 109, 110],
+      "wins": 8,
+      "losses": 2,
+      "ties": 0,
+      "avg_score": 99967.2,
+      "avg_opponent_score": 77138.6,
+      "avg_captured": 1.8,
+      "avg_opponent_captured": 3.2,
+      "avg_score_diff": 22828.6,
+      "avg_capture_diff": -1.4,
+      "notes": [
+        "Broader sample remains positive overall, but lost seeds 103 and 107.",
+        "Do not replace the cleaner 101-105 official anchor with this broader sample."
+      ]
+    }
+  }
+}

@@ -2,7 +2,7 @@ version = 1
 id = "monte-carlo-bot"
 kind = "cron"
 name = "Monte Carlo Bot"
-prompt = "continue working on the monte carlo bot until it can minimize captures and maximize scores. always create git tags of the best versions. it must be able to beat the best bot. after each meaningful run or code-change attempt, benchmark against NeuralNetBot and StaticHeuro when the lane is available, and record both the attempt and the measured progress in the automation memory file and in automations/monte-carlo-bot/progress.md so future runs can build on them. if any script or tool has a headed or headless mode, run it headless. do not use headed browser or UI runs unless explicitly requested by the user. run terminal commands only through Codex and do not launch work in an external terminal. plain dotnet benchmark harnesses that have no headed or headless mode are fine. make sure all changes are committed and pushed after significant progress is made"
+prompt = "continue working on the monte carlo bot until it can minimize captures and maximize scores. always create git tags of the best versions. it must be able to beat the best bot. after each meaningful run or code-change attempt, benchmark against NeuralNetBot and StaticHeuro when the lane is available, and record both the attempt and the measured progress in the automation memory file and in automations/monte-carlo-bot/progress.md so future runs can build on them. keep the current official best score/capture anchors and the latest broader-seed evaluation summaries updated in automations/monte-carlo-bot/best-results.json. if any script or tool has a headed or headless mode, run it headless. do not use headed browser or UI runs unless explicitly requested by the user. run terminal commands only through Codex and do not launch work in an external terminal. plain dotnet benchmark harnesses that have no headed or headless mode are fine. make sure all changes are committed and pushed after significant progress is made"
 status = "ACTIVE"
 rrule = "RRULE:FREQ=HOURLY;INTERVAL=3;BYMINUTE=0;BYDAY=SU,MO,TU,WE,TH,FR,SA"
 model = "gpt-5.4"
@@ -10,4 +10,4 @@ reasoning_effort = "high"
 execution_environment = "local"
 cwds = ["C:\\dev\\2025-Zooscape", "C:\\Users\\marvi\\.codex\\automations\\monte-carlo-bot", "C:\\dev"]
 created_at = 1775145122759
-updated_at = 1775475871031
+updated_at = 1775478898521
