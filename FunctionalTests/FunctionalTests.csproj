@@ -34,7 +34,7 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageReference Include="Serilog.Sinks.XUnit" Version="3.0.5" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="System.Text.Json" Version="9.0.0" />
 
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
@@ -43,6 +43,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Bots\ClingyHeuroBot2\ClingyHeuroBot2.csproj" />
     <ProjectReference Include="..\Bots\ClingyHeuroBot\ClingyHeuroBot.csproj" />
+    <ProjectReference Include="..\Bots\MonteCarloBot\MonteCarloBot.csproj" />
+    <ProjectReference Include="..\Bots\MonteCarloBot\NeuralNetBot\NeuralNetBot.csproj" />
     <ProjectReference Include="..\Bots\StaticHeuro\StaticHeuro.csproj" />
     <ProjectReference Include="..\Marvijo.Zooscape.Bots.Common\Marvijo.Zooscape.Bots.Common.csproj" />
   </ItemGroup>
@@ -53,4 +55,4 @@
     </Content>
   </ItemGroup>
 
-</Project> 
+</Project>

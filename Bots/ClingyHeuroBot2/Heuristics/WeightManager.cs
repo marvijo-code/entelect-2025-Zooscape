@@ -1,6 +1,7 @@
 using Marvijo.Zooscape.Bots.Common.Models;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ClingyHeuroBot2.Heuristics;
 
@@ -14,11 +15,6 @@ public static class WeightManager
     // Cache to avoid querying coordinator on every tick (and spamming logs)
     private static HeuristicWeights? _cachedWeights;
     private static Guid? _cachedIndividualId;
-
-    static WeightManager()
-    {
-        LoadStaticWeights();
-    }
 
     /// <summary>
     /// Gets the current best weights from evolution or falls back to static weights
@@ -162,16 +158,12 @@ public static class WeightManager
     {
         try
         {
-            string solutionDir = AppContext.BaseDirectory.Substring(0, AppContext.BaseDirectory.IndexOf("Bots"));
-            string weightsPath = Path.Combine(solutionDir, "Bots", "ClingyHeuroBot2", "heuristic-weights.json");
+            var weightsPath = ResolveStaticWeightsPath();
 
-            if (File.Exists(weightsPath))
+            if (!string.IsNullOrWhiteSpace(weightsPath) && File.Exists(weightsPath))
             {
                 var weightsJson = File.ReadAllText(weightsPath);
-                _staticWeights = JsonSerializer.Deserialize<HeuristicWeights>(weightsJson, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                }) ?? new HeuristicWeights();
+                _staticWeights = DeserializeStaticWeights(weightsJson) ?? new HeuristicWeights();
                 Console.WriteLine("Static heuristic weights loaded successfully as fallback");
             }
             else
@@ -185,6 +177,54 @@ public static class WeightManager
             Console.WriteLine($"Error loading static weights: {ex.Message}");
             _staticWeights = new HeuristicWeights();
         }
+    }
+
+    private static HeuristicWeights? DeserializeStaticWeights(string weightsJson)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<HeuristicWeights>(weightsJson, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                NumberHandling = JsonNumberHandling.AllowReadingFromString
+            });
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? ResolveStaticWeightsPath()
+    {
+        var localPath = Path.Combine(AppContext.BaseDirectory, "heuristic-weights.json");
+        if (File.Exists(localPath))
+        {
+            return localPath;
+        }
+
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            if (string.Equals(current.Name, "ClingyHeuroBot2", StringComparison.OrdinalIgnoreCase))
+            {
+                var nestedPath = Path.Combine(current.FullName, "heuristic-weights.json");
+                if (File.Exists(nestedPath))
+                {
+                    return nestedPath;
+                }
+            }
+
+            var repoWeightsPath = Path.Combine(current.FullName, "Bots", "ClingyHeuroBot2", "heuristic-weights.json");
+            if (File.Exists(repoWeightsPath))
+            {
+                return repoWeightsPath;
+            }
+
+            current = current.Parent;
+        }
+
+        return localPath;
     }
 
     /// <summary>

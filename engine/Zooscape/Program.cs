@@ -48,6 +48,7 @@ Log.Information("Announcing initialisation to cloud");
 await cloudIntegrationService.Announce(CloudCallbackType.Initializing);
 try
 {
+    var signalRPort = configuration.GetSection("SignalR").GetValue<int?>("Port") ?? 5000;
     Log.Information("Initialising host");
     var host = Host.CreateDefaultBuilder(args)
         .UseSerilog(
@@ -149,9 +150,8 @@ try
         )
         .ConfigureWebHostDefaults(webBuilder =>
         {
-            var port = 5000;
-            Log.Information("Configuring SignalR to run on port {port}", port);
-            webBuilder.UseUrls($"http://*:{port}");
+            Log.Information("Configuring SignalR to run on port {port}", signalRPort);
+            webBuilder.UseUrls($"http://*:{signalRPort}");
             webBuilder.Configure(app =>
             {
                 app.UseCors("VisualizerPolicy");

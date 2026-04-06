@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>NeuralNetBot</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <MonteCarloBotReferencePath Condition="Exists('..\bin\$(Configuration)\$(TargetFramework)\MonteCarloBot.dll')">..\bin\$(Configuration)\$(TargetFramework)\MonteCarloBot.dll</MonteCarloBotReferencePath>
+    <MonteCarloBotReferencePath Condition="'$(MonteCarloBotReferencePath)' == '' and Exists('bin\$(Configuration)\$(TargetFramework)\MonteCarloBot.dll')">bin\$(Configuration)\$(TargetFramework)\MonteCarloBot.dll</MonteCarloBotReferencePath>
+    <MonteCarloBotReferencePath Condition="'$(MonteCarloBotReferencePath)' == '' and Exists('..\..\..\output\bot-staging\MonteCarloBot\$(Configuration)\$(TargetFramework)\MonteCarloBot.dll')">..\..\..\output\bot-staging\MonteCarloBot\$(Configuration)\$(TargetFramework)\MonteCarloBot.dll</MonteCarloBotReferencePath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client.Core" Version="8.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="8.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.Json" Version="8.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+    <PackageReference Include="Serilog" Version="4.3.0" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="ClingyHeuroBot2">
+      <HintPath>..\..\ClingyHeuroBot2\bin\Debug\net8.0\ClingyHeuroBot2.dll</HintPath>
+    </Reference>
+    <Reference Include="MonteCarloBot">
+      <HintPath>$(MonteCarloBotReferencePath)</HintPath>
+    </Reference>
+    <Reference Include="Marvijo.Zooscape.Bots.Common">
+      <HintPath>..\..\..\Marvijo.Zooscape.Bots.Common\bin\Debug\net8.0\Marvijo.Zooscape.Bots.Common.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

@@ -9,26 +9,61 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StaticHeuro", "Bots\StaticH
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Marvijo.Zooscape.Bots.Common", "Marvijo.Zooscape.Bots.Common\Marvijo.Zooscape.Bots.Common.csproj", "{3803D500-4F10-EE4A-2ED5-6E16FE45181A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonteCarloBot", "Bots\MonteCarloBot\MonteCarloBot.csproj", "{E837A290-1F13-4328-B740-72BF7E50932B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Debug|x64.Build.0 = Debug|Any CPU
+		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Debug|x86.Build.0 = Debug|Any CPU
 		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Release|x64.ActiveCfg = Release|Any CPU
+		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Release|x64.Build.0 = Release|Any CPU
+		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Release|x86.ActiveCfg = Release|Any CPU
+		{0732B7E9-322E-B691-E109-254E6D7EEE89}.Release|x86.Build.0 = Release|Any CPU
 		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Debug|x64.Build.0 = Debug|Any CPU
+		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Debug|x86.Build.0 = Debug|Any CPU
 		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Release|x64.ActiveCfg = Release|Any CPU
+		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Release|x64.Build.0 = Release|Any CPU
+		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Release|x86.ActiveCfg = Release|Any CPU
+		{3803D500-4F10-EE4A-2ED5-6E16FE45181A}.Release|x86.Build.0 = Release|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Debug|x64.Build.0 = Debug|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Debug|x86.Build.0 = Debug|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Release|x64.ActiveCfg = Release|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Release|x64.Build.0 = Release|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Release|x86.ActiveCfg = Release|Any CPU
+		{E837A290-1F13-4328-B740-72BF7E50932B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{0732B7E9-322E-B691-E109-254E6D7EEE89} = {3D84C8CA-98E2-CD35-74F7-BC183E18B6DF}
+		{E837A290-1F13-4328-B740-72BF7E50932B} = {3D84C8CA-98E2-CD35-74F7-BC183E18B6DF}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {2A1F68EB-26F3-4DD9-B554-8875273A02D8}

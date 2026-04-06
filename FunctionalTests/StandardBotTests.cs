@@ -5,6 +5,8 @@ using Xunit;
 using Xunit.Abstractions;
 using ClingyHeuroBot2Service = ClingyHeuroBot2.Services.HeuroBotService;
 using ClingyHeuroBotService = HeuroBotV2.Services.HeuroBotService;
+using MonteCarloBotService = MonteCarloBot.Services.MonteCarloBotService;
+using NeuralNetBotService = NeuralNetBot.Services.NeuralNetBotService;
 using StaticHeuroService = StaticHeuro.Services.HeuroBotService;
 
 namespace FunctionalTests;
@@ -16,6 +18,8 @@ public class StandardBotTests : BotTestsBase
 {
     private readonly ClingyHeuroBot2Service _clingyHeuroBot2;
     private readonly ClingyHeuroBotService _clingyHeuroBot;
+    private readonly MonteCarloBotService _monteCarloBot;
+    private readonly NeuralNetBotService _neuralNetBot;
     private readonly StaticHeuroService _staticHeuro;
 
     public StandardBotTests(ITestOutputHelper outputHelper)
@@ -25,6 +29,8 @@ public class StandardBotTests : BotTestsBase
         _clingyHeuroBot2.LogHeuristicScores = true;
 
         _clingyHeuroBot = new ClingyHeuroBotService();
+        _monteCarloBot = new MonteCarloBotService(_logger);
+        _neuralNetBot = new NeuralNetBotService(_logger);
 
         _staticHeuro = new StaticHeuroService(_logger);
         _staticHeuro.LogHeuristicScores = true;
@@ -41,6 +47,14 @@ public class StandardBotTests : BotTestsBase
         else if (bot is ClingyHeuroBotService clingyBot)
         {
             TestBotGeneric(clingyBot, gameState, testParams);
+        }
+        else if (bot is MonteCarloBotService monteCarloBot)
+        {
+            TestBotGeneric(monteCarloBot, gameState, testParams);
+        }
+        else if (bot is NeuralNetBotService neuralNetBot)
+        {
+            TestBotGeneric(neuralNetBot, gameState, testParams);
         }
         else
         {
@@ -172,6 +186,48 @@ public class StandardBotTests : BotTestsBase
     }
 
     [Fact]
+    public void GameState34MonteCarloBotActionTest()
+    {
+        var testParams = new TestParams
+        {
+            TestName = "GameState34MonteCarloBotActionTest",
+            TestGameStateJsonPath = "34.json",
+            AcceptableActions = new List<BotAction>
+            {
+                BotAction.Up,
+                BotAction.Down,
+                BotAction.Left,
+                BotAction.Right,
+                BotAction.UseItem,
+            },
+            TestDescription = "Smoke test the optimized MonteCarlo bot on game state 34",
+        };
+
+        TestBotAction(_monteCarloBot, testParams);
+    }
+
+    [Fact]
+    public void GameState34NeuralNetBotActionTest()
+    {
+        var testParams = new TestParams
+        {
+            TestName = "GameState34NeuralNetBotActionTest",
+            TestGameStateJsonPath = "34.json",
+            AcceptableActions = new List<BotAction>
+            {
+                BotAction.Up,
+                BotAction.Down,
+                BotAction.Left,
+                BotAction.Right,
+                BotAction.UseItem,
+            },
+            TestDescription = "Smoke test the NeuralNet bot on game state 34",
+        };
+
+        TestBotAction(_neuralNetBot, testParams);
+    }
+
+    [Fact]
     public void GameState34TickOverrideTest()
     {
         var testParams = new TestParams
@@ -201,7 +257,7 @@ public class StandardBotTests : BotTestsBase
             TestGameStateJsonPath = "34.json",
             AcceptableActions = [BotAction.Down, BotAction.Left],
             BotNicknameToTest = "MarvijoClingyExpBot",
-            ExpectedAction = null, // Allow either Left or Down action
+            ExpectedAction = null,
             TestDescription =
                 "Chase immediate pellet - should choose Left or Down even when chased",
             BotsArray = new object[] { _clingyHeuroBot2, _clingyHeuroBot },
@@ -209,35 +265,6 @@ public class StandardBotTests : BotTestsBase
 
         TestBotsArray(testParams);
     }
-
-    //[Fact]
-    //public void ChaseMorePelletGroups()
-    //{
-    //    var testParams = new TestParams
-    //    {
-    //        TestGameStateJsonPath = "162.json",
-    //        BotNicknameToTest = "ClingyHeuroBot2",
-    //        ExpectedAction = BotAction.Up,
-    //        BotsArray = new object[] { _clingyHeuroBot2 },
-    //    };
-
-    //    TestBotsArray(testParams);
-    //}
-
-    //[Fact(DisplayName = "Game State 12: ClingyHeuroBot2 Must Move Down")]
-    //public void GameState12ClingyHeuroBot2MustMoveDown()
-    //{
-    //    var testParams = new TestParams
-    //    {
-    //        TestName = "GameState12ClingyHeuroBot2MustMoveDown",
-    //        TestGameStateJsonPath = "12.json",
-    //        BotNicknameToTest = "ClingyHeuroBot2",
-    //        ExpectedAction = BotAction.Down,
-    //        TestDescription = "Test ClingyHeuroBot2 must move Down in game state 12",
-    //    };
-
-    //    TestBotAction(_clingyHeuroBot2, testParams);
-    //}
 
     [Fact(DisplayName = "Game State 12: StaticHeuro Must Move Up")]
     public void GameState12StaticHeuroMustMoveUp()

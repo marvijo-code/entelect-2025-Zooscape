@@ -20,8 +20,8 @@ public class LogStateEventDispatcher : IEventDispatcher
         _logger = logger;
 
         Console.WriteLine($"Base log directory: {_baseLogDir}");
-        // Create a unique directory for the current game session using date and time
-        var gameSessionDirName = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        // Include millisecond precision and process id so concurrent local matches do not collide.
+        var gameSessionDirName = $"{DateTime.Now:yyyyMMdd_HHmmss_fff}_{Environment.ProcessId}";
         _matchDir = Path.Combine(_baseLogDir, gameSessionDirName);
 
         // Ensure the directory exists
