@@ -104,7 +104,12 @@ public static class Program
                     var nextShouldSendCommand = true;
 
                     var myAnimal = state.Animals?.FirstOrDefault(a => a.Id == botService.BotId);
+                    var shouldForceSpawnEscapeCommand = myAnimal is not null
+                        && myAnimal.CapturedCounter > 0
+                        && myAnimal.X == myAnimal.SpawnX
+                        && myAnimal.Y == myAnimal.SpawnY;
                     if (myAnimal is not null
+                        && !shouldForceSpawnEscapeCommand
                         && lastSentAction.HasValue
                         && nextCommand.Action == lastSentAction.Value
                         && nextCommand.Action is >= BotAction.Up and <= BotAction.Right

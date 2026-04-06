@@ -89,6 +89,13 @@ public sealed class MonteCarloBotService : IBot<MonteCarloBotService>
         UpdateCaptureState(me);
         var layout = EnsureLayout(gameState);
         var root = BuildRootState(gameState, me, layout);
+        var usePostCaptureEscape = ShouldUsePostCaptureEscape(root);
+
+        if (usePostCaptureEscape)
+        {
+            var escapeSeedAction = root.CandidateCount > 0 ? root.Candidates[0] : BotAction.Up;
+            return GetSafetyOverride(gameState, me, root, escapeSeedAction);
+        }
 
         if (!ShouldConsiderMonteCarlo(root))
         {
@@ -164,8 +171,7 @@ public sealed class MonteCarloBotService : IBot<MonteCarloBotService>
                 gameState.Tick,
                 root.Layout.XByIndex[root.MyIndex],
                 root.Layout.YByIndex[root.MyIndex],
-                root.Score,
-                BotId));
+                root.Score));
         var totalVisits = 0;
         var budget = GetTimeBudgetMs(gameState.Tick);
         var stopwatch = Stopwatch.StartNew();
@@ -1528,16 +1534,11 @@ public sealed class MonteCarloBotService : IBot<MonteCarloBotService>
         };
     }
 
-    private static uint HashSeed(int tick, int x, int y, int score, Guid botId)
+    private static uint HashSeed(int tick, int x, int y, int score)
     {
         var hash = unchecked((uint)tick * 397u);
         hash = unchecked(hash * 397u + (uint)(x * 31 + y));
         hash = unchecked(hash * 397u + (uint)score);
-        foreach (var b in botId.ToByteArray())
-        {
-            hash = unchecked(hash * 16777619u) ^ b;
-        }
-
         return hash == 0 ? 1u : hash;
     }
 
