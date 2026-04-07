@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-04-07T12:56:00+02:00",
+  "updated_at": "2026-04-07T17:44:14+02:00",
   "selection_policy": {
     "official_anchor": "Use the run that best balances undefeated or strongest match record with high score and low captures for the stored seed set. Do not blindly trust the harness auto-best file when it prefers score diff over capture quality.",
     "latest_broader_sample": "Keep the newest wider-seed benchmark summary for each tracked opponent so regression and volatility can be seen beyond the official anchor seed set."
@@ -21,7 +21,7 @@
       "wins": 5,
       "losses": 0,
       "ties": 0,
-      "avg_score": 118980.0,
+      "avg_score": 118980,
       "avg_opponent_score": 94674.8,
       "avg_captured": 0.4,
       "avg_opponent_captured": 1.2,
@@ -47,7 +47,7 @@
       "wins": 5,
       "losses": 0,
       "ties": 0,
-      "avg_score": 103509.0,
+      "avg_score": 103509,
       "avg_opponent_score": 80362.2,
       "avg_captured": 0.4,
       "avg_opponent_captured": 1.6,
@@ -61,9 +61,9 @@
   },
   "latest_official_validations": {
     "NeuralNetBot": {
-      "run_name": "20260407_052505_MonteCarloBot_vs_NeuralNetBot",
-      "summary_path": "output/headtohead/20260407_052505_MonteCarloBot_vs_NeuralNetBot/summary.json",
-      "commit": "2ee995d2febaabdf5260e3ac068cce6670300aca",
+      "run_name": "20260407_130520_MonteCarloBot_vs_NeuralNetBot",
+      "summary_path": "output/headtohead/20260407_130520_MonteCarloBot_vs_NeuralNetBot/summary.json",
+      "commit": "f32e0c62d7d535eeb1b089f0cef12e7b2b7a7b07",
       "seeds": [
         101,
         102,
@@ -74,21 +74,21 @@
       "wins": 2,
       "losses": 3,
       "ties": 0,
-      "avg_score": 99098.0,
-      "avg_opponent_score": 108998.8,
-      "avg_captured": 0.4,
-      "avg_opponent_captured": 1.0,
-      "avg_score_diff": -9900.8,
-      "avg_capture_diff": -0.6,
+      "avg_score": 85284.8,
+      "avg_opponent_score": 88524.6,
+      "avg_captured": 0.8,
+      "avg_opponent_captured": 0.4,
+      "avg_score_diff": -3239.8,
+      "avg_capture_diff": 0.4,
       "notes": [
-        "Latest headless official rerun collected in this automation lane on top of commit 2ee995d after restoring the MonteCarlo service back to clean HEAD content.",
-        "The current NeuralNetBot lane has regressed sharply to 2-3, with losses on seeds 103-105 and a negative average score diff, so the official 5-0 NeuralNet anchor remains unchanged."
+        "Latest headless official rerun in this automation lane, collected from the rejected special-power opportunism branch on top of commit f32e0c6.",
+        "The canary sweep on seeds 103-105 did not survive the full NeuralNet lane: seeds 101, 102, and 104 regressed on score and capture quality, so the source was restored and the official 5-0 anchor remains unchanged."
       ]
     },
     "StaticHeuro": {
-      "run_name": "20260407_053322_MonteCarloBot_vs_StaticHeuro",
-      "summary_path": "output/headtohead/20260407_053322_MonteCarloBot_vs_StaticHeuro/summary.json",
-      "commit": "2ee995d2febaabdf5260e3ac068cce6670300aca",
+      "run_name": "20260407_131351_MonteCarloBot_vs_StaticHeuro",
+      "summary_path": "output/headtohead/20260407_131351_MonteCarloBot_vs_StaticHeuro/summary.json",
+      "commit": "f32e0c62d7d535eeb1b089f0cef12e7b2b7a7b07",
       "seeds": [
         101,
         102,
@@ -96,18 +96,18 @@
         104,
         105
       ],
-      "wins": 3,
-      "losses": 2,
+      "wins": 4,
+      "losses": 1,
       "ties": 0,
-      "avg_score": 105736.2,
-      "avg_opponent_score": 86910.2,
-      "avg_captured": 1.4,
-      "avg_opponent_captured": 2.4,
-      "avg_score_diff": 18826.0,
-      "avg_capture_diff": -1.0,
+      "avg_score": 96940.8,
+      "avg_opponent_score": 77513.2,
+      "avg_captured": 0.8,
+      "avg_opponent_captured": 1.4,
+      "avg_score_diff": 19427.6,
+      "avg_capture_diff": -0.6,
       "notes": [
-        "Latest headless official rerun collected in this automation lane on top of commit 2ee995d after restoring the MonteCarlo service back to clean HEAD content.",
-        "The current StaticHeuro lane sits at 3-2 with materially worse capture quality than the stored 5-0 / 0.4-capture anchor, so the official StaticHeuro anchor remains unchanged."
+        "Latest headless official rerun in this automation lane, collected from the same rejected special-power opportunism branch on top of commit f32e0c6.",
+        "StaticHeuro stayed positive at 4-1, but the branch still lost seed 103 and remained below the stored 5-0 / 103509.0 / 0.4 official anchor, so the source was restored and the anchor remains unchanged."
       ]
     }
   },
@@ -170,7 +170,7 @@
       "losses": 1,
       "ties": 0,
       "avg_score": 115977.9,
-      "avg_opponent_score": 87050.0,
+      "avg_opponent_score": 87050,
       "avg_captured": 0.1,
       "avg_opponent_captured": 3.7,
       "avg_score_diff": 28927.9,

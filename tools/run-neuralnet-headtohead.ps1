@@ -367,6 +367,21 @@ function Get-CandidateSummary([object[]]$results, [string]$candidateName, [strin
     }
 }
 
+function Write-ProgressSummary(
+    [object[]]$results,
+    [string]$candidateName,
+    [string]$opponentName,
+    [string]$runName,
+    [string]$path,
+    [bool]$isPartial
+) {
+    $summary = Get-CandidateSummary $results $candidateName $opponentName $runName
+    $summary | Add-Member -NotePropertyName "IsPartial" -NotePropertyValue $isPartial -Force
+    $summary | Add-Member -NotePropertyName "LastUpdated" -NotePropertyValue ((Get-Date).ToString("o")) -Force
+    $summary | ConvertTo-Json -Depth 5 | Set-Content $path
+    return $summary
+}
+
 function Test-IsBetterSummary($candidate, $best) {
     if ($candidate.PSObject.Properties.Name -contains "HadErrors" -and $candidate.HadErrors) {
         return $false
@@ -483,6 +498,8 @@ if ($OpponentBot -eq "MonteCarloBot") {
 $runName = "{0}_{1}_vs_{2}" -f (Get-Date -Format "yyyyMMdd_HHmmss"), $CandidateNickname, $OpponentBot
 $runRoot = Join-Path $outputRoot $runName
 New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
+$summaryPath = Join-Path $runRoot "summary.json"
+$partialSummaryPath = Join-Path $runRoot "summary.partial.json"
 
 $results = @()
 for ($seedIndex = 0; $seedIndex -lt $Seeds.Count; $seedIndex++) {
@@ -582,6 +599,7 @@ for ($seedIndex = 0; $seedIndex -lt $Seeds.Count; $seedIndex++) {
             $opponentPlacement.Score,
             $opponentPlacement.Captured,
             $winner)
+        Write-ProgressSummary $results $CandidateNickname $OpponentBot $runName $partialSummaryPath $true | Out-Null
     }
     catch {
         $engineLogPath = Join-Path $seedDir "engine.out.log"
@@ -613,6 +631,7 @@ for ($seedIndex = 0; $seedIndex -lt $Seeds.Count; $seedIndex++) {
             $(if ($null -eq $engineExitCode) { "running" } else { $engineExitCode }),
             $(if ($null -eq $candidateExitCode) { "running" } else { $candidateExitCode }),
             $(if ($null -eq $opponentExitCode) { "running" } else { $opponentExitCode }))
+        Write-ProgressSummary $results $CandidateNickname $OpponentBot $runName $partialSummaryPath $true | Out-Null
     }
     finally {
         Stop-LoggedProcess $candidateProc
@@ -621,9 +640,7 @@ for ($seedIndex = 0; $seedIndex -lt $Seeds.Count; $seedIndex++) {
     }
 }
 
-$summary = Get-CandidateSummary $results $CandidateNickname $OpponentBot $runName
-$summaryPath = Join-Path $runRoot "summary.json"
-$summary | ConvertTo-Json -Depth 5 | Set-Content $summaryPath
+$summary = Write-ProgressSummary $results $CandidateNickname $OpponentBot $runName $summaryPath $false
 
 if (-not $SkipBestUpdate) {
     $bestPath = Join-Path $bestRoot "$($CandidateNickname)_vs_$($OpponentBot).json"
