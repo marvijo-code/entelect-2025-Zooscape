@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>MonteCarloBot</RootNamespace>
     <AssemblyName>MonteCarloBot</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
