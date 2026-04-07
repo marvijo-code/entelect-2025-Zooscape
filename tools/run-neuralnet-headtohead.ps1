@@ -3,10 +3,12 @@ param(
     [string]$CandidateProject = "Bots\MonteCarloBot\NeuralNetBot\NeuralNetBot.csproj",
     [string]$CandidateNickname = "NeuralNetBot",
     [string]$OpponentBot = "MonteCarloBot",
+    [string]$OpponentProjectPath = "",
     [int]$MaxTicks = 450,
     [int]$StartGameTimeout = 20,
     [int]$TickDuration = 200,
     [int]$BasePort = 5000,
+    [string]$IsolationTag = "",
     [switch]$Release,
     [switch]$SkipBestUpdate,
     [switch]$SkipCandidateBuild,
@@ -18,16 +20,32 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $configuration = if ($Release) { "Release" } else { "Debug" }
 $tfm = "net8.0"
-$stageInstance = Get-Date -Format "yyyyMMdd_HHmmss_fff"
+$normalizedIsolationTag = ""
+if (-not [string]::IsNullOrWhiteSpace($IsolationTag)) {
+    $normalizedIsolationTag = [regex]::Replace($IsolationTag.Trim(), '[^A-Za-z0-9._-]', '-')
+}
+$stageStamp = Get-Date -Format "yyyyMMdd_HHmmss_fff"
+$stageInstance = if ([string]::IsNullOrWhiteSpace($normalizedIsolationTag)) {
+    $stageStamp
+}
+else {
+    "$normalizedIsolationTag-$stageStamp"
+}
 $outputRoot = Join-Path $repoRoot "output\headtohead"
-$bestRoot = Join-Path $repoRoot "output\best-bot"
-$dotnetHome = Join-Path $repoRoot "output\dotnet-home"
-$buildBinRoot = Join-Path $repoRoot "output\build-bin"
+$isolatedOutputRoot = $null
+if (-not [string]::IsNullOrWhiteSpace($normalizedIsolationTag)) {
+    $isolatedOutputRoot = Join-Path $repoRoot "output\automation-isolation\$normalizedIsolationTag"
+}
+$bestRoot = if ($null -ne $isolatedOutputRoot) { Join-Path $isolatedOutputRoot "best-bot" } else { Join-Path $repoRoot "output\best-bot" }
+$dotnetHome = if ($null -ne $isolatedOutputRoot) { Join-Path $isolatedOutputRoot "dotnet-home" } else { Join-Path $repoRoot "output\dotnet-home" }
+$buildBinRoot = if ($null -ne $isolatedOutputRoot) { Join-Path $isolatedOutputRoot "build-bin" } else { Join-Path $repoRoot "output\build-bin" }
+$stageRootBase = if ($null -ne $isolatedOutputRoot) { Join-Path $isolatedOutputRoot "bot-staging" } else { Join-Path $repoRoot "output\bot-staging" }
 $nugetConfig = Join-Path $repoRoot "tools\nuget.local.config"
 New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $bestRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $dotnetHome | Out-Null
 New-Item -ItemType Directory -Force -Path $buildBinRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $stageRootBase | Out-Null
 
 $env:DOTNET_CLI_HOME = $dotnetHome
 $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
@@ -56,6 +74,7 @@ function Invoke-Build([string]$projectPath, [string]$workingDirectory) {
     $projectKey = [System.IO.Path]::GetFileNameWithoutExtension($projectPath)
     $isolatedBuildBin = Join-Path $buildBinRoot $projectKey
     $isolatedBuildBinArg = [System.IO.Path]::GetFullPath($isolatedBuildBin) + [System.IO.Path]::DirectorySeparatorChar
+    $isolatedBuildOutput = Join-Path $isolatedBuildBin "$configuration\$tfm"
     $buildArgs = @(
         "build"
         (Split-Path $projectPath -Leaf)
@@ -71,6 +90,7 @@ function Invoke-Build([string]$projectPath, [string]$workingDirectory) {
     Remove-Item -LiteralPath $isolatedBuildBin -Recurse -Force -ErrorAction SilentlyContinue
     Remove-StaleBuildArtifacts
     New-Item -ItemType Directory -Force -Path $isolatedBuildBin | Out-Null
+    New-Item -ItemType Directory -Force -Path $isolatedBuildOutput | Out-Null
     Write-Host "Building $projectPath ($configuration)..."
     Push-Location $workingDirectory
     try {
@@ -107,13 +127,17 @@ function Copy-DirectoryContents([string]$sourceDirectory, [string]$targetDirecto
     Copy-Item -Path (Join-Path $sourceDirectory '*') -Destination $targetDirectory -Recurse -Force
 }
 
-function Get-ProjectDll([string]$projectDirectory, [string]$assemblyName) {
-    $isolatedBinPath = Join-Path $repoRoot "output\build-bin\$assemblyName\$configuration\$tfm\$assemblyName.dll"
+function Get-ProjectDll([string]$projectPath, [string]$projectDirectory, [string]$assemblyName) {
+    $projectKey = [System.IO.Path]::GetFileNameWithoutExtension($projectPath)
+    $isolatedBinCandidates = @(
+        (Join-Path $buildBinRoot "$assemblyName\$configuration\$tfm\$assemblyName.dll"),
+        (Join-Path $buildBinRoot "$projectKey\$configuration\$tfm\$assemblyName.dll")
+    )
     $binPath = Join-Path $projectDirectory "bin\$configuration\$tfm\$assemblyName.dll"
     $objPath = Join-Path $projectDirectory "obj\$configuration\$tfm\$assemblyName.dll"
-    $stagePath = Join-Path $repoRoot "output\bot-staging\$assemblyName\$configuration\$tfm\$stageInstance\$assemblyName.dll"
+    $stagePath = Join-Path $stageRootBase "$assemblyName\$configuration\$tfm\$stageInstance\$assemblyName.dll"
     $stageDir = Split-Path $stagePath -Parent
-    $stageRoot = Join-Path $repoRoot "output\bot-staging\$assemblyName\$configuration\$tfm"
+    $stageRoot = Join-Path $stageRootBase "$assemblyName\$configuration\$tfm"
     $latestStageDll = $null
 
     if (Test-Path $stageRoot) {
@@ -122,8 +146,11 @@ function Get-ProjectDll([string]$projectDirectory, [string]$assemblyName) {
             Select-Object -First 1 -ExpandProperty FullName
     }
 
-    if (Test-Path $isolatedBinPath) {
-        $binPath = $isolatedBinPath
+    foreach ($isolatedBinPath in $isolatedBinCandidates) {
+        if (Test-Path $isolatedBinPath) {
+            $binPath = $isolatedBinPath
+            break
+        }
     }
 
     if (-not (Test-Path $binPath) -and -not [string]::IsNullOrWhiteSpace($latestStageDll)) {
@@ -138,12 +165,13 @@ function Get-ProjectDll([string]$projectDirectory, [string]$assemblyName) {
         throw "Bot dll not found: $binPath"
     }
 
+    $runtimeSourceDirectory = Split-Path $binPath -Parent
     New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
     try {
-        Copy-Item -Path (Join-Path $projectDirectory "bin\$configuration\$tfm\*") -Destination $stageDir -Recurse -Force
+        Copy-Item -Path (Join-Path $runtimeSourceDirectory '*') -Destination $stageDir -Recurse -Force
     }
     catch {
-        Write-Warning "Could not fully stage $assemblyName from bin output. Falling back to bin directory. $($_.Exception.Message)"
+        Write-Warning "Could not fully stage $assemblyName from runtime output. Falling back to $binPath. $($_.Exception.Message)"
         return $binPath
     }
 
@@ -367,17 +395,30 @@ function Test-IsBetterSummary($candidate, $best) {
     return $candidate.AvgScore -gt $best.AvgScore
 }
 
-$opponentProjectPath = Get-BotProjectPath $OpponentBot
+$opponentProjectPath = if ([string]::IsNullOrWhiteSpace($OpponentProjectPath)) {
+    Get-BotProjectPath $OpponentBot
+}
+else {
+    if ([System.IO.Path]::IsPathRooted($OpponentProjectPath)) {
+        $OpponentProjectPath
+    }
+    else {
+        Join-Path $repoRoot $OpponentProjectPath
+    }
+}
 $candidateProjectPath = Join-Path $repoRoot $CandidateProject
 $candidateProjectDir = Split-Path $candidateProjectPath -Parent
 $opponentProjectDir = Split-Path $opponentProjectPath -Parent
 if (-not (Test-Path $candidateProjectPath)) {
     throw "Candidate project not found: $candidateProjectPath"
 }
+if (-not (Test-Path $opponentProjectPath)) {
+    throw "Opponent project not found: $opponentProjectPath"
+}
 
 $engineDll = Join-Path $repoRoot "engine\Zooscape\bin\$configuration\$tfm\Zooscape.dll"
 $opponentBinDll = Join-Path $opponentProjectDir "bin\$configuration\$tfm\$OpponentBot.dll"
-$opponentStageRoot = Join-Path $repoRoot "output\bot-staging\$OpponentBot\$configuration\$tfm"
+$opponentStageRoot = Join-Path $stageRootBase "$OpponentBot\$configuration\$tfm"
 $opponentStageDll = if (Test-Path $opponentStageRoot) {
     Get-ChildItem $opponentStageRoot -Recurse -Filter "$OpponentBot.dll" -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTimeUtc -Descending |
@@ -418,8 +459,8 @@ if (-not $SkipOpponentBuild -and $OpponentBot -eq "MonteCarloBot" -and -not (Tes
     }
 }
 
-$candidateDll = Get-ProjectDll $candidateProjectDir $CandidateNickname
-$opponentDll = Get-ProjectDll $opponentProjectDir $OpponentBot
+$candidateDll = Get-ProjectDll $candidateProjectPath $candidateProjectDir $CandidateNickname
+$opponentDll = Get-ProjectDll $opponentProjectPath $opponentProjectDir $OpponentBot
 
 $candidateDir = Split-Path $candidateDll -Parent
 $opponentDir = Split-Path $opponentDll -Parent

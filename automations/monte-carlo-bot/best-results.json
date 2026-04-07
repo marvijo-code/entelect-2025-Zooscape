@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-04-07T03:20:44+02:00",
+  "updated_at": "2026-04-07T12:56:00+02:00",
   "selection_policy": {
     "official_anchor": "Use the run that best balances undefeated or strongest match record with high score and low captures for the stored seed set. Do not blindly trust the harness auto-best file when it prefers score diff over capture quality.",
     "latest_broader_sample": "Keep the newest wider-seed benchmark summary for each tracked opponent so regression and volatility can be seen beyond the official anchor seed set."
@@ -61,9 +61,34 @@
   },
   "latest_official_validations": {
     "NeuralNetBot": {
-      "run_name": "20260407_024632_MonteCarloBot_vs_NeuralNetBot",
-      "summary_path": "output/headtohead/20260407_024632_MonteCarloBot_vs_NeuralNetBot/summary.json",
-      "commit": "5c1776c5773981730c0792a1f26ad3234ee86549",
+      "run_name": "20260407_052505_MonteCarloBot_vs_NeuralNetBot",
+      "summary_path": "output/headtohead/20260407_052505_MonteCarloBot_vs_NeuralNetBot/summary.json",
+      "commit": "2ee995d2febaabdf5260e3ac068cce6670300aca",
+      "seeds": [
+        101,
+        102,
+        103,
+        104,
+        105
+      ],
+      "wins": 2,
+      "losses": 3,
+      "ties": 0,
+      "avg_score": 99098.0,
+      "avg_opponent_score": 108998.8,
+      "avg_captured": 0.4,
+      "avg_opponent_captured": 1.0,
+      "avg_score_diff": -9900.8,
+      "avg_capture_diff": -0.6,
+      "notes": [
+        "Latest headless official rerun collected in this automation lane on top of commit 2ee995d after restoring the MonteCarlo service back to clean HEAD content.",
+        "The current NeuralNetBot lane has regressed sharply to 2-3, with losses on seeds 103-105 and a negative average score diff, so the official 5-0 NeuralNet anchor remains unchanged."
+      ]
+    },
+    "StaticHeuro": {
+      "run_name": "20260407_053322_MonteCarloBot_vs_StaticHeuro",
+      "summary_path": "output/headtohead/20260407_053322_MonteCarloBot_vs_StaticHeuro/summary.json",
+      "commit": "2ee995d2febaabdf5260e3ac068cce6670300aca",
       "seeds": [
         101,
         102,
@@ -74,40 +99,15 @@
       "wins": 3,
       "losses": 2,
       "ties": 0,
-      "avg_score": 113262.2,
-      "avg_opponent_score": 98479.0,
-      "avg_captured": 0.2,
-      "avg_opponent_captured": 0.8,
-      "avg_score_diff": 14783.2,
-      "avg_capture_diff": -0.6,
-      "notes": [
-        "Latest headless official rerun collected in this automation lane on top of commit 5c1776c.",
-        "The measured lane improved to 3-2 with 0.2 average captures, but it still loses seeds 101 and 102, so the official 5-0 NeuralNet anchor remains unchanged; the current service file now hashes back to clean HEAD."
-      ]
-    },
-    "StaticHeuro": {
-      "run_name": "20260407_025451_MonteCarloBot_vs_StaticHeuro",
-      "summary_path": "output/headtohead/20260407_025451_MonteCarloBot_vs_StaticHeuro/summary.json",
-      "commit": "5c1776c5773981730c0792a1f26ad3234ee86549",
-      "seeds": [
-        101,
-        102,
-        103,
-        104,
-        105
-      ],
-      "wins": 4,
-      "losses": 1,
-      "ties": 0,
-      "avg_score": 126421.8,
-      "avg_opponent_score": 84964.2,
-      "avg_captured": 0.2,
+      "avg_score": 105736.2,
+      "avg_opponent_score": 86910.2,
+      "avg_captured": 1.4,
       "avg_opponent_captured": 2.4,
-      "avg_score_diff": 41457.6,
-      "avg_capture_diff": -2.2,
+      "avg_score_diff": 18826.0,
+      "avg_capture_diff": -1.0,
       "notes": [
-        "Latest headless official rerun collected in this automation lane on top of commit 5c1776c.",
-        "The measured lane recovered to 4-1 with much better score and capture quality, but the seed 101 score loss keeps it below the clean 5-0 StaticHeuro anchor; the current service file now hashes back to clean HEAD."
+        "Latest headless official rerun collected in this automation lane on top of commit 2ee995d after restoring the MonteCarlo service back to clean HEAD content.",
+        "The current StaticHeuro lane sits at 3-2 with materially worse capture quality than the stored 5-0 / 0.4-capture anchor, so the official StaticHeuro anchor remains unchanged."
       ]
     }
   },
