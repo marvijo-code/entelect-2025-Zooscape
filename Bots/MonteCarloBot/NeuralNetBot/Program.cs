@@ -80,6 +80,10 @@ public static class Program
             var shouldSendCommand = true;
             var currentTick = -1;
             var isRegistered = false;
+            var openingCommandForceEnabled = !string.Equals(
+                Environment.GetEnvironmentVariable("NEURALNET_OPENING_COMMAND_FORCE"),
+                "0",
+                StringComparison.Ordinal);
 
             Task RegisterBotAsync()
             {
@@ -124,25 +128,38 @@ public static class Program
                     var nextCommand = botService.ProcessState(state) ?? new BotCommand { Action = BotAction.Up };
                     var nextShouldSendCommand = true;
                     var myAnimal = state.Animals?.FirstOrDefault(a => a.Id == botService.BotId);
+                    var shouldForceSpawnEscapeCommand = myAnimal is not null
+                        && myAnimal.X == myAnimal.SpawnX
+                        && myAnimal.Y == myAnimal.SpawnY
+                        && (myAnimal.CapturedCounter > 0
+                            || (state.Tick <= 8 && myAnimal.DistanceCovered == 0));
+                    var shouldForceOpeningCommand = myAnimal is not null
+                        && myAnimal.CapturedCounter == 0
+                        && state.Tick <= 12
+                        && myAnimal.DistanceCovered <= 6;
+                    var isMovementCommand = nextCommand.Action is >= BotAction.Up and <= BotAction.Right;
 
                     if (myAnimal is not null
-                        && lastSentAction.HasValue
-                        && nextCommand.Action == lastSentAction.Value
-                        && nextCommand.Action is >= BotAction.Up and <= BotAction.Right
+                        && (!openingCommandForceEnabled || !shouldForceSpawnEscapeCommand)
+                        && (!openingCommandForceEnabled || !shouldForceOpeningCommand)
+                        && isMovementCommand
                         && myAnimal.CapturedCounter == lastSentCapturedCounter)
                     {
                         var sameObservedPosition = myAnimal.X == lastSentSourceX && myAnimal.Y == lastSentSourceY;
-                        var advancedAlongAction = !(myAnimal.X == lastAnimalX && myAnimal.Y == lastAnimalY);
                         if (sameObservedPosition)
                         {
                             nextShouldSendCommand = false;
                         }
-                        else if (advancedAlongAction)
+                        else if (lastSentAction.HasValue && nextCommand.Action == lastSentAction.Value)
                         {
-                            var (nextX, nextY) = BotUtils.ApplyMove(myAnimal.X, myAnimal.Y, nextCommand.Action);
-                            if (BotUtils.IsTraversable(state, nextX, nextY))
+                            var advancedAlongAction = !(myAnimal.X == lastAnimalX && myAnimal.Y == lastAnimalY);
+                            if (advancedAlongAction)
                             {
-                                nextShouldSendCommand = false;
+                                var (nextX, nextY) = BotUtils.ApplyMove(myAnimal.X, myAnimal.Y, nextCommand.Action);
+                                if (BotUtils.IsTraversable(state, nextX, nextY))
+                                {
+                                    nextShouldSendCommand = false;
+                                }
                             }
                         }
                     }

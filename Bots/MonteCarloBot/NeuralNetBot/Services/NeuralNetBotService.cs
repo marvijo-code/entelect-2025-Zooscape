@@ -50,6 +50,11 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
     private readonly ILogger _logger;
     private MonteCarloBotService _monteCarloBot;
     private HeuroBotService _clingyBot;
+    private readonly bool _openingTraceEnabled;
+    private readonly int _decisionTraceFromTick;
+    private readonly int _decisionTraceToTick;
+    private readonly bool _safeScorePressureEnabled;
+    private readonly bool _alignmentEscapeEnabled;
 
     private (int X, int Y)? _lastPosition;
     private (int X, int Y)? _previousPosition;
@@ -62,6 +67,14 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
         _logger = logger ?? Logger.None;
         _monteCarloBot = new MonteCarloBotService(_logger);
         _clingyBot = new HeuroBotService(_logger);
+        _openingTraceEnabled = string.Equals(
+            Environment.GetEnvironmentVariable("NEURALNET_OPENING_TRACE"),
+            "1",
+            StringComparison.Ordinal);
+        _decisionTraceFromTick = ParseTraceTick(Environment.GetEnvironmentVariable("NEURALNET_DECISION_TRACE_FROM"));
+        _decisionTraceToTick = ParseTraceTick(Environment.GetEnvironmentVariable("NEURALNET_DECISION_TRACE_TO"));
+        _safeScorePressureEnabled = ParseEnabledFlag("NEURALNET_SAFE_SCORE_PRESSURE");
+        _alignmentEscapeEnabled = ParseOptInFlag("NEURALNET_ALIGNMENT_ESCAPE");
     }
 
     public Guid BotId { get; set; }
@@ -145,6 +158,17 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
             .Max();
         var scoreDeficit = Math.Max(0, bestOpponentScore - me.Score);
         var lateGame = gameState.Tick >= 120;
+        var safeScorePressureAction = _safeScorePressureEnabled
+            ? FindSafeScorePressureAction(
+                gameState,
+                board,
+                geometry,
+                me,
+                legalMoves,
+                monteAction,
+                currentDanger,
+                scoreDeficit)
+            : null;
 
         if (!isProtected && (currentDanger <= EmergencyDangerDistance || usePostCaptureEscape))
         {
@@ -159,14 +183,30 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
                 currentDanger,
                 usePostCaptureEscape);
 
+            TraceOpeningEmergencyDecision(gameState, me, legalMoves, monteAction, clingyAction, currentDanger, usePostCaptureEscape, emergencyAction);
+            TraceDecisionWindow(gameState, me, monteAction, clingyAction, currentDanger, scoreDeficit, "emergency", emergencyAction, null, safeScorePressureAction);
             RememberPosition(me.X, me.Y);
             return emergencyAction;
         }
 
-        if (legalMoves.Contains(monteAction)
+        var followsMonteBaseline = legalMoves.Contains(monteAction)
             && monteAction != BotAction.UseItem
-            && ShouldFollowMonteBaseline(gameState, board, geometry, me, legalMoves, monteAction, currentDanger, scoreDeficit, gameState.Tick))
+            && safeScorePressureAction is null
+            && ShouldFollowMonteBaseline(
+                gameState,
+                board,
+                geometry,
+                me,
+                legalMoves,
+                monteAction,
+                currentDanger,
+                scoreDeficit,
+                gameState.Tick);
+
+        if (followsMonteBaseline)
         {
+            TraceOpeningMonteBaselineDecision(gameState, board, geometry, me, legalMoves, monteAction, clingyAction, currentDanger, scoreDeficit, isProtected, protectionWeight, lateGame);
+            TraceDecisionWindow(gameState, me, monteAction, clingyAction, currentDanger, scoreDeficit, "follow_monte", monteAction, null, safeScorePressureAction);
             RememberPosition(me.X, me.Y);
             return monteAction;
         }
@@ -196,6 +236,7 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
             }
         }
 
+        var traceMode = "scored";
         if (!isProtected
             && legalMoves.Contains(monteAction)
             && bestAction != BotAction.UseItem
@@ -215,8 +256,27 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
                 gameState.Tick))
         {
             bestAction = monteAction;
+            traceMode = "scored_monte_override";
         }
 
+        if (safeScorePressureAction is { } scorePressureAction && bestAction == monteAction)
+        {
+            bestAction = scorePressureAction;
+            traceMode = "scored_pressure_override";
+        }
+
+        TraceOpeningScoredDecision(gameState, me, monteAction, clingyAction, currentDanger, scoreDeficit, actionScores, bestAction);
+        TraceDecisionWindow(
+            gameState,
+            me,
+            monteAction,
+            clingyAction,
+            currentDanger,
+            scoreDeficit,
+            traceMode,
+            bestAction,
+            actionScores,
+            safeScorePressureAction);
         RememberPosition(me.X, me.Y);
 
         return bestAction;
@@ -258,7 +318,6 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
         var revisitPenalty = 0.0;
         var safeAreaScore = 0.0;
         var dangerProgressScore = 0.0;
-
         if (candidate == BotAction.UseItem)
         {
             useItemFit = ScoreUseItemFit(me, currentDanger, gameState, board, geometry);
@@ -296,7 +355,6 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
         var trapPenalty = Math.Clamp(outlook.TrapPenalty, 0.0, 1.0);
         var captureRisk = Math.Clamp(outlook.CaptureRisk, 0.0, 1.0);
         var powerMomentum = Math.Clamp(outlook.PowerMomentum, 0.0, 1.0);
-
         var features = new[]
         {
             immediateValue,
@@ -354,6 +412,7 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
             {
                 score += 0.60;
             }
+
         }
 
         if (candidate != BotAction.UseItem && candidate == monteAction && candidate == clingyAction)
@@ -391,6 +450,7 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
             {
                 score -= 0.55;
             }
+
         }
 
         if (candidate == BotAction.UseItem && me.HeldPowerUp is PowerUpType.PowerPellet or PowerUpType.ChameleonCloak)
@@ -468,17 +528,21 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
 
             var exits = CountLegalNeighbors(board, geometry, nextX, nextY);
             var safeArea = ScoreReachableSafeArea(board, geometry, nextX, nextY, gameState.Zookeepers, false);
-            var dangerProgress = nextDanger - currentDanger;
             var collectibleReward = NormalizeReward(GetCollectibleReward(board[(nextX, nextY)].Content, me.ActivePowerUp?.Type), 300.0);
             var revisitPenalty = Math.Min(GetRecentVisitCount(nextX, nextY), 3);
             var spawnDistance = GetWrappedDistance(geometry, nextX, nextY, me.SpawnX, me.SpawnY);
+            var alignmentEscapeScore = _alignmentEscapeEnabled
+                ? ScoreThreatLineEscape(geometry, me.X, me.Y, nextX, nextY, gameState.Zookeepers, currentDanger)
+                : 0.0;
+            var dangerProgress = nextDanger - currentDanger;
 
             var score = nextDanger * 3.10
                 + exits * 0.90
                 + safeArea * 2.60
                 + dangerProgress * 1.35
                 + collectibleReward * 0.55
-                - revisitPenalty * 1.40;
+                - revisitPenalty * 1.40
+                + alignmentEscapeScore * 2.20;
 
             if (nextDanger == 1)
             {
@@ -554,6 +618,11 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
         var monteProfile = CaptureMoveProfile(gameState, board, geometry, me, monteAction);
         var hardChaseBias = scoreDeficit >= 4000;
         var monteBias = currentDanger >= 3 || scoreDeficit > 0 || tick >= 120;
+        if (ParseOptInFlag("NEURALNET_OPENING_EXPERT_SUPPRESSION")
+            && ShouldSuppressOpeningExpertBias(tick, currentDanger, scoreDeficit, false, monteProfile.CaptureRisk, monteProfile.SafePathRatio))
+        {
+            return false;
+        }
 
         if (monteProfile.NextDanger <= 0)
         {
@@ -618,6 +687,12 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
             return false;
         }
 
+        if (ParseOptInFlag("NEURALNET_OPENING_EXPERT_SUPPRESSION")
+            && ShouldSuppressOpeningExpertBias(tick, currentDanger, scoreDeficit, false, monteProfile.CaptureRisk, monteProfile.SafePathRatio))
+        {
+            return false;
+        }
+
         foreach (var action in legalMoves)
         {
             if (action == monteAction)
@@ -657,6 +732,98 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
         }
 
         return true;
+    }
+
+    private static bool ShouldSuppressOpeningExpertBias(
+        int tick,
+        int currentDanger,
+        int scoreDeficit,
+        bool isProtected,
+        double captureRisk,
+        double safePathRatio)
+    {
+        return !isProtected
+            && tick <= 16
+            && currentDanger >= 8
+            && scoreDeficit <= 2000
+            && captureRisk <= 0.08
+            && safePathRatio >= 0.95;
+    }
+
+    private static BotAction? FindSafeScorePressureAction(
+        GameState gameState,
+        IReadOnlyDictionary<(int X, int Y), Cell> board,
+        BoardGeometry geometry,
+        Animal me,
+        IReadOnlyList<BotAction> legalMoves,
+        BotAction monteAction,
+        int currentDanger,
+        int scoreDeficit)
+    {
+        if (gameState.Tick < 45
+            || currentDanger < 3
+            || scoreDeficit < EstimatedPelletScore * 4
+            || !legalMoves.Contains(monteAction))
+        {
+            return null;
+        }
+
+        var monteProfile = CaptureMoveProfile(gameState, board, geometry, me, monteAction);
+        if (monteProfile.NextDanger <= 0
+            || monteProfile.CaptureRisk > 0.12
+            || monteProfile.SafePathRatio < 0.80)
+        {
+            return null;
+        }
+
+        BotAction? bestAction = null;
+        var bestLeadScore = 0.0;
+
+        foreach (var action in legalMoves)
+        {
+            if (action == monteAction)
+            {
+                continue;
+            }
+
+            var profile = CaptureMoveProfile(gameState, board, geometry, me, action);
+            if (profile.WasCaptured && !monteProfile.WasCaptured)
+            {
+                continue;
+            }
+
+            var comparableSafety = profile.CaptureRisk <= monteProfile.CaptureRisk + 0.03
+                && profile.SafePathRatio + 0.03 >= monteProfile.SafePathRatio
+                && profile.SafeArea + 0.05 >= monteProfile.SafeArea
+                && profile.NextDanger + 2 >= monteProfile.NextDanger;
+            if (!comparableSafety)
+            {
+                continue;
+            }
+
+            var rewardLead = profile.ProjectedReward - monteProfile.ProjectedReward;
+            var immediateLead = profile.ImmediateReward - monteProfile.ImmediateReward;
+            var hasMaterialRewardLead = rewardLead >= EstimatedPelletScore * 3
+                || immediateLead >= EstimatedPelletScore
+                || (profile.ImmediateReward >= EstimatedPowerPelletScore && monteProfile.ImmediateReward < EstimatedPowerPelletScore);
+            if (!hasMaterialRewardLead)
+            {
+                continue;
+            }
+
+            var leadScore = rewardLead
+                + immediateLead * 1.75
+                + Math.Max(0, profile.NextDanger - monteProfile.NextDanger) * 20.0
+                + Math.Max(0.0, profile.SafeArea - monteProfile.SafeArea) * 120.0;
+
+            if (leadScore > bestLeadScore)
+            {
+                bestLeadScore = leadScore;
+                bestAction = action;
+            }
+        }
+
+        return bestAction;
     }
 
     private static MoveProfile CaptureMoveProfile(
@@ -1275,6 +1442,70 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
         return count;
     }
 
+    private static double ScoreThreatLineEscape(
+        BoardGeometry geometry,
+        int currentX,
+        int currentY,
+        int nextX,
+        int nextY,
+        IEnumerable<Zookeeper> zookeepers,
+        int currentDanger)
+    {
+        if (currentDanger > 3)
+        {
+            return 0.0;
+        }
+
+        Zookeeper? nearest = null;
+        var nearestDistance = int.MaxValue;
+        foreach (var zookeeper in zookeepers)
+        {
+            var distance = GetWrappedDistance(geometry, currentX, currentY, zookeeper.X, zookeeper.Y);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = zookeeper;
+            }
+        }
+
+        if (nearest is null)
+        {
+            return 0.0;
+        }
+
+        var currentAlignedRow = currentY == nearest.Y;
+        var currentAlignedColumn = currentX == nearest.X;
+        var nextAlignedRow = nextY == nearest.Y;
+        var nextAlignedColumn = nextX == nearest.X;
+        var currentDistance = GetWrappedDistance(geometry, currentX, currentY, nearest.X, nearest.Y);
+        var nextDistance = GetWrappedDistance(geometry, nextX, nextY, nearest.X, nearest.Y);
+
+        var score = 0.0;
+
+        if ((currentAlignedRow && !nextAlignedRow) || (currentAlignedColumn && !nextAlignedColumn))
+        {
+            score += currentDanger <= 2 ? 1.80 : 0.95;
+        }
+
+        if ((currentAlignedRow && nextAlignedRow) || (currentAlignedColumn && nextAlignedColumn))
+        {
+            score -= nextDistance <= currentDistance
+                ? currentDanger <= 2 ? 1.60 : 0.80
+                : currentDanger <= 2 ? 0.25 : 0.10;
+        }
+
+        if (nextDistance > currentDistance)
+        {
+            score += currentDanger <= 2 ? 0.90 : 0.45;
+        }
+        else if (nextDistance < currentDistance)
+        {
+            score -= currentDanger <= 2 ? 1.10 : 0.55;
+        }
+
+        return score;
+    }
+
     private static double GetCollectibleReward(CellContent content, PowerUpType? activePower)
     {
         var multiplier = activePower == PowerUpType.BigMooseJuice ? 3 : 1;
@@ -1362,6 +1593,7 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
         {
             _postCaptureEscapeTicksRemaining--;
         }
+
     }
 
     private bool ShouldUsePostCaptureEscape(Animal me, BoardGeometry geometry, int currentDanger)
@@ -1413,6 +1645,209 @@ public sealed class NeuralNetBotService : IBot<NeuralNetBotService>
             _monteCarloBot = new MonteCarloBotService(_logger);
             _clingyBot = new HeuroBotService(_logger);
         }
+    }
+
+
+    private void TraceOpeningEmergencyDecision(
+        GameState gameState,
+        Animal me,
+        IReadOnlyList<BotAction> legalMoves,
+        BotAction monteAction,
+        BotAction clingyAction,
+        int currentDanger,
+        bool usePostCaptureEscape,
+        BotAction chosenAction)
+    {
+        if (!ShouldTraceOpening(gameState, me))
+        {
+            return;
+        }
+
+        _logger.Information(
+            "OPENING_TRACE tick={Tick} mode=emergency chosen={Chosen} monte={Monte} clingy={Clingy} danger={Danger} deficit={Deficit} postCapture={PostCapture} legal={Legal}",
+            gameState.Tick,
+            chosenAction,
+            monteAction,
+            clingyAction,
+            currentDanger,
+            GetScoreDeficit(gameState, me),
+            usePostCaptureEscape,
+            string.Join(",", legalMoves.Select(action => action.ToString())));
+    }
+
+    private void TraceOpeningMonteBaselineDecision(
+        GameState gameState,
+        IReadOnlyDictionary<(int X, int Y), Cell> board,
+        BoardGeometry geometry,
+        Animal me,
+        IReadOnlyList<BotAction> legalMoves,
+        BotAction monteAction,
+        BotAction clingyAction,
+        int currentDanger,
+        int scoreDeficit,
+        bool isProtected,
+        double protectionWeight,
+        bool lateGame)
+    {
+        if (!ShouldTraceOpening(gameState, me))
+        {
+            return;
+        }
+
+        var diagnostics = legalMoves
+            .Select(action =>
+            {
+                var score = ScoreCandidate(
+                    gameState,
+                    board,
+                    geometry,
+                    me,
+                    action,
+                    monteAction,
+                    clingyAction,
+                    currentDanger,
+                    isProtected,
+                    protectionWeight,
+                    scoreDeficit,
+                    lateGame);
+                var profile = CaptureMoveProfile(gameState, board, geometry, me, action);
+                return $"{action}:score={score:F3}|danger={profile.NextDanger}|proj={profile.ProjectedReward:F0}|risk={profile.CaptureRisk:F2}|safe={profile.SafePathRatio:F2}";
+            });
+
+        _logger.Information(
+            "OPENING_TRACE tick={Tick} mode=follow_monte chosen={Chosen} monte={Monte} clingy={Clingy} danger={Danger} deficit={Deficit} score={Score} streak={Streak} actions=[{ActionDiagnostics}]",
+            gameState.Tick,
+            monteAction,
+            monteAction,
+            clingyAction,
+            currentDanger,
+            scoreDeficit,
+            me.Score,
+            me.ScoreStreak,
+            string.Join(", ", diagnostics));
+    }
+
+    private void TraceOpeningScoredDecision(
+        GameState gameState,
+        Animal me,
+        BotAction monteAction,
+        BotAction clingyAction,
+        int currentDanger,
+        int scoreDeficit,
+        IReadOnlyDictionary<BotAction, double> actionScores,
+        BotAction chosenAction)
+    {
+        if (!ShouldTraceOpening(gameState, me))
+        {
+            return;
+        }
+
+        var orderedScores = actionScores
+            .OrderBy(entry => (int)entry.Key)
+            .Select(entry => $"{entry.Key}:{entry.Value:F3}");
+
+        _logger.Information(
+            "OPENING_TRACE tick={Tick} mode=scored chosen={Chosen} monte={Monte} clingy={Clingy} danger={Danger} deficit={Deficit} score={Score} streak={Streak} actions=[{ActionScores}]",
+            gameState.Tick,
+            chosenAction,
+            monteAction,
+            clingyAction,
+            currentDanger,
+            scoreDeficit,
+            me.Score,
+            me.ScoreStreak,
+            string.Join(", ", orderedScores));
+    }
+
+    private bool ShouldTraceOpening(GameState gameState, Animal me)
+    {
+        return _openingTraceEnabled
+            && gameState.Tick <= 12
+            && me.CapturedCounter == 0;
+    }
+
+    private static int GetScoreDeficit(GameState gameState, Animal me)
+    {
+        var bestOpponentScore = gameState.Animals
+            .Where(animal => animal.Id != me.Id)
+            .Select(animal => animal.Score)
+            .DefaultIfEmpty(me.Score)
+            .Max();
+
+        return Math.Max(0, bestOpponentScore - me.Score);
+    }
+
+    private static int ParseTraceTick(string? value)
+    {
+        return int.TryParse(value, out var tick) ? tick : -1;
+    }
+
+    private static bool ParseEnabledFlag(string environmentVariableName)
+    {
+        return !string.Equals(
+            Environment.GetEnvironmentVariable(environmentVariableName),
+            "0",
+            StringComparison.Ordinal);
+    }
+
+    private static bool ParseOptInFlag(string environmentVariableName)
+    {
+        return string.Equals(
+            Environment.GetEnvironmentVariable(environmentVariableName),
+            "1",
+            StringComparison.Ordinal);
+    }
+
+    private bool ShouldTraceDecisionWindow(GameState gameState)
+    {
+        return _decisionTraceFromTick >= 0
+            && _decisionTraceToTick >= _decisionTraceFromTick
+            && gameState.Tick >= _decisionTraceFromTick
+            && gameState.Tick <= _decisionTraceToTick;
+    }
+
+    private void TraceDecisionWindow(
+        GameState gameState,
+        Animal me,
+        BotAction monteAction,
+        BotAction clingyAction,
+        int currentDanger,
+        int scoreDeficit,
+        string mode,
+        BotAction chosenAction,
+        IReadOnlyDictionary<BotAction, double>? actionScores,
+        BotAction? safeScorePressureAction)
+    {
+        if (!ShouldTraceDecisionWindow(gameState))
+        {
+            return;
+        }
+
+        var orderedScores = actionScores is null
+            ? "-"
+            : string.Join(
+                ",",
+                actionScores
+                    .OrderByDescending(entry => entry.Value)
+                    .ThenBy(entry => (int)entry.Key)
+                    .Select(entry => $"{entry.Key}:{entry.Value:F3}"));
+
+        _logger.Information(
+            "DECISION_TRACE tick={Tick} pos=({X},{Y}) score={Score} captured={Captured} streak={Streak} danger={Danger} deficit={Deficit} mode={Mode} chosen={Chosen} monte={Monte} clingy={Clingy} pressure={Pressure} actions=[{ActionScores}]",
+            gameState.Tick,
+            me.X,
+            me.Y,
+            me.Score,
+            me.CapturedCounter,
+            me.ScoreStreak,
+            currentDanger,
+            scoreDeficit,
+            mode,
+            chosenAction,
+            monteAction,
+            clingyAction,
+            safeScorePressureAction?.ToString() ?? "-",
+            orderedScores);
     }
 
     private readonly record struct BoardGeometry(int Width, int Height);
