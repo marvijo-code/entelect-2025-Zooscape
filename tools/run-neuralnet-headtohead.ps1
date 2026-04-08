@@ -8,6 +8,7 @@ param(
     [int]$StartGameTimeout = 20,
     [int]$TickDuration = 200,
     [int]$BasePort = 5000,
+    [int]$CandidateLeadDelayMs = 1500,
     [string]$IsolationTag = "",
     [switch]$Release,
     [switch]$SkipBestUpdate,
@@ -547,6 +548,9 @@ for ($seedIndex = 0; $seedIndex -lt $Seeds.Count; $seedIndex++) {
         $engine = Start-LoggedProcess "engine" "dotnet" "`"$engineDll`"" (Split-Path $engineDll -Parent) $engineEnv (Join-Path $seedDir "engine.out.log") (Join-Path $seedDir "engine.err.log")
         Start-Sleep -Seconds 2
         $candidateProc = Start-LoggedProcess $CandidateNickname "dotnet" "`"$candidateDll`"" (Split-Path $candidateDll -Parent) $candidateEnv (Join-Path $seedDir "$CandidateNickname.out.log") (Join-Path $seedDir "$CandidateNickname.err.log")
+        if ($CandidateLeadDelayMs -gt 0) {
+            Start-Sleep -Milliseconds $CandidateLeadDelayMs
+        }
         $opponentProc = Start-LoggedProcess $OpponentBot "dotnet" "`"$opponentDll`"" (Split-Path $opponentDll -Parent) $opponentEnv (Join-Path $seedDir "$OpponentBot.out.log") (Join-Path $seedDir "$OpponentBot.err.log")
 
         if (-not $engine.Process.WaitForExit(((($MaxTicks * $TickDuration) / 1000) + 60) * 1000)) {
